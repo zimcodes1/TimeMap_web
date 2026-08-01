@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form";
 import Logo from "@/components/elements/logo";
-import type { LoginSchema } from "@/app/auth/Login";
+import type { LoginSchema } from "@/app/auth/ForgotPassword";
 import { Link } from "@tanstack/react-router";
 
 const fadeUp = (delay = 0) => ({
