@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { Text } from './text';
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-gray-200 bg-white text-gray-900 shadow-sm transition-all dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100',
+        'rounded-xl border border-border bg-surface text-text-main shadow-sm transition-all',
         className
       )}
       {...props}
@@ -17,18 +18,34 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
 }
 
-export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+export interface CardTitleProps extends Omit<React.HTMLAttributes<HTMLHeadingElement>, 'color'> {}
+
+export function CardTitle({ className, children, ...props }: CardTitleProps) {
   return (
-    <h3
-      className={cn('text-lg font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100', className)}
+    <Text
+      variant="h5"
+      weight="semibold"
+      color="default"
+      className={cn('leading-none tracking-tight', className)}
       {...props}
-    />
+    >
+      {children}
+    </Text>
   );
 }
 
-export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+export interface CardDescriptionProps extends Omit<React.HTMLAttributes<HTMLParagraphElement>, 'color'> {}
+
+export function CardDescription({ className, children, ...props }: CardDescriptionProps) {
   return (
-    <p className={cn('text-sm text-gray-500 dark:text-gray-400', className)} {...props} />
+    <Text
+      variant="body-sm"
+      color="muted"
+      className={cn(className)}
+      {...props}
+    >
+      {children}
+    </Text>
   );
 }
 

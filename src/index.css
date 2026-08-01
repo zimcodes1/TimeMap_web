@@ -1,16 +1,29 @@
 @import 'tailwindcss';
 
-/* ─── Design Token Registry (Tailwind v4 @theme) ─────────────────────────────
-   These map CSS custom properties to Tailwind utility classes so you can write
-   classes like bg-primary, text-text-main, border-border, etc.
-   ─────────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Source";
+  src: url("/fonts/source-sans-pro-v14-latin-700.ttf");
+}
+
+* {
+  font-family: Source;
+  font-weight: 600;
+}
+
 @theme {
-  /* Brand */
+  /* Brand Primary */
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
   --color-primary-muted: var(--color-primary-muted);
+  --color-primary-foreground: var(--color-primary-foreground);
 
-  /* Surfaces */
+  /* Secondary */
+  --color-secondary: var(--color-secondary);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-secondary-muted: var(--color-secondary-muted);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+
+  /* Surfaces & Backgrounds */
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
   --color-surface-raised: var(--color-surface-raised);
@@ -19,174 +32,114 @@
   --color-text-main: var(--color-text-main);
   --color-text-muted: var(--color-text-muted);
   --color-text-subtle: var(--color-text-subtle);
+  --color-text-inverse: var(--color-text-inverse);
 
-  /* Borders */
+  /* Borders & Ring */
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
+  --color-ring: var(--color-ring);
 
-  /* Semantic */
+  /* Semantic - Danger */
   --color-danger: var(--color-danger);
   --color-danger-hover: var(--color-danger-hover);
   --color-danger-surface: var(--color-danger-surface);
+  --color-danger-foreground: var(--color-danger-foreground);
+
+  /* Semantic - Success */
   --color-success: var(--color-success);
   --color-success-hover: var(--color-success-hover);
+  --color-success-surface: var(--color-success-surface);
+  --color-success-foreground: var(--color-success-foreground);
+
+  /* Semantic - Warning */
   --color-warning: var(--color-warning);
+  --color-warning-hover: var(--color-warning-hover);
   --color-warning-surface: var(--color-warning-surface);
+  --color-warning-foreground: var(--color-warning-foreground);
+
+  /* Semantic - Info */
+  --color-info: var(--color-info);
+  --color-info-hover: var(--color-info-hover);
+  --color-info-surface: var(--color-info-surface);
+  --color-info-foreground: var(--color-info-foreground);
 }
 
 /* ─── Light Theme ─────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    /* Brand — project's true primary: emerald green */
-    --color-primary: #10b981;         /* emerald-500 */
-    --color-primary-hover: #059669;   /* emerald-600 */
-    --color-primary-muted: #d1fae5;   /* emerald-100 – used for badges, chips */
+    /* Brand Primary — emerald green */
+    --color-primary: #10b981;
+    /* emerald-500 */
+    --color-primary-hover: #059669;
+    /* emerald-600 */
+    --color-primary-muted: #d1fae5;
+    /* emerald-100 */
+    --color-primary-foreground: #ffffff;
+
+    /* Secondary */
+    --color-secondary: #f3f4f6;
+    /* gray-100 */
+    --color-secondary-hover: #e5e7eb;
+    /* gray-200 */
+    --color-secondary-muted: #e5e7eb;
+    --color-secondary-foreground: #111827;
 
     /* Surfaces */
-    --color-background: #f3f4f6;      /* gray-100 — main page bg */
-    --color-surface: #ffffff;         /* white — cards, modals */
-    --color-surface-raised: #f9fafb;  /* gray-50 — inputs, sub-sections */
+    --color-background: #f3f4f6;
+    /* gray-100 */
+    --color-surface: #ffffff;
+    /* white */
+    --color-surface-raised: #f9fafb;
+    /* gray-50 */
 
     /* Typography */
-    --color-text-main: #111827;       /* gray-900 */
-    --color-text-muted: #4b5563;      /* gray-600 */
-    --color-text-subtle: #9ca3af;     /* gray-400 — placeholders */
+    --color-text-main: #111827;
+    /* gray-900 */
+    --color-text-muted: #4b5563;
+    /* gray-600 */
+    --color-text-subtle: #9ca3af;
+    /* gray-400 */
+    --color-text-inverse: #ffffff;
 
-    /* Borders */
-    --color-border: #e5e7eb;          /* gray-200 */
-    --color-border-strong: #d1d5db;   /* gray-300 */
-
-    /* Semantic */
-    --color-danger: #ef4444;          /* red-500 */
-    --color-danger-hover: #dc2626;    /* red-600 */
-    --color-danger-surface: #fef2f2;  /* red-50 */
-    --color-success: #10b981;         /* emerald-500 */
-    --color-success-hover: #059669;   /* emerald-600 */
-    --color-warning: #f59e0b;         /* amber-500 */
-    --color-warning-surface: #fffbeb; /* amber-50 */
-  }
-
-  /* ─── Dark Theme ────────────────────────────────────────────────────────── */
-  html.dark {
-    /* Brand — brighter emerald so it pops on dark surfaces */
-    --color-primary: #34d399;         /* emerald-400 */
-    --color-primary-hover: #6ee7b7;   /* emerald-300 */
-    --color-primary-muted: #064e3b;   /* emerald-900 — muted badge bg */
-
-    /* Surfaces — mirrors the dashboard's gray-950 / gray-900 / gray-800 stack */
-    --color-background: #030712;      /* gray-950 — main page bg */
-    --color-surface: #111827;         /* gray-900 — cards, modals */
-    --color-surface-raised: #1f2937;  /* gray-800 — inputs, sub-sections */
-
-    /* Typography */
-    --color-text-main: #f9fafb;       /* gray-50 */
-    --color-text-muted: #9ca3af;      /* gray-400 */
-    --color-text-subtle: #6b7280;     /* gray-500 — placeholders */
-
-    /* Borders */
-    --color-border: #374151;          /* gray-700 */
-    --color-border-strong: #4b5563;   /* gray-600 */
+    /* Borders & Ring */
+    --color-border: #e5e7eb;
+    /* gray-200 */
+    --color-border-strong: #d1d5db;
+    /* gray-300 */
+    --color-ring: rgba(16, 185, 129, 0.4);
 
     /* Semantic */
-    --color-danger: #f87171;          /* red-400 */
-    --color-danger-hover: #ef4444;    /* red-500 */
-    --color-danger-surface: #450a0a;  /* red-950 */
-    --color-success: #34d399;         /* emerald-400 */
-    --color-success-hover: #6ee7b7;   /* emerald-300 */
-    --color-warning: #fbbf24;         /* amber-400 */
-    --color-warning-surface: #1c1400; /* custom dark amber bg */
+    --color-danger: #ef4444;
+    /* red-500 */
+    --color-danger-hover: #dc2626;
+    /* red-600 */
+    --color-danger-surface: #fef2f2;
+    /* red-50 */
+    --color-danger-foreground: #ffffff;
+
+    --color-success: #10b981;
+    /* emerald-500 */
+    --color-success-hover: #059669;
+    /* emerald-600 */
+    --color-success-surface: #ecfdf5;
+    /* emerald-50 */
+    --color-success-foreground: #ffffff;
+
+    --color-warning: #f59e0b;
+    /* amber-500 */
+    --color-warning-hover: #d97706;
+    /* amber-600 */
+    --color-warning-surface: #fffbeb;
+    /* amber-50 */
+    --color-warning-foreground: #ffffff;
+
+    --color-info: #3b82f6;
+    /* blue-500 */
+    --color-info-hover: #2563eb;
+    /* blue-600 */
+    --color-info-surface: #eff6ff;
+    /* blue-50 */
+    --color-info-foreground: #ffffff;
   }
-}
 
-
-/* Dark mode configuration */
-@supports (selector(:has(*))) {
-  :root {
-    color-scheme: light dark;
-  }
-  
-  html.dark {
-    color-scheme: dark;
-  }
-}
-
-/* Custom scrollbar styling for tables on small screens */
-.table-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db #f3f4f6;
-}
-
-.table-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-
-.table-scroll::-webkit-scrollbar-track {
-  background: #f3f4f6;
-  border-radius: 4px;
-}
-
-.table-scroll::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
-}
-
-.table-scroll::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Hide scrollbar for Chrome, Safari, and Opera */
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Hide scrollbar for IE, Edge, and Firefox */
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  /* IE and Edge */
-  scrollbar-width: none;
-  /* Firefox */
-  overflow-y: scroll;
-  /* Keep vertical scrolling functional */
-}
-
-.bgImage {
-  background: rgb(4, 4, 20);
-}
-
-/* Dark mode background image */
-html.dark .bgImage {
-  background: rgb(17, 24, 39);
-}
-
-@keyframes blob {
-  0%, 100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-@layer base {
-  input {
-    @apply text-gray-600
-  }
-  select {
-    @apply text-gray-600
-  }
 }

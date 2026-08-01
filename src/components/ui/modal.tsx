@@ -2,6 +2,7 @@ import * as React from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from './button';
+import { Text } from './text';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -56,7 +57,7 @@ export function Modal({
       {/* Container */}
       <div
         className={cn(
-          'relative w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl transition-all dark:border-gray-800 dark:bg-gray-900 z-10 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200',
+          'relative w-full rounded-2xl border border-border bg-surface p-6 shadow-2xl transition-all z-10 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 text-text-main',
           sizeClasses[size]
         )}
       >
@@ -77,19 +78,27 @@ export function Modal({
         {(title || description) && (
           <div className="flex flex-col gap-1 pr-8">
             {title && (
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+              typeof title === 'string' ? (
+                <Text variant="h4" weight="bold" color="default">{title}</Text>
+              ) : (
+                title
+              )
             )}
             {description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+              typeof description === 'string' ? (
+                <Text variant="body-sm" color="muted">{description}</Text>
+              ) : (
+                description
+              )
             )}
           </div>
         )}
 
         {/* Body */}
-        <div className="flex-1 text-sm text-gray-700 dark:text-gray-300">{children}</div>
+        <div className="flex-1 text-sm text-text-main">{children}</div>
 
         {/* Footer */}
-        {footer && <div className="flex items-center justify-end gap-3 pt-2">{footer}</div>}
+        {footer && <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">{footer}</div>}
       </div>
     </div>
   );
