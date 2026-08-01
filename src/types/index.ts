@@ -13,6 +13,8 @@ export interface User {
   // Admin properties
   adminLevel?: 'department' | 'faculty' | 'school';
   adminScopeId?: string;
+  // Staff
+  staffId?: string;
 }
 
 export interface Facility {
