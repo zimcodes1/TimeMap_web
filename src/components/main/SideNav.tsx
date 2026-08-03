@@ -189,10 +189,10 @@ export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavP
                       to={item.to}
                       onClick={onCloseMobile}
                       className={cn(
-                        "flex items-center gap-3 rounded-xl transition-all duration-200 text-sm font-medium",
-                        collapsed ? "justify-center p-2.5" : "px-3 py-2.5",
+                        "flex items-center gap-3 rounded-lg transition-all duration-200 text-sm font-medium",
+                        collapsed ? "justify-center p-2.5" : "px-3 py-3 hover:pl-5",
                         active
-                          ? "bg-white text-primary shadow-sm font-bold"
+                          ? "bg-white/20 text-white font-bold border-r-5 rounded-r-xs"
                           : "text-white/80 hover:bg-white/15 hover:text-white"
                       )}
                     >
@@ -219,7 +219,7 @@ export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavP
         {/* User Card */}
         <div
           className={cn(
-            "flex items-center gap-3 p-2 rounded-xl bg-white/10 border border-white/15 backdrop-blur-xs transition-colors hover:bg-white/20 text-white",
+            "flex items-center gap-3 p-2 rounded-xl bg-white/10 backdrop-blur-xs transition-colors hover:bg-white/20 text-white",
             collapsed && "justify-center p-1.5"
           )}
         >
@@ -250,7 +250,7 @@ export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavP
         <button
           type="button"
           onClick={onToggle}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/90 hover:text-white transition-all text-xs font-semibold cursor-pointer"
+          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/90 hover:text-white transition-all text-xs font-semibold cursor-pointer"
         >
           {!collapsed && <span>Collapse Menu</span>}
           <div className={cn("p-1 rounded-md", collapsed && "mx-auto")}>

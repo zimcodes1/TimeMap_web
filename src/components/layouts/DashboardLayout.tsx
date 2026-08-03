@@ -23,7 +23,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Scrollable View Container */}
-        <main className="flex-1 overflow-y-auto p-1 sm:p-4 pt-0">
+        <main className="flex-1 overflow-y-auto p-1 sm:p-4 sm:pt-0">
           <div className="min-h-full rounded-2xl md:rounded-3xl border border-border bg-surface p-4 md:p-6 shadow-sm">
             <Outlet />
           </div>
