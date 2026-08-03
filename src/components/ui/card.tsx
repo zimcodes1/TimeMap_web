@@ -6,7 +6,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-surface text-text-main shadow-sm transition-all',
+        'rounded-xl border border-border bg-surface-raised text-text-main shadow-sm transition-all',
         className
       )}
       {...props}
@@ -18,7 +18,8 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return <div className={cn('flex flex-col space-y-1.5 p-6', className)} {...props} />;
 }
 
-export interface CardTitleProps extends Omit<React.HTMLAttributes<HTMLHeadingElement>, 'color'> {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CardTitleProps extends Omit<React.HTMLAttributes<HTMLHeadingElement>, 'color'> { }
 
 export function CardTitle({ className, children, ...props }: CardTitleProps) {
   return (
@@ -34,7 +35,8 @@ export function CardTitle({ className, children, ...props }: CardTitleProps) {
   );
 }
 
-export interface CardDescriptionProps extends Omit<React.HTMLAttributes<HTMLParagraphElement>, 'color'> {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CardDescriptionProps extends Omit<React.HTMLAttributes<HTMLParagraphElement>, 'color'> { }
 
 export function CardDescription({ className, children, ...props }: CardDescriptionProps) {
   return (

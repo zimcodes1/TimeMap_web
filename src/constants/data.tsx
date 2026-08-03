@@ -6,6 +6,10 @@ import {
   ClipboardList,
   BookOpen,
   Settings,
+  Building2,
+  Users,
+  ShieldCheck,
+  Bell,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -44,14 +48,9 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Timetables",
         icon: <Calendar size={18} />,
         to: "/schedules",
-        children: [
-          { label: "All Schedules", to: "/schedules" },
-          { label: "Lecture Timetable", to: "/schedules/lectures" },
-          { label: "Exam Timetable", to: "/schedules/exams" },
-        ],
       },
       {
-        label: "Venues",
+        label: "Venues & Facilities",
         icon: <MapPin size={18} />,
         to: "/venues",
       },
@@ -60,6 +59,16 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Management",
     items: [
+      {
+        label: "Hierarchy Tree",
+        icon: <Building2 size={18} />,
+        to: "/hierarchy",
+      },
+      {
+        label: "Courses & Sharing",
+        icon: <BookOpen size={18} />,
+        to: "/courses",
+      },
       {
         label: "Discrepancy Requests",
         icon: <AlertTriangle size={18} />,
@@ -71,15 +80,25 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/reports",
       },
       {
-        label: "Courses & Staff",
-        icon: <BookOpen size={18} />,
-        to: "/courses",
+        label: "User Directory",
+        icon: <Users size={18} />,
+        to: "/users",
       },
     ],
   },
   {
     title: "System",
     items: [
+      {
+        label: "Audit Logs",
+        icon: <ShieldCheck size={18} />,
+        to: "/audit-logs",
+      },
+      {
+        label: "Notifications",
+        icon: <Bell size={18} />,
+        to: "/notifications",
+      },
       {
         label: "Settings",
         icon: <Settings size={18} />,

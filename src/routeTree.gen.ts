@@ -15,7 +15,17 @@ import { Route as MainRouteRouteImport } from './routes/_main/route'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/_auth/login'
 import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-password'
+import { Route as MainAuditLogsRouteImport } from './routes/_main/audit-logs'
+import { Route as MainCoursesRouteImport } from './routes/_main/courses'
 import { Route as MainDashboardRouteImport } from './routes/_main/dashboard'
+import { Route as MainHierarchyRouteImport } from './routes/_main/hierarchy'
+import { Route as MainNotificationsRouteImport } from './routes/_main/notifications'
+import { Route as MainReportsRouteImport } from './routes/_main/reports'
+import { Route as MainRequestsRouteImport } from './routes/_main/requests'
+import { Route as MainSchedulesRouteImport } from './routes/_main/schedules'
+import { Route as MainSettingsRouteImport } from './routes/_main/settings'
+import { Route as MainUsersRouteImport } from './routes/_main/users'
+import { Route as MainVenuesRouteImport } from './routes/_main/venues'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -45,9 +55,59 @@ const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => AuthRouteRoute,
 } as any)
+const MainAuditLogsRoute = MainAuditLogsRouteImport.update({
+  id: '/audit-logs',
+  path: '/audit-logs',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainCoursesRoute = MainCoursesRouteImport.update({
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const MainDashboardRoute = MainDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainHierarchyRoute = MainHierarchyRouteImport.update({
+  id: '/hierarchy',
+  path: '/hierarchy',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainNotificationsRoute = MainNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainReportsRoute = MainReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainRequestsRoute = MainRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainSchedulesRoute = MainSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainSettingsRoute = MainSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainUsersRoute = MainUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainVenuesRoute = MainVenuesRouteImport.update({
+  id: '/venues',
+  path: '/venues',
   getParentRoute: () => MainRouteRoute,
 } as any)
 
@@ -56,14 +116,34 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
+  '/audit-logs': typeof MainAuditLogsRoute
+  '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/hierarchy': typeof MainHierarchyRoute
+  '/notifications': typeof MainNotificationsRoute
+  '/reports': typeof MainReportsRoute
+  '/requests': typeof MainRequestsRoute
+  '/schedules': typeof MainSchedulesRoute
+  '/settings': typeof MainSettingsRoute
+  '/users': typeof MainUsersRoute
+  '/venues': typeof MainVenuesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
+  '/audit-logs': typeof MainAuditLogsRoute
+  '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/hierarchy': typeof MainHierarchyRoute
+  '/notifications': typeof MainNotificationsRoute
+  '/reports': typeof MainReportsRoute
+  '/requests': typeof MainRequestsRoute
+  '/schedules': typeof MainSchedulesRoute
+  '/settings': typeof MainSettingsRoute
+  '/users': typeof MainUsersRoute
+  '/venues': typeof MainVenuesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -73,14 +153,53 @@ export interface FileRoutesById {
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
+  '/_main/audit-logs': typeof MainAuditLogsRoute
+  '/_main/courses': typeof MainCoursesRoute
   '/_main/dashboard': typeof MainDashboardRoute
+  '/_main/hierarchy': typeof MainHierarchyRoute
+  '/_main/notifications': typeof MainNotificationsRoute
+  '/_main/reports': typeof MainReportsRoute
+  '/_main/requests': typeof MainRequestsRoute
+  '/_main/schedules': typeof MainSchedulesRoute
+  '/_main/settings': typeof MainSettingsRoute
+  '/_main/users': typeof MainUsersRoute
+  '/_main/venues': typeof MainVenuesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/forgot-password' | '/login' | '/reset-password' | '/dashboard'
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/audit-logs'
+    | '/courses'
+    | '/dashboard'
+    | '/hierarchy'
+    | '/notifications'
+    | '/reports'
+    | '/requests'
+    | '/schedules'
+    | '/settings'
+    | '/users'
+    | '/venues'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/forgot-password' | '/login' | '/reset-password' | '/dashboard'
+  to:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/reset-password'
+    | '/audit-logs'
+    | '/courses'
+    | '/dashboard'
+    | '/hierarchy'
+    | '/notifications'
+    | '/reports'
+    | '/requests'
+    | '/schedules'
+    | '/settings'
+    | '/users'
+    | '/venues'
   id:
     | '__root__'
     | '/'
@@ -89,7 +208,17 @@ export interface FileRouteTypes {
     | '/_auth/forgot-password'
     | '/_auth/login'
     | '/_auth/reset-password'
+    | '/_main/audit-logs'
+    | '/_main/courses'
     | '/_main/dashboard'
+    | '/_main/hierarchy'
+    | '/_main/notifications'
+    | '/_main/reports'
+    | '/_main/requests'
+    | '/_main/schedules'
+    | '/_main/settings'
+    | '/_main/users'
+    | '/_main/venues'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -142,11 +271,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof AuthRouteRoute
     }
+    '/_main/audit-logs': {
+      id: '/_main/audit-logs'
+      path: '/audit-logs'
+      fullPath: '/audit-logs'
+      preLoaderRoute: typeof MainAuditLogsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/courses': {
+      id: '/_main/courses'
+      path: '/courses'
+      fullPath: '/courses'
+      preLoaderRoute: typeof MainCoursesRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/_main/dashboard': {
       id: '/_main/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof MainDashboardRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/hierarchy': {
+      id: '/_main/hierarchy'
+      path: '/hierarchy'
+      fullPath: '/hierarchy'
+      preLoaderRoute: typeof MainHierarchyRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/notifications': {
+      id: '/_main/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof MainNotificationsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/reports': {
+      id: '/_main/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof MainReportsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/requests': {
+      id: '/_main/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof MainRequestsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/schedules': {
+      id: '/_main/schedules'
+      path: '/schedules'
+      fullPath: '/schedules'
+      preLoaderRoute: typeof MainSchedulesRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/settings': {
+      id: '/_main/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof MainSettingsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/users': {
+      id: '/_main/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof MainUsersRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/venues': {
+      id: '/_main/venues'
+      path: '/venues'
+      fullPath: '/venues'
+      preLoaderRoute: typeof MainVenuesRouteImport
       parentRoute: typeof MainRouteRoute
     }
   }
@@ -169,11 +368,31 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
 )
 
 interface MainRouteRouteChildren {
+  MainAuditLogsRoute: typeof MainAuditLogsRoute
+  MainCoursesRoute: typeof MainCoursesRoute
   MainDashboardRoute: typeof MainDashboardRoute
+  MainHierarchyRoute: typeof MainHierarchyRoute
+  MainNotificationsRoute: typeof MainNotificationsRoute
+  MainReportsRoute: typeof MainReportsRoute
+  MainRequestsRoute: typeof MainRequestsRoute
+  MainSchedulesRoute: typeof MainSchedulesRoute
+  MainSettingsRoute: typeof MainSettingsRoute
+  MainUsersRoute: typeof MainUsersRoute
+  MainVenuesRoute: typeof MainVenuesRoute
 }
 
 const MainRouteRouteChildren: MainRouteRouteChildren = {
+  MainAuditLogsRoute: MainAuditLogsRoute,
+  MainCoursesRoute: MainCoursesRoute,
   MainDashboardRoute: MainDashboardRoute,
+  MainHierarchyRoute: MainHierarchyRoute,
+  MainNotificationsRoute: MainNotificationsRoute,
+  MainReportsRoute: MainReportsRoute,
+  MainRequestsRoute: MainRequestsRoute,
+  MainSchedulesRoute: MainSchedulesRoute,
+  MainSettingsRoute: MainSettingsRoute,
+  MainUsersRoute: MainUsersRoute,
+  MainVenuesRoute: MainVenuesRoute,
 }
 
 const MainRouteRouteWithChildren = MainRouteRoute._addFileChildren(
