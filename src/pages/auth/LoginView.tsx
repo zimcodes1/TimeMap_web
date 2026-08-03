@@ -1,6 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { IdCard, Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { Text } from "@/components/ui/text";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form";
 import Logo from "@/components/elements/logo";
 import type { LoginSchema } from "@/app/auth/Login";
+import { Link } from "@tanstack/react-router";
 
 const fadeUp = (delay = 0) => ({
 	initial: { opacity: 0, y: 20 },
@@ -53,16 +54,15 @@ export default function LoginView({ onSubmit, isLoading }: LoginViewProps) {
 				{/* Form */}
 				<form onSubmit={onSubmit} className="flex flex-col gap-4">
 					<motion.div {...fadeUp(0.1)}>
-						<FormField<LoginSchema> name="email">
+						<FormField<LoginSchema> name="id">
 							{(field) => (
 								<Input
 									{...field}
-									label="NSUK ID"
+									label="Staff ID"
 									type="text"
-									placeholder="FT22ABC0123"
-									leftIcon={<Mail size={15} />}
-									error={errors.email?.message}
-									autoComplete="email"
+									placeholder="Staff ID or Email"
+									leftIcon={<IdCard size={15} />}
+									error={errors.id?.message}
 								/>
 							)}
 						</FormField>
@@ -94,12 +94,14 @@ export default function LoginView({ onSubmit, isLoading }: LoginViewProps) {
 					</motion.div>
 
 					<motion.div {...fadeUp(0.2)} className="flex justify-end">
-						<button
-							type="button"
-							className="text-xs text-primary hover:text-primary-hover transition-colors font-medium cursor-pointer"
-						>
-							Forgot password?
-						</button>
+						<Link to="/forgot-password">
+							<button
+								type="button"
+								className="text-xs text-primary hover:text-primary-hover transition-colors font-medium cursor-pointer"
+							>
+								Forgot password?
+							</button>
+						</Link>
 					</motion.div>
 
 					<motion.div {...fadeUp(0.25)}>

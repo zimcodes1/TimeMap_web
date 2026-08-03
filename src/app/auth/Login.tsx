@@ -2,11 +2,12 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import AuthSplitLayout from "@/components/layouts/AuthSplitLayout";
+import { useNavigate } from "@tanstack/react-router";
 import LoginView from "@/pages/auth/LoginView";
+import { toast } from "sonner";
 
 export const loginSchema = z.object({
-	email: z.string().min(1, "Email is required").email("Enter a valid email"),
+	id: z.string().min(1, "Email or Staff ID is required"),
 	password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -17,14 +18,18 @@ export default function Login() {
 
 	const methods = useForm<LoginSchema>({
 		resolver: zodResolver(loginSchema),
-		defaultValues: { email: "", password: "" },
+		defaultValues: { id: "", password: "" },
 	});
+
+	const navigate = useNavigate();
 
 	const onSubmit = methods.handleSubmit(async (data) => {
 		setIsLoading(true);
 		try {
 			console.log("Login payload:", data);
 			// TODO: wire up auth API call here
+			toast.success("Login successful");
+			navigate({ to: "/reset-password" });
 		} finally {
 			setIsLoading(false);
 		}
