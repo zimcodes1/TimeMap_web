@@ -81,7 +81,7 @@ export default function CoursesView({
       </div>
 
       {/* Content Tables */}
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
         {activeTab === 'catalog' && (
           <Table>
             <thead>

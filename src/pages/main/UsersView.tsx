@@ -73,7 +73,7 @@ export default function UsersView({
       </div>
 
       {/* Table */}
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
         {activeTab === 'admin' && (
           <Table>
             <thead>

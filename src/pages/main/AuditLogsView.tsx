@@ -28,7 +28,7 @@ export default function AuditLogsView({
       </div>
 
       {/* Audit Table */}
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
         <Table>
           <thead>
             <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">

@@ -102,7 +102,6 @@ export default function DashboardView({
             <Text variant="h5" weight="bold" className="text-emerald-600">
               Operational
             </Text>
-            <Badge variant="success">Conflict Engine Active</Badge>
           </div>
         </Card>
       </div>

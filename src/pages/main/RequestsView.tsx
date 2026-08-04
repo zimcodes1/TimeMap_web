@@ -47,8 +47,8 @@ export default function RequestsView({
         <button
           onClick={() => setActiveTab('pending')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'pending'
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
+            ? 'bg-primary text-white shadow-sm'
+            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
             }`}
         >
           <Clock size={16} /> Pending Approvals ({requests.filter((r) => r.status === 'pending').length})
@@ -56,8 +56,8 @@ export default function RequestsView({
         <button
           onClick={() => setActiveTab('all')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'all'
-              ? 'bg-primary text-white shadow-sm'
-              : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
+            ? 'bg-primary text-white shadow-sm'
+            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
             }`}
         >
           <AlertTriangle size={16} /> All History ({requests.length})
@@ -65,7 +65,7 @@ export default function RequestsView({
       </div>
 
       {/* Requests Table */}
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
         <Table>
           <thead>
             <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
