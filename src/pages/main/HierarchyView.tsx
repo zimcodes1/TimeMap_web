@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Table } from '@/components/ui/table';
-import { Plus, Building2, School as SchoolIcon, Network } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { TabSwitcher } from '@/components/ui/tabs';
+import { TableToolbar } from '@/components/ui/table-toolbar';
+import { DataTable } from '@/components/ui/data-table';
+import { OrgTree } from '@/components/elements/OrgTree';
+import { Plus, Building2, School as SchoolIcon, Network, GitMerge, Edit2, Trash2 } from 'lucide-react';
 import type { School, Faculty, Department } from '@/types';
 
 interface HierarchyViewProps {
@@ -13,6 +16,10 @@ interface HierarchyViewProps {
   onOpenCreateSchool: () => void;
   onOpenCreateFaculty: () => void;
   onOpenCreateDepartment: () => void;
+  onEditSchool: (school: School) => void;
+  onEditFaculty: (faculty: Faculty) => void;
+  onEditDepartment: (dept: Department) => void;
+  onDeleteTrigger: (id: string, name: string, type: 'School' | 'Faculty' | 'Department') => void;
 }
 
 export default function HierarchyView({
@@ -22,17 +29,49 @@ export default function HierarchyView({
   onOpenCreateSchool,
   onOpenCreateFaculty,
   onOpenCreateDepartment,
+  onEditSchool,
+  onEditFaculty,
+  onEditDepartment,
+  onDeleteTrigger,
 }: HierarchyViewProps) {
-  const [activeTab, setActiveTab] = useState<'schools' | 'faculties' | 'departments'>('departments');
+  const [activeTab, setActiveTab] = useState<'departments' | 'faculties' | 'schools' | 'tree'>('departments');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter lists based on search query
+  const filteredDepartments = departments.filter(
+    (d) =>
+      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.facultyName && d.facultyName.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredFaculties = faculties.filter(
+    (f) =>
+      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (f.schoolName && f.schoolName.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredSchools = schools.filter(
+    (s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text variant="h3" weight="bold" className="text-text-main">
-            Hierarchy Management
-          </Text>
+          <div className="flex items-center gap-2">
+            <Text variant="h3" weight="bold" className="text-text-main">
+              Hierarchy Management
+            </Text>
+            <Badge variant="primary" className="text-xs">
+              Scope: University Wide
+            </Badge>
+          </div>
           <Text variant="body-sm" color="muted">
             Institutional structure tree — Schools, Faculties, and Departments.
           </Text>
@@ -56,100 +95,198 @@ export default function HierarchyView({
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <button
-          onClick={() => setActiveTab('departments')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'departments'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <Building2 size={16} /> Departments ({departments.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('faculties')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'faculties'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <Network size={16} /> Faculties ({faculties.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('schools')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'schools'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <SchoolIcon size={16} /> Schools ({schools.length})
-        </button>
-      </div>
+      {/* Navigation Sub-Tabs with styling */}
+      <TabSwitcher
+        tabs={[
+          { id: 'departments', label: 'Departments', icon: Building2, count: departments.length },
+          { id: 'faculties', label: 'Faculties', icon: Network, count: faculties.length },
+          { id: 'schools', label: 'Schools', icon: SchoolIcon, count: schools.length },
+          { id: 'tree', label: 'Organizational Tree View', icon: GitMerge },
+        ]}
+        activeTab={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab as typeof activeTab);
+          setCurrentPage(1);
+        }}
+      />
 
-      {/* Content Tables */}
-      <Card className="p-4 overflow-x-auto">
-        {activeTab === 'departments' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Code</th>
-                <th className="py-3 px-2">Department Name</th>
-                <th className="py-3 px-2">Parent Faculty</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {departments.map((dept) => (
-                <tr key={dept.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-bold text-primary">{dept.code}</td>
-                  <td className="py-3 px-2 font-medium">{dept.name}</td>
-                  <td className="py-3 px-2 text-text-muted">{dept.facultyName || 'FNS'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+      {/* Organizational Tree View */}
+      {activeTab === 'tree' ? (
+        <OrgTree schools={schools} faculties={faculties} departments={departments} />
+      ) : (
+        <div className="space-y-4">
+          {/* Table Toolbar */}
+          <TableToolbar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder={`Search ${activeTab}...`}
+            totalCount={
+              activeTab === 'departments'
+                ? departments.length
+                : activeTab === 'faculties'
+                  ? faculties.length
+                  : schools.length
+            }
+            filteredCount={
+              activeTab === 'departments'
+                ? filteredDepartments.length
+                : activeTab === 'faculties'
+                  ? filteredFaculties.length
+                  : filteredSchools.length
+            }
+          />
 
-        {activeTab === 'faculties' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Code</th>
-                <th className="py-3 px-2">Faculty Name</th>
-                <th className="py-3 px-2">Parent School</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {faculties.map((fac) => (
-                <tr key={fac.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-bold text-primary">{fac.code}</td>
-                  <td className="py-3 px-2 font-medium">{fac.name}</td>
-                  <td className="py-3 px-2 text-text-muted">{fac.schoolName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+          {/* Departments Table */}
+          {activeTab === 'departments' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'Department Code',
+                  accessor: (dept: Department) => (
+                    <span className="font-bold text-primary">{dept.code}</span>
+                  ),
+                },
+                {
+                  header: 'Department Name',
+                  accessor: (dept: Department) => <span className="font-medium">{dept.name}</span>,
+                },
+                {
+                  header: 'Parent Faculty',
+                  accessor: (dept: Department) => (
+                    <span className="text-text-muted">{dept.facultyName || 'FNS'}</span>
+                  ),
+                },
+                {
+                  header: 'Actions',
+                  align: 'right',
+                  accessor: (dept: Department) => (
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditDepartment(dept)}
+                        className="h-8 px-2"
+                      >
+                        <Edit2 size={14} className="mr-1" /> Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteTrigger(dept.id, dept.name, 'Department')}
+                        className="h-8 px-2 text-danger hover:bg-danger-surface border-danger-surface"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+              data={filteredDepartments}
+              keyExtractor={(d) => d.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
 
-        {activeTab === 'schools' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Code</th>
-                <th className="py-3 px-2">School Name</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {schools.map((sch) => (
-                <tr key={sch.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-bold text-primary">{sch.code}</td>
-                  <td className="py-3 px-2 font-medium">{sch.name}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </Card>
+          {/* Faculties Table */}
+          {activeTab === 'faculties' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'Faculty Code',
+                  accessor: (fac: Faculty) => (
+                    <span className="font-bold text-primary">{fac.code}</span>
+                  ),
+                },
+                {
+                  header: 'Faculty Name',
+                  accessor: (fac: Faculty) => <span className="font-medium">{fac.name}</span>,
+                },
+                {
+                  header: 'Parent School',
+                  accessor: (fac: Faculty) => (
+                    <span className="text-text-muted">{fac.schoolName}</span>
+                  ),
+                },
+                {
+                  header: 'Actions',
+                  align: 'right',
+                  accessor: (fac: Faculty) => (
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditFaculty(fac)}
+                        className="h-8 px-2"
+                      >
+                        <Edit2 size={14} className="mr-1" /> Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteTrigger(fac.id, fac.name, 'Faculty')}
+                        className="h-8 px-2 text-danger hover:bg-danger-surface border-danger-surface"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+              data={filteredFaculties}
+              keyExtractor={(f) => f.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+
+          {/* Schools Table */}
+          {activeTab === 'schools' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'School Code',
+                  accessor: (sch: School) => (
+                    <span className="font-bold text-primary">{sch.code}</span>
+                  ),
+                },
+                {
+                  header: 'School Name',
+                  accessor: (sch: School) => <span className="font-medium">{sch.name}</span>,
+                },
+                {
+                  header: 'Actions',
+                  align: 'right',
+                  accessor: (sch: School) => (
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onEditSchool(sch)}
+                        className="h-8 px-2"
+                      >
+                        <Edit2 size={14} className="mr-1" /> Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteTrigger(sch.id, sch.name, 'School')}
+                        className="h-8 px-2 text-danger hover:bg-danger-surface border-danger-surface"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ),
+                },
+              ]}
+              data={filteredSchools}
+              keyExtractor={(s) => s.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

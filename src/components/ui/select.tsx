@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface SelectOption {
-  value: string;
+  value: string | number;
   label: string;
   disabled?: boolean;
 }
@@ -12,11 +12,11 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
   label?: string;
   error?: string;
   helperText?: string;
-  options: SelectOption[];
+  options?: SelectOption[];
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, error, helperText, options, id, ...props }, ref) => {
+  ({ className, label, error, helperText, options, children, id, ...props }, ref) => {
     const generatedId = React.useId();
     const selectId = id || generatedId;
 
@@ -40,11 +40,13 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             {...props}
           >
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value} disabled={opt.disabled} className="bg-surface text-text-main">
-                {opt.label}
-              </option>
-            ))}
+            {options
+              ? options.map((opt) => (
+                  <option key={opt.value} value={opt.value} disabled={opt.disabled} className="bg-surface text-text-main">
+                    {opt.label}
+                  </option>
+                ))
+              : children}
           </select>
           <ChevronDown className="absolute right-3 h-4 w-4 text-text-subtle pointer-events-none" />
         </div>

@@ -3,6 +3,7 @@ import VenuesView from '@/pages/main/VenuesView';
 import CreateVenueModal from '@/components/modals/CreateVenueModal';
 import CreateFacilityModal from '@/components/modals/CreateFacilityModal';
 import ToggleVenueStatusModal from '@/components/modals/ToggleVenueStatusModal';
+import EditVenueModal from '@/components/modals/EditVenueModal';
 import { mockVenues, mockFacilities, mockDepartments } from '@/constants/mockData';
 import type { Venue, Facility } from '@/types';
 
@@ -10,43 +11,48 @@ export default function VenuesContainer() {
   const [venues, setVenues] = useState<Venue[]>(mockVenues);
   const [facilities, setFacilities] = useState<Facility[]>(mockFacilities);
 
-  const [isVenueModalOpen, setIsVenueModalOpen] = useState(false);
-  const [isFacilityModalOpen, setIsFacilityModalOpen] = useState(false);
-  const [selectedVenueForStatus, setSelectedVenueForStatus] = useState<Venue | null>(null);
+  const [isCreateVenueOpen, setIsCreateVenueOpen] = useState(false);
+  const [isCreateFacilityOpen, setIsCreateFacilityOpen] = useState(false);
+  const [toggleStatusTarget, setToggleStatusTarget] = useState<Venue | null>(null);
+  const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
 
   const handleCreateVenue = (data: Partial<Venue>) => {
     const newVenue: Venue = {
-      id: `ven_${Date.now()}`,
-      name: data.name || 'New Venue',
-      code: data.code,
-      building: data.building,
-      venueType: data.venueType || 'lecture_hall',
+      id: `v_${Date.now()}`,
+      name: data.name || 'New Hall',
+      code: data.code || 'NH-01',
       capacity: data.capacity || 100,
       examCapacity: data.examCapacity || 50,
+      building: data.building || 'Main Campus',
       facilities: data.facilities || [],
       owningLevel: data.owningLevel || 'department',
       owningDepartmentId: data.owningDepartmentId,
       isAvailable: true,
+      venueType: data.venueType || 'lecture_hall',
     };
     setVenues((prev) => [newVenue, ...prev]);
   };
 
   const handleCreateFacility = (data: { name: string }) => {
-    const newFacility: Facility = {
+    const newFac: Facility = {
       id: `fac_${Date.now()}`,
       name: data.name,
     };
-    setFacilities((prev) => [...prev, newFacility]);
+    setFacilities((prev) => [...prev, newFac]);
   };
 
-  const handleToggleStatusConfirm = () => {
-    if (!selectedVenueForStatus) return;
+  const handleEditVenue = (id: string, updated: Partial<Venue>) => {
+    setVenues((prev) => prev.map((v) => (v.id === id ? { ...v, ...updated } : v)));
+  };
+
+  const handleToggleStatus = () => {
+    if (!toggleStatusTarget) return;
+    const targetId = toggleStatusTarget.id;
+    const targetStatus = !toggleStatusTarget.isAvailable;
     setVenues((prev) =>
-      prev.map((v) =>
-        v.id === selectedVenueForStatus.id ? { ...v, isAvailable: !v.isAvailable } : v
-      )
+      prev.map((v) => (v.id === targetId ? { ...v, isAvailable: targetStatus } : v))
     );
-    setSelectedVenueForStatus(null);
+    setToggleStatusTarget(null);
   };
 
   return (
@@ -54,30 +60,39 @@ export default function VenuesContainer() {
       <VenuesView
         venues={venues}
         facilities={facilities}
-        onOpenCreateVenue={() => setIsVenueModalOpen(true)}
-        onOpenCreateFacility={() => setIsFacilityModalOpen(true)}
-        onToggleStatusTrigger={(venue) => setSelectedVenueForStatus(venue)}
+        onOpenCreateVenue={() => setIsCreateVenueOpen(true)}
+        onOpenCreateFacility={() => setIsCreateFacilityOpen(true)}
+        onEditVenue={(v) => setEditingVenue(v)}
+        onToggleStatusTrigger={(v) => setToggleStatusTarget(v)}
       />
 
       <CreateVenueModal
-        isOpen={isVenueModalOpen}
-        onClose={() => setIsVenueModalOpen(false)}
+        isOpen={isCreateVenueOpen}
+        onClose={() => setIsCreateVenueOpen(false)}
         onSubmit={handleCreateVenue}
         facilitiesList={facilities}
         departments={mockDepartments}
       />
 
       <CreateFacilityModal
-        isOpen={isFacilityModalOpen}
-        onClose={() => setIsFacilityModalOpen(false)}
+        isOpen={isCreateFacilityOpen}
+        onClose={() => setIsCreateFacilityOpen(false)}
         onSubmit={handleCreateFacility}
       />
 
+      <EditVenueModal
+        isOpen={Boolean(editingVenue)}
+        onClose={() => setEditingVenue(null)}
+        onSubmit={handleEditVenue}
+        venue={editingVenue}
+        facilitiesList={facilities}
+      />
+
       <ToggleVenueStatusModal
-        isOpen={!!selectedVenueForStatus}
-        onClose={() => setSelectedVenueForStatus(null)}
-        onConfirm={handleToggleStatusConfirm}
-        venue={selectedVenueForStatus}
+        isOpen={Boolean(toggleStatusTarget)}
+        onClose={() => setToggleStatusTarget(null)}
+        onConfirm={handleToggleStatus}
+        venue={toggleStatusTarget}
       />
     </>
   );

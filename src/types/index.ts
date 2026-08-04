@@ -1,30 +1,27 @@
-export type UserRole = 'student' | 'lecturer' | 'admin';
-export type AdminLevel = 'department' | 'faculty' | 'school';
+// User & Hierarchy Types
+export type UserRole = 'admin' | 'lecturer' | 'student';
+export type AdminLevel = 'university' | 'school' | 'faculty' | 'department';
 
 export interface User {
   id: string;
+  identifier: string;
   name: string;
   email: string;
   role: UserRole;
-  identifier?: string;
   avatarUrl?: string;
-  requiresPasswordReset?: boolean;
-  isActive?: boolean;
-  // Student properties
-  isClassRep?: boolean;
-  matricNumber?: string;
-  departmentId?: string;
-  departmentName?: string;
-  level?: number;
-  // Admin properties
   adminLevel?: AdminLevel;
   adminScopeId?: string;
   adminScopeName?: string;
-  // Staff
+  departmentId?: string;
+  departmentName?: string;
   staffId?: string;
+  matricNumber?: string;
+  level?: number;
+  isClassRep?: boolean;
+  isActive: boolean;
+  requiresPasswordReset?: boolean;
 }
 
-// Hierarchy Types
 export interface School {
   id: string;
   name: string;
@@ -34,61 +31,58 @@ export interface School {
 
 export interface Faculty {
   id: string;
-  schoolId: string;
-  schoolName?: string;
   name: string;
   code: string;
+  schoolId: string;
+  schoolName?: string;
   departmentsCount?: number;
 }
 
 export interface Department {
   id: string;
-  facultyId: string;
-  facultyName?: string;
   name: string;
   code: string;
+  facultyId: string;
+  facultyName?: string;
 }
 
-// Venue Types
+// Venue & Facility Types
+export type VenueType = 'lecture_hall' | 'lab' | 'laboratory' | 'auditorium' | 'classroom' | 'multipurpose';
+
 export interface Facility {
   id: string;
   name: string;
-  icon?: string;
+  description?: string;
 }
-
-export type VenueType = 'lecture_hall' | 'laboratory' | 'exam_hall' | 'multipurpose';
 
 export interface Venue {
   id: string;
   name: string;
   code?: string;
   venueType?: VenueType;
-  building?: string;
   capacity: number;
   examCapacity?: number;
-  facilities: Facility[];
+  building?: string;
   owningLevel: AdminLevel;
   owningDepartmentId?: string;
   owningDepartmentName?: string;
+  facilities: Facility[];
   isAvailable: boolean;
 }
 
-// Course & Sharing Types
+// Academic & Course Types
 export interface Course {
   id: string;
   code: string;
   title: string;
-  level?: number;
+  level: number;
+  creditUnits: number;
   departmentId: string;
   departmentName?: string;
-  creditUnits?: number;
-  owningLevel?: AdminLevel | 'general';
-  lecturers?: User[];
+  owningLevel: AdminLevel;
+  lecturers: User[];
   registrationCount?: number;
 }
-
-export type GrantDirection = 'offered' | 'requested';
-export type GrantStatus = 'pending' | 'approved' | 'rejected';
 
 export interface CourseAccessGrant {
   id: string;
@@ -98,19 +92,10 @@ export interface CourseAccessGrant {
   grantedToLevel: AdminLevel;
   grantedToDepartmentId?: string;
   grantedToDepartmentName?: string;
-  direction: GrantDirection;
-  status: GrantStatus;
+  direction: 'offered' | 'requested';
+  status: 'pending' | 'approved' | 'rejected';
   requestedBy: string;
   createdAt: string;
-}
-
-export interface CourseRegistration {
-  id: string;
-  studentId: string;
-  studentName: string;
-  courseId: string;
-  courseCode: string;
-  academicSession: string;
 }
 
 // Scheduling & Conflict Types
@@ -118,6 +103,8 @@ export type SessionType = 'lecture' | 'exam' | 'event';
 
 export interface TimetableEntry {
   id: string;
+  entryType?: SessionType;
+  title?: string;
   courseId?: string;
   courseCode: string;
   courseTitle: string;
@@ -130,6 +117,7 @@ export interface TimetableEntry {
   endTime: string;
   type: SessionType;
   academicSession?: string;
+  academicSessionId?: string;
   recurrenceRule?: string;
   recurrenceStartDate?: string;
   recurrenceEndDate?: string;
@@ -142,6 +130,7 @@ export type SessionStatus = 'scheduled' | 'shifted' | 'postponed' | 'cancelled' 
 export interface LectureSession {
   id: string;
   entryId: string;
+  timetableEntryId?: string;
   courseCode: string;
   courseTitle: string;
   lecturerName: string;
@@ -156,9 +145,11 @@ export interface LectureSession {
 
 export interface ExamSitting {
   id: string;
-  timetableEntryId: string;
+  timetableEntryId?: string;
+  courseId?: string;
   courseCode: string;
   courseTitle: string;
+  venueId?: string;
   venueName: string;
   date: string;
   startTime: string;
@@ -193,26 +184,32 @@ export interface DiscrepancyRequest {
   requestedByRole: string;
   reason: string;
   requestType: DiscrepancyRequestType;
+  originalVenueName?: string;
+  originalStartTime?: string;
+  originalEndTime?: string;
   proposedVenueId?: string;
   proposedVenueName?: string;
   proposedDate?: string;
   proposedStartTime?: string;
   proposedEndTime?: string;
   status: DiscrepancyStatus;
+  rejectionReason?: string;
   createdAt: string;
-  targetLevel: AdminLevel;
+  targetLevel?: AdminLevel;
 }
 
 // Reporting & Flags Types
 export interface ClassRepReport {
   id: string;
   sessionId: string;
+  sessionDate?: string;
   courseCode: string;
   courseTitle: string;
   held: boolean;
   reasonText?: string;
   reporterName: string;
   timestamp: string;
+  createdAt?: string;
   windowExpiresAt: string;
   lecturerResponse?: string;
 }
@@ -229,21 +226,7 @@ export interface UnreportedSessionFlag {
   acknowledgedAt?: string;
 }
 
-// Notifications Types
-export type NotificationType = 'discrepancy_approved' | 'discrepancy_rejected' | 'session_shifted' | 'session_cancelled' | 'session_unreported';
-
-export interface NotificationItem {
-  id: string;
-  notificationType: NotificationType;
-  title: string;
-  body: string;
-  relatedModel?: string;
-  relatedId?: string;
-  isRead: boolean;
-  createdAt: string;
-}
-
-// Audit Logs Types
+// System & Analytics Types
 export interface AuditLogEntry {
   id: string;
   actorIdentifier: string;
@@ -255,7 +238,25 @@ export interface AuditLogEntry {
   timestamp: string;
 }
 
-// Analytics Types
+export interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  notificationType: 'schedule_change' | 'approval_required' | 'flag_alert' | 'general' | 'discrepancy_approved' | 'session_shifted';
+  isRead: boolean;
+  createdAt: string;
+  relatedModel?: string;
+  relatedModelId?: string;
+  relatedId?: string;
+}
+
+export interface AnalyticsSummary {
+  totalVenues: number;
+  activeCourses: number;
+  pendingDiscrepancies: number;
+  unreportedFlags: number;
+}
+
 export interface HoldRateAnalytics {
   summary: {
     totalReports: number;
@@ -264,26 +265,28 @@ export interface HoldRateAnalytics {
     holdRatePercentage: number;
   };
   breakdown: Array<{
-    courseId: string;
+    courseId?: string;
     courseCode: string;
-    courseTitle: string;
-    totalReports: number;
+    courseTitle?: string;
     heldCount: number;
-    notHeldCount: number;
-    holdRatePercentage: number;
+    notHeldCount?: number;
+    totalCount?: number;
+    totalReports?: number;
+    holdRatePercentage?: number;
   }>;
 }
 
 export interface VenueUtilizationAnalytics {
   summary: {
-    totalVenues: number;
     totalBookedHours: number;
+    totalVenues: number;
   };
   breakdown: Array<{
     venueId: string;
     venueName: string;
     totalBookedHours: number;
-    totalSessions: number;
+    utilizationPercentage?: number;
+    totalSessions?: number;
   }>;
 }
 
@@ -291,14 +294,11 @@ export interface DiscrepancyAnalytics {
   summary: {
     totalDiscrepancies: number;
     byStatus: {
+      pending: number;
       approved: number;
       rejected: number;
-      pending: number;
     };
-    byRequestType: {
-      shift_venue: number;
-      cancel: number;
-      shift_time: number;
-    };
+    byRequestType?: Record<string, number>;
   };
+  byType?: Record<string, number>;
 }

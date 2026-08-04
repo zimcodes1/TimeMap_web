@@ -1,7 +1,9 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import LostPage from "@/pages/lost";
 
 export const Route = createRootRoute({
 	component: RootComponent,
+	notFoundComponent: LostPage,
 });
 
 function RootComponent() {

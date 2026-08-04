@@ -28,7 +28,7 @@ export default function CreateCourseModal({
   const [level, setLevel] = useState(initialData?.level || 300);
   const [creditUnits, setCreditUnits] = useState(initialData?.creditUnits || 3);
   const [departmentId, setDepartmentId] = useState(initialData?.departmentId || departments[0]?.id || '');
-  const [owningLevel, setOwningLevel] = useState<AdminLevel | 'general'>(initialData?.owningLevel || 'department');
+  const [owningLevel, setOwningLevel] = useState<AdminLevel>(initialData?.owningLevel || 'department');
   const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>(
     initialData?.lecturers?.map((l) => l.id) || []
   );
@@ -63,123 +63,109 @@ export default function CreateCourseModal({
       onClose={onClose}
       title={initialData ? 'Edit Course' : 'Create New Course'}
       description="Enter course details and assign teaching staff."
-      size="lg"
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {initialData ? 'Save Changes' : 'Create Course'}
-          </Button>
-        </>
-      }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Course Code
-            </Text>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-text-main">Course Code</label>
             <Input
-              placeholder="e.g. CSC301"
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. CSC 301"
               required
             />
           </div>
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Level
-            </Text>
-            <Select
-              value={String(level)}
-              onChange={(e) => setLevel(Number(e.target.value))}
-              options={[
-                { value: '100', label: '100 Level' },
-                { value: '200', label: '200 Level' },
-                { value: '300', label: '300 Level' },
-                { value: '400', label: '400 Level' },
-                { value: '500', label: '500 Level' },
-              ]}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-text-main">Course Title</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Database Systems"
+              required
             />
           </div>
         </div>
 
-        <div>
-          <Text variant="caption" className="font-semibold mb-1 block">
-            Course Title
-          </Text>
-          <Input
-            placeholder="e.g. Data Structures & Algorithms"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Credit Units
-            </Text>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-text-main">Level</label>
+            <Select
+              value={level}
+              onChange={(e) => setLevel(Number(e.target.value))}
+              options={[
+                { value: 100, label: '100 Level' },
+                { value: 200, label: '200 Level' },
+                { value: 300, label: '300 Level' },
+                { value: 400, label: '400 Level' },
+                { value: 500, label: '500 Level' },
+              ]}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-text-main">Credit Units</label>
             <Input
               type="number"
+              min={1}
+              max={6}
               value={creditUnits}
               onChange={(e) => setCreditUnits(Number(e.target.value))}
               required
             />
           </div>
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Owning Department
-            </Text>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-text-main">Department</label>
             <Select
               value={departmentId}
               onChange={(e) => setDepartmentId(e.target.value)}
-              options={departments.map((d) => ({ value: d.id, label: d.name }))}
-            />
-          </div>
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Owning Scope Level
-            </Text>
-            <Select
-              value={owningLevel}
-              onChange={(e) => setOwningLevel(e.target.value as AdminLevel | 'general')}
-              options={[
-                { value: 'department', label: 'Departmental Course' },
-                { value: 'faculty', label: 'Faculty Wide Course' },
-                { value: 'school', label: 'School Central Course' },
-                { value: 'general', label: 'General Studies (GST)' },
-              ]}
+              options={departments.map((d) => ({ value: d.id, label: `${d.name} (${d.code})` }))}
             />
           </div>
         </div>
 
-        <div>
-          <Text variant="caption" className="font-semibold mb-2 block">
+        <div className="space-y-1">
+          <label className="text-xs font-semibold text-text-main">Owning Scope Level</label>
+          <Select
+            value={owningLevel}
+            onChange={(e) => setOwningLevel(e.target.value as AdminLevel)}
+            options={[
+              { value: 'university', label: 'University Wide' },
+              { value: 'school', label: 'School Level' },
+              { value: 'faculty', label: 'Faculty Level' },
+              { value: 'department', label: 'Department Level' },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Text variant="caption" className="font-semibold text-text-main">
             Assigned Lecturers
           </Text>
-          <div className="flex flex-wrap gap-2">
+          <div className="max-h-36 overflow-y-auto space-y-1 p-2 border border-border rounded-xl bg-surface-raised">
             {lecturers.map((lec) => {
-              const selected = selectedLecturerIds.includes(lec.id);
+              const isSelected = selectedLecturerIds.includes(lec.id);
               return (
-                <button
-                  type="button"
+                <div
                   key={lec.id}
                   onClick={() => toggleLecturer(lec.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                    selected
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-surface text-text-muted border-border hover:bg-surface-raised'
+                  className={`p-2 rounded-lg text-xs cursor-pointer flex items-center justify-between transition-colors ${
+                    isSelected ? 'bg-primary-muted text-primary font-bold' : 'hover:bg-surface'
                   }`}
                 >
-                  {lec.name}
-                </button>
+                  <span>{lec.name}</span>
+                  <span className="text-[10px] text-text-muted">{lec.email}</span>
+                </div>
               );
             })}
           </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" type="button" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit">
+            {initialData ? 'Save Changes' : 'Create Course'}
+          </Button>
         </div>
       </form>
     </Modal>
