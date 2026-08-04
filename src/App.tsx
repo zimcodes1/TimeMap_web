@@ -2,9 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/toast";
 import { routeTree } from "./routeTree.gen";
+import LostPage from "@/pages/lost";
 
 // Create router instance using auto-generated routeTree
-const router = createRouter({ routeTree });
+const router = createRouter({
+	routeTree,
+	defaultNotFoundComponent: LostPage,
+});
 
 // Register router for type safety
 declare module "@tanstack/react-router" {
