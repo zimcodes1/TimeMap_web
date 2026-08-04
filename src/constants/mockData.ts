@@ -30,6 +30,7 @@ export const mockCurrentUser: User = {
   adminScopeId: 'dept_csc',
   adminScopeName: 'Computer Science',
   avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+  isActive: true,
 };
 
 export const mockAdmins: User[] = [

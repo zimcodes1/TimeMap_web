@@ -2,9 +2,22 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Table } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar as CalendarIcon, Clock, AlertTriangle, Layers, UserCheck } from 'lucide-react';
+import { TabSwitcher } from '@/components/ui/tabs';
+import { TableToolbar } from '@/components/ui/table-toolbar';
+import { DataTable } from '@/components/ui/data-table';
+import {
+  Plus,
+  Calendar as CalendarIcon,
+  Clock,
+  AlertTriangle,
+  Layers,
+  UserCheck,
+  LayoutGrid,
+  List,
+  RefreshCw,
+  Edit,
+} from 'lucide-react';
 import type { TimetableEntry, LectureSession, ExamSitting } from '@/types';
 
 interface SchedulesViewProps {
@@ -14,6 +27,7 @@ interface SchedulesViewProps {
   onOpenScheduleEntry: () => void;
   onOpenExamSitting: () => void;
   onShiftSessionTrigger: (session: LectureSession) => void;
+  onMaterializeTrigger: (entry: TimetableEntry) => void;
 }
 
 export default function SchedulesView({
@@ -23,8 +37,28 @@ export default function SchedulesView({
   onOpenScheduleEntry,
   onOpenExamSitting,
   onShiftSessionTrigger,
+  onMaterializeTrigger,
 }: SchedulesViewProps) {
   const [activeTab, setActiveTab] = useState<'entries' | 'sessions' | 'exams'>('entries');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [entryTypeFilter, setEntryTypeFilter] = useState('');
+  const [venueFilter, setVenueFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter entries
+  const filteredEntries = entries.filter((e) => {
+    const matchesSearch =
+      e.courseCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (e.venueName && e.venueName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (e.lecturerName && e.lecturerName.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const matchesType = !entryTypeFilter || e.type === entryTypeFilter;
+    const matchesVenue = !venueFilter || e.venueName === venueFilter;
+
+    return matchesSearch && matchesType && matchesVenue;
+  });
 
   return (
     <div className="space-y-6">
@@ -35,171 +69,341 @@ export default function SchedulesView({
             Timetables & Scheduling
           </Text>
           <Text variant="body-sm" color="muted">
-            Manage recurring lectures, dated sessions, and exam sittings with Conflict Detection Engine feedback.
+            Manage recurring lectures, dated sessions, and exam sittings with Conflict Detection Engine integration.
           </Text>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onOpenExamSitting}>
-            <UserCheck size={16} className="mr-1" /> Create Exam Sitting
-          </Button>
-          <Button variant="primary" size="sm" onClick={onOpenScheduleEntry}>
-            <Plus size={16} className="mr-1" /> Schedule Entry
-          </Button>
+        <div className="flex flex-col items-end gap-2 justify-center">
+          {/* View mode toggle switch */}
+          <div className="flex w-fit items-center bg-surface-raised border border-border p-1 rounded-xl mr-2">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${viewMode === 'list'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-text-muted hover:text-text-main'
+                }`}
+            >
+              <List size={14} /> List View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${viewMode === 'grid'
+                ? 'bg-primary text-white shadow-xs'
+                : 'text-text-muted hover:text-text-main'
+                }`}
+            >
+              <LayoutGrid size={14} /> Grid Preview
+            </button>
+          </div>
+          <div className='flex gap-2'>
+            <Button variant="outline" size="sm" onClick={onOpenExamSitting}>
+              <UserCheck size={16} className="mr-1" /> Create Exam Sitting
+            </Button>
+            <Button variant="primary" size="sm" onClick={onOpenScheduleEntry}>
+              <Plus size={16} className="mr-1" /> Schedule Entry
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <button
-          onClick={() => setActiveTab('entries')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'entries'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <CalendarIcon size={16} /> All Schedule Patterns ({entries.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('sessions')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'sessions'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <Layers size={16} /> Dated Sessions ({sessions.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('exams')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'exams'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <Clock size={16} /> Exam Sittings ({examSittings.length})
-        </button>
-      </div>
+      {/* Tabs */}
+      <TabSwitcher
+        tabs={[
+          { id: 'entries', label: 'All Schedule Patterns', icon: CalendarIcon, count: entries.length },
+          { id: 'sessions', label: 'Dated Sessions', icon: Layers, count: sessions.length },
+          { id: 'exams', label: 'Exam Sittings', icon: Clock, count: examSittings.length },
+        ]}
+        activeTab={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab as typeof activeTab);
+          setCurrentPage(1);
+        }}
+      />
 
-      {/* Content Tables */}
-      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
-        {activeTab === 'entries' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Course / Title</th>
-                <th className="py-3 px-2">Type</th>
-                <th className="py-3 px-2">Day & Slot</th>
-                <th className="py-3 px-2">Venue</th>
-                <th className="py-3 px-2">Lecturer</th>
-                <th className="py-3 px-2">Conflict Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {entries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-primary">{entry.courseCode}</div>
-                    <div className="text-xs text-text-main">{entry.courseTitle}</div>
-                  </td>
-                  <td className="py-3 px-2">
+      {/* Table Toolbar */}
+      <TableToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search by course, venue, lecturer..."
+        totalCount={
+          activeTab === 'entries'
+            ? entries.length
+            : activeTab === 'sessions'
+              ? sessions.length
+              : examSittings.length
+        }
+        filteredCount={
+          activeTab === 'entries'
+            ? filteredEntries.length
+            : activeTab === 'sessions'
+              ? sessions.length
+              : examSittings.length
+        }
+        filters={[
+          {
+            id: 'type',
+            label: 'Entry Type',
+            value: entryTypeFilter,
+            onChange: setEntryTypeFilter,
+            options: [
+              { label: 'Lecture', value: 'lecture' },
+              { label: 'Exam', value: 'exam' },
+              { label: 'Event', value: 'event' },
+            ],
+          },
+        ]}
+        onResetFilters={() => {
+          setSearchQuery('');
+          setEntryTypeFilter('');
+          setVenueFilter('');
+        }}
+      />
+
+      {/* Grid Mode View vs List View */}
+      {viewMode === 'grid' && activeTab === 'entries' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredEntries.map((entry) => (
+            <Card key={entry.id} className="p-4 space-y-3 relative border-l-4 border-l-primary">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-extrabold text-primary text-base">{entry.courseCode}</div>
+                  <div className="text-xs text-text-main font-semibold line-clamp-1">{entry.courseTitle}</div>
+                </div>
+                <Badge variant={entry.type === 'exam' ? 'warning' : 'default'} className="capitalize text-[10px]">
+                  {entry.type}
+                </Badge>
+              </div>
+
+              <div className="p-2.5 bg-surface-raised border border-border rounded-xl text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Day & Slot:</span>
+                  <span className="font-bold text-text-main">
+                    {entry.dayOfWeek} ({entry.startTime} - {entry.endTime})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Venue:</span>
+                  <span className="font-semibold text-text-main">{entry.venueName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-text-muted">Lecturer:</span>
+                  <span className="text-text-main">{entry.lecturerName}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                {entry.hasConflict ? (
+                  <span className="text-xs font-bold text-danger flex items-center gap-1">
+                    <AlertTriangle size={14} /> Clash Detected
+                  </span>
+                ) : (
+                  <Badge variant="success">Clear (PROCEED)</Badge>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onMaterializeTrigger(entry)}
+                  className="h-7 text-xs px-2"
+                >
+                  <RefreshCw size={12} className="mr-1" /> Materialize
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        /* List Mode View */
+        <div>
+          {activeTab === 'entries' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'Course / Title',
+                  accessor: (entry: TimetableEntry) => (
+                    <div>
+                      <div className="font-bold text-primary">{entry.courseCode}</div>
+                      <div className="text-xs text-text-main font-medium">{entry.courseTitle}</div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Type',
+                  accessor: (entry: TimetableEntry) => (
                     <Badge variant={entry.type === 'exam' ? 'warning' : 'default'} className="capitalize">
                       {entry.type}
                     </Badge>
-                  </td>
-                  <td className="py-3 px-2 text-xs">
-                    <div className="font-semibold text-text-main">{entry.dayOfWeek || 'Mon-Fri'}</div>
-                    <div className="text-text-muted">{entry.startTime} - {entry.endTime}</div>
-                  </td>
-                  <td className="py-3 px-2 font-semibold text-xs text-text-main">{entry.venueName}</td>
-                  <td className="py-3 px-2 text-xs text-text-muted">{entry.lecturerName}</td>
-                  <td className="py-3 px-2">
-                    {entry.hasConflict ? (
+                  ),
+                },
+                {
+                  header: 'Day & Time Slot',
+                  accessor: (entry: TimetableEntry) => (
+                    <div className="text-xs">
+                      <div className="font-bold text-text-main">{entry.dayOfWeek || 'Mon-Fri'}</div>
+                      <div className="text-text-muted">
+                        {entry.startTime} - {entry.endTime}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Venue',
+                  accessor: (entry: TimetableEntry) => (
+                    <span className="font-bold text-xs text-text-main">{entry.venueName}</span>
+                  ),
+                },
+                {
+                  header: 'Lecturer',
+                  accessor: (entry: TimetableEntry) => (
+                    <span className="text-xs text-text-muted">{entry.lecturerName}</span>
+                  ),
+                },
+                {
+                  header: 'Conflict Status',
+                  accessor: (entry: TimetableEntry) =>
+                    entry.hasConflict ? (
                       <div className="flex items-center gap-1 text-danger text-xs font-bold">
                         <AlertTriangle size={14} /> Clash Detected
                       </div>
                     ) : (
                       <Badge variant="success">Clear (PROCEED)</Badge>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+                    ),
+                },
+                {
+                  header: 'Actions',
+                  align: 'right',
+                  accessor: (entry: TimetableEntry) => (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onMaterializeTrigger(entry)}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <RefreshCw size={12} className="mr-1" /> Materialize
+                    </Button>
+                  ),
+                },
+              ]}
+              data={filteredEntries}
+              keyExtractor={(e) => e.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
 
-        {activeTab === 'sessions' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Course Code & Title</th>
-                <th className="py-3 px-2">Date & Time</th>
-                <th className="py-3 px-2">Venue</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {sessions.map((sess) => (
-                <tr key={sess.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-primary">{sess.courseCode}</div>
-                    <div className="text-xs text-text-main">{sess.courseTitle}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs">
-                    <div className="font-bold text-text-main">{sess.date}</div>
-                    <div className="text-text-muted">{sess.startTime} - {sess.endTime}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs font-semibold">{sess.venueName}</td>
-                  <td className="py-3 px-2">
+          {activeTab === 'sessions' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'Course Code & Title',
+                  accessor: (sess: LectureSession) => (
+                    <div>
+                      <div className="font-bold text-primary">{sess.courseCode}</div>
+                      <div className="text-xs text-text-main font-medium">{sess.courseTitle}</div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Date & Time Slot',
+                  accessor: (sess: LectureSession) => (
+                    <div className="text-xs">
+                      <div className="font-bold text-text-main">{sess.date}</div>
+                      <div className="text-text-muted">
+                        {sess.startTime} - {sess.endTime}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Venue',
+                  accessor: (sess: LectureSession) => (
+                    <span className="font-bold text-xs text-text-main">{sess.venueName}</span>
+                  ),
+                },
+                {
+                  header: 'Status',
+                  accessor: (sess: LectureSession) => (
                     <Badge variant={sess.status === 'scheduled' ? 'success' : 'warning'}>
                       {sess.status.toUpperCase()}
                     </Badge>
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <Button variant="outline" size="sm" onClick={() => onShiftSessionTrigger(sess)}>
-                      Shift Instance
+                  ),
+                },
+                {
+                  header: 'Actions',
+                  align: 'right',
+                  accessor: (sess: LectureSession) => (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onShiftSessionTrigger(sess)}
+                      className="h-8 px-2.5 text-xs"
+                    >
+                      <Edit size={12} className="mr-1" /> Shift Instance
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+                  ),
+                },
+              ]}
+              data={sessions}
+              keyExtractor={(s) => s.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
 
-        {activeTab === 'exams' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Course & Exam Title</th>
-                <th className="py-3 px-2">Venue</th>
-                <th className="py-3 px-2">Date & Time</th>
-                <th className="py-3 px-2">Candidates</th>
-                <th className="py-3 px-2">Assigned Invigilators</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {examSittings.map((exam) => (
-                <tr key={exam.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-amber-600">{exam.courseCode}</div>
-                    <div className="text-xs text-text-main">{exam.courseTitle}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs font-bold text-text-main">{exam.venueName}</td>
-                  <td className="py-3 px-2 text-xs">
-                    <div className="font-semibold text-text-main">{exam.date}</div>
-                    <div className="text-text-muted">{exam.startTime} - {exam.endTime}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs font-bold text-primary">
-                    {exam.registeredCandidatesCount} Students
-                  </td>
-                  <td className="py-3 px-2 text-xs font-medium text-text-muted">
-                    {exam.invigilators.map((i) => i.name).join(', ')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </Card>
+          {activeTab === 'exams' && (
+            <DataTable
+              columns={[
+                {
+                  header: 'Course & Exam Title',
+                  accessor: (exam: ExamSitting) => (
+                    <div>
+                      <div className="font-bold text-amber-600">{exam.courseCode}</div>
+                      <div className="text-xs text-text-main font-medium">{exam.courseTitle}</div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Exam Venue',
+                  accessor: (exam: ExamSitting) => (
+                    <span className="font-bold text-xs text-text-main">{exam.venueName}</span>
+                  ),
+                },
+                {
+                  header: 'Date & Time',
+                  accessor: (exam: ExamSitting) => (
+                    <div className="text-xs">
+                      <div className="font-bold text-text-main">{exam.date}</div>
+                      <div className="text-text-muted">
+                        {exam.startTime} - {exam.endTime}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  header: 'Candidates',
+                  accessor: (exam: ExamSitting) => (
+                    <Badge variant="primary" className="text-xs">
+                      {exam.registeredCandidatesCount} Candidates
+                    </Badge>
+                  ),
+                },
+                {
+                  header: 'Invigilators',
+                  accessor: (exam: ExamSitting) => (
+                    <span className="text-xs text-text-muted">
+                      {exam.invigilators.map((i) => i.name).join(', ')}
+                    </span>
+                  ),
+                },
+              ]}
+              data={examSittings}
+              keyExtractor={(e) => e.id}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import CoursesView from '@/pages/main/CoursesView';
 import CreateCourseModal from '@/components/modals/CreateCourseModal';
+import EditCourseModal from '@/components/modals/EditCourseModal';
 import OfferAccessGrantModal from '@/components/modals/OfferAccessGrantModal';
 import RequestAccessGrantModal from '@/components/modals/RequestAccessGrantModal';
 import CourseRegistrationModal from '@/components/modals/CourseRegistrationModal';
@@ -15,6 +16,7 @@ export default function CoursesContainer() {
   const [isOfferGrantOpen, setIsOfferGrantOpen] = useState(false);
   const [isRequestGrantOpen, setIsRequestGrantOpen] = useState(false);
   const [isRegisterStudentOpen, setIsRegisterStudentOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
   const handleCreateCourse = (data: Partial<Course>) => {
     const newCourse: Course = {
@@ -30,6 +32,10 @@ export default function CoursesContainer() {
       registrationCount: 0,
     };
     setCourses((prev) => [newCourse, ...prev]);
+  };
+
+  const handleEditCourse = (id: string, updated: Partial<Course>) => {
+    setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...updated } : c)));
   };
 
   const handleOfferGrant = (data: { courseId: string; grantedToLevel: AdminLevel; grantedToDepartmentId?: string }) => {
@@ -96,6 +102,7 @@ export default function CoursesContainer() {
         onOpenOfferGrant={() => setIsOfferGrantOpen(true)}
         onOpenRequestGrant={() => setIsRequestGrantOpen(true)}
         onOpenRegisterStudent={() => setIsRegisterStudentOpen(true)}
+        onEditCourse={(c) => setEditingCourse(c)}
         onApproveGrant={handleApproveGrant}
         onRejectGrant={handleRejectGrant}
       />
@@ -104,6 +111,15 @@ export default function CoursesContainer() {
         isOpen={isCreateCourseOpen}
         onClose={() => setIsCreateCourseOpen(false)}
         onSubmit={handleCreateCourse}
+        departments={mockDepartments}
+        lecturers={mockLecturers}
+      />
+
+      <EditCourseModal
+        isOpen={Boolean(editingCourse)}
+        onClose={() => setEditingCourse(null)}
+        onSubmit={handleEditCourse}
+        course={editingCourse}
         departments={mockDepartments}
         lecturers={mockLecturers}
       />

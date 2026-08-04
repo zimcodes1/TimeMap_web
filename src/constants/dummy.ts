@@ -2,10 +2,12 @@ import type { User } from "@/types";
 
 export const dummyLoggedInUser: User = {
   id: "USR-001",
+  identifier: "NSUK/STF/2024/0042",
   name: "Dr. Amina Bello",
   email: "amina.bello@nsuk.edu.ng",
   role: "admin",
   staffId: "NSUK/STF/2024/0042",
+  isActive: true,
 };
 
 export interface NotificationItem {

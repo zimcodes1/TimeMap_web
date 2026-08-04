@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Table } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users as UsersIcon, ShieldAlert, KeyRound } from 'lucide-react';
+import { TabSwitcher } from '@/components/ui/tabs';
+import { TableToolbar } from '@/components/ui/table-toolbar';
+import { DataTable } from '@/components/ui/data-table';
+import { Plus, Users as UsersIcon, ShieldAlert, KeyRound, Edit2, ShieldOff, CheckCircle } from 'lucide-react';
 import type { User, UserRole } from '@/types';
 
 interface UsersViewProps {
@@ -12,7 +13,9 @@ interface UsersViewProps {
   lecturers: User[];
   students: User[];
   onOpenCreateUser: () => void;
+  onEditUser: (user: User) => void;
   onOpenResetPassword: (user: User) => void;
+  onToggleStatusTrigger: (user: User) => void;
 }
 
 export default function UsersView({
@@ -20,9 +23,35 @@ export default function UsersView({
   lecturers,
   students,
   onOpenCreateUser,
+  onEditUser,
   onOpenResetPassword,
+  onToggleStatusTrigger,
 }: UsersViewProps) {
   const [activeTab, setActiveTab] = useState<UserRole>('admin');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [scopeFilter, setScopeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const getDataset = () => {
+    if (activeTab === 'admin') return admins;
+    if (activeTab === 'lecturer') return lecturers;
+    return students;
+  };
+
+  const rawDataset = getDataset();
+
+  const filteredUsers = rawDataset.filter((u) => {
+    const matchesSearch =
+      (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.identifier || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesScope = !scopeFilter || u.adminLevel === scopeFilter;
+    const matchesStatus = !statusFilter || (statusFilter === 'active' ? u.isActive : !u.isActive);
+
+    return matchesSearch && matchesScope && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">
@@ -33,7 +62,7 @@ export default function UsersView({
             User & Staff Directory
           </Text>
           <Text variant="body-sm" color="muted">
-            Manage admin officers, lecturers, and student class rep accounts.
+            Manage admin officers, lecturers, and student class rep accounts and role privileges.
           </Text>
         </div>
         <Button variant="primary" size="sm" onClick={onOpenCreateUser}>
@@ -42,156 +71,147 @@ export default function UsersView({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <button
-          onClick={() => setActiveTab('admin')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'admin'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <ShieldAlert size={16} /> Admins ({admins.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('lecturer')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'lecturer'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <UsersIcon size={16} /> Lecturers ({lecturers.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('student')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer ${activeTab === 'student'
-            ? 'bg-primary text-white shadow-sm'
-            : 'text-text-muted hover:bg-surface-raised hover:text-text-main'
-            }`}
-        >
-          <UsersIcon size={16} /> Students & Reps ({students.length})
-        </button>
-      </div>
+      <TabSwitcher
+        tabs={[
+          { id: 'admin', label: 'Admin Officers', icon: ShieldAlert, count: admins.length },
+          { id: 'lecturer', label: 'Lecturers', icon: UsersIcon, count: lecturers.length },
+          { id: 'student', label: 'Students & Reps', icon: UsersIcon, count: students.length },
+        ]}
+        activeTab={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab as UserRole);
+          setCurrentPage(1);
+        }}
+      />
 
-      {/* Table */}
-      <Card className="p-0 overflow-x-auto bg-transparent border-none shadow-none rounded-none">
-        {activeTab === 'admin' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Identifier / Name</th>
-                <th className="py-3 px-2">Email</th>
-                <th className="py-3 px-2">Scope Level</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {admins.map((usr) => (
-                <tr key={usr.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-primary">{usr.name}</div>
-                    <div className="text-xs text-text-muted">{usr.identifier}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs text-text-main">{usr.email}</td>
-                  <td className="py-3 px-2">
-                    <Badge variant="default" className="capitalize">
-                      {usr.adminLevel || 'department'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-2">
-                    <Badge variant={usr.isActive ? 'success' : 'danger'}>
-                      {usr.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <Button variant="outline" size="sm" onClick={() => onOpenResetPassword(usr)}>
-                      <KeyRound size={14} className="mr-1" /> Reset Password
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
+      {/* Table Toolbar */}
+      <TableToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={`Search ${activeTab}s by name, email, or ID...`}
+        totalCount={rawDataset.length}
+        filteredCount={filteredUsers.length}
+        filters={[
+          ...(activeTab === 'admin'
+            ? [
+                {
+                  id: 'adminLevel',
+                  label: 'Scope Level',
+                  value: scopeFilter,
+                  onChange: setScopeFilter,
+                  options: [
+                    { label: 'University', value: 'university' },
+                    { label: 'School', value: 'school' },
+                    { label: 'Faculty', value: 'faculty' },
+                    { label: 'Department', value: 'department' },
+                  ],
+                },
+              ]
+            : []),
+          {
+            id: 'status',
+            label: 'Account Status',
+            value: statusFilter,
+            onChange: setStatusFilter,
+            options: [
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' },
+            ],
+          },
+        ]}
+        onResetFilters={() => {
+          setSearchQuery('');
+          setScopeFilter('');
+          setStatusFilter('');
+        }}
+      />
 
-        {activeTab === 'lecturer' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Staff ID / Name</th>
-                <th className="py-3 px-2">Email</th>
-                <th className="py-3 px-2">Department</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {lecturers.map((usr) => (
-                <tr key={usr.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-primary">{usr.name}</div>
-                    <div className="text-xs text-text-muted">{usr.staffId || usr.identifier}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs text-text-main">{usr.email}</td>
-                  <td className="py-3 px-2 text-xs font-semibold text-text-main">
-                    {usr.departmentName || 'Computer Science'}
-                  </td>
-                  <td className="py-3 px-2">
-                    <Badge variant={usr.isActive ? 'success' : 'danger'}>
-                      {usr.isActive ? 'Active' : 'Inactive'}
+      {/* User DataTable */}
+      <DataTable
+        columns={[
+          {
+            header: 'Identifier / Full Name',
+            accessor: (u: User) => (
+              <div>
+                <div className="font-bold text-primary">{u.name}</div>
+                <div className="text-xs text-text-muted flex items-center gap-1.5">
+                  ID: {u.identifier}
+                  {u.requiresPasswordReset && (
+                    <Badge variant="warning" className="text-[9px] px-1 py-0">
+                      Reset Req.
                     </Badge>
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <Button variant="outline" size="sm" onClick={() => onOpenResetPassword(usr)}>
-                      <KeyRound size={14} className="mr-1" /> Reset Password
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-
-        {activeTab === 'student' && (
-          <Table>
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-semibold text-text-muted uppercase">
-                <th className="py-3 px-2">Matric No / Name</th>
-                <th className="py-3 px-2">Email</th>
-                <th className="py-3 px-2">Department / Level</th>
-                <th className="py-3 px-2">Class Rep Status</th>
-                <th className="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-sm">
-              {students.map((usr) => (
-                <tr key={usr.id} className="hover:bg-surface-raised transition-colors">
-                  <td className="py-3 px-2 font-medium">
-                    <div className="font-bold text-primary">{usr.name}</div>
-                    <div className="text-xs text-text-muted">{usr.matricNumber || usr.identifier}</div>
-                  </td>
-                  <td className="py-3 px-2 text-xs text-text-main">{usr.email}</td>
-                  <td className="py-3 px-2 text-xs font-semibold text-text-main">
-                    {usr.departmentName || 'CSC'} • {usr.level || 300}L
-                  </td>
-                  <td className="py-3 px-2">
-                    {usr.isClassRep ? (
-                      <Badge variant="success">CLASS REP</Badge>
-                    ) : (
-                      <Badge variant="default">STUDENT</Badge>
-                    )}
-                  </td>
-                  <td className="py-3 px-2 text-right">
-                    <Button variant="outline" size="sm" onClick={() => onOpenResetPassword(usr)}>
-                      <KeyRound size={14} className="mr-1" /> Reset Password
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </Card>
+                  )}
+                </div>
+              </div>
+            ),
+          },
+          {
+            header: 'Email Address',
+            accessor: (u: User) => <span className="text-xs font-medium">{u.email}</span>,
+          },
+          {
+            header: activeTab === 'admin' ? 'Scope Level' : activeTab === 'lecturer' ? 'Department' : 'Dept / Level',
+            accessor: (u: User) => (
+              <div className="text-xs">
+                {activeTab === 'admin' ? (
+                  <Badge variant="default" className="capitalize">
+                    {u.adminLevel || 'department'} Level
+                  </Badge>
+                ) : activeTab === 'lecturer' ? (
+                  <span className="font-semibold">{u.departmentName || 'Computer Science'}</span>
+                ) : (
+                  <div>
+                    <span className="font-semibold">{u.departmentName || 'CSC'}</span> •{' '}
+                    <span className="font-bold">{u.level || 300}L</span>
+                  </div>
+                )}
+              </div>
+            ),
+          },
+          {
+            header: 'Status',
+            accessor: (u: User) => (
+              <div className="flex items-center gap-1">
+                <Badge variant={u.isActive ? 'success' : 'danger'}>
+                  {u.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+                {u.isClassRep && <Badge variant="primary">CLASS REP</Badge>}
+              </div>
+            ),
+          },
+          {
+            header: 'Actions',
+            align: 'right',
+            accessor: (u: User) => (
+              <div className="flex items-center justify-end gap-1">
+                <Button variant="outline" size="sm" onClick={() => onEditUser(u)} className="h-8 px-2 text-xs">
+                  <Edit2 size={14} className="mr-1" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenResetPassword(u)}
+                  className="h-8 px-2 text-xs"
+                >
+                  <KeyRound size={14} className="mr-1" /> Reset Pwd
+                </Button>
+                <Button
+                  variant={u.isActive ? 'outline' : 'primary'}
+                  size="sm"
+                  onClick={() => onToggleStatusTrigger(u)}
+                  className="h-8 px-2 text-xs"
+                >
+                  {u.isActive ? <ShieldOff size={14} /> : <CheckCircle size={14} />}
+                </Button>
+              </div>
+            ),
+          },
+        ]}
+        data={filteredUsers}
+        keyExtractor={(u) => u.id}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 }
