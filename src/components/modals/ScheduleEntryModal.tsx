@@ -10,21 +10,21 @@ interface ScheduleEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: Record<string, unknown>) => void;
-  courses: Course[];
-  venues: Venue[];
+  courses?: Course[];
+  venues?: Venue[];
 }
 
 export default function ScheduleEntryModal({
   isOpen,
   onClose,
   onSubmit,
-  courses,
-  venues,
+  courses = [],
+  venues = [],
 }: ScheduleEntryModalProps) {
   const [entryType, setEntryType] = useState<SessionType>('lecture');
   const [title, setTitle] = useState('');
-  const [courseId, setCourseId] = useState(courses[0]?.id || '');
-  const [venueId, setVenueId] = useState(venues[0]?.id || '');
+  const [courseId, setCourseId] = useState<string>(courses[0]?.id || '');
+  const [venueId, setVenueId] = useState<string>(venues[0]?.id || '');
   const [dayOfWeek, setDayOfWeek] = useState('Monday');
   const [startTime, setStartTime] = useState('09:00:00');
   const [endTime, setEndTime] = useState('11:00:00');

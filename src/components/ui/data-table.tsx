@@ -12,7 +12,7 @@ interface DataTableProps<T> {
     className?: string;
     align?: 'left' | 'center' | 'right';
   }[];
-  data: T[];
+  data: T[] | undefined;
   keyExtractor: (item: T) => string;
   renderRow?: (item: T) => React.ReactNode;
   emptyMessage?: string;
@@ -35,9 +35,9 @@ export function DataTable<T>({
   onPageChange,
   className,
 }: DataTableProps<T>) {
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
+  const totalPages = data && Math.max(1, Math.ceil(data.length / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
-  const paginatedData = data.slice(startIndex, startIndex + pageSize);
+  const paginatedData = data?.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -60,7 +60,7 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-border text-sm">
-          {paginatedData.length > 0 ? (
+          {paginatedData && paginatedData.length > 0 ? (
             paginatedData.map((item) =>
               renderRow ? (
                 renderRow(item)
@@ -105,14 +105,14 @@ export function DataTable<T>({
       </Table>
 
       {/* Pagination Footer */}
-      {data.length > 0 && onPageChange && (
+      {(data && data?.length > 0) && onPageChange && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-2 py-1 text-xs text-text-muted">
           <div>
             Showing <span className="font-bold text-text-main">{startIndex + 1}</span> to{' '}
             <span className="font-bold text-text-main">
               {Math.min(startIndex + pageSize, data.length)}
             </span>{' '}
-            of <span className="font-bold text-text-main">{data.length}</span> entries
+            of <span className="font-bold text-text-main">{data?.length}</span> entries
           </div>
 
           <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export function DataTable<T>({
             <Button
               variant="outline"
               size="sm"
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= (totalPages ? totalPages : 0)}
               onClick={() => onPageChange(currentPage + 1)}
               className="h-8 px-2.5 cursor-pointer disabled:opacity-40"
             >

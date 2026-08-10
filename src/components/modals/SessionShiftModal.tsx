@@ -11,7 +11,7 @@ interface SessionShiftModalProps {
   onClose: () => void;
   onSubmit: (data: { venueId: string; startTime: string; endTime: string }) => void;
   session: LectureSession | null;
-  venues: Venue[];
+  venues?: Venue[];
 }
 
 export default function SessionShiftModal({
@@ -19,7 +19,7 @@ export default function SessionShiftModal({
   onClose,
   onSubmit,
   session,
-  venues,
+  venues = [],
 }: SessionShiftModalProps) {
   const [venueId, setVenueId] = useState(session?.venueId || venues[0]?.id || '');
   const [startTime, setStartTime] = useState(session?.startTime || '09:00:00');

@@ -1,9 +1,10 @@
 import apiClient from "../apiClient";
+import type { UserRole } from "@/types";
 
 export interface ApiUserRaw {
   id: number;
   identifier: string;
-  role: "admin";
+  role: UserRole;
   requires_password_reset: boolean;
   is_active: boolean;
   last_login_at?: string | null;
