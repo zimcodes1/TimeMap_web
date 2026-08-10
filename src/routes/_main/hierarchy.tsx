@@ -3,4 +3,5 @@ import HierarchyContainer from '@/app/main/Hierarchy';
 
 export const Route = createFileRoute('/_main/hierarchy')({
   component: HierarchyContainer,
+  beforeLoad: () => document.title = "Hierarchy Management | NSUK TimeMap"
 });

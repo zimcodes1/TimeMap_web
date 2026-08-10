@@ -3,4 +3,5 @@ import RequestsContainer from '@/app/main/Requests';
 
 export const Route = createFileRoute('/_main/requests')({
   component: RequestsContainer,
+  beforeLoad: () => document.title = "Discrepancies | NSUK TimeMap"
 });

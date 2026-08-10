@@ -3,4 +3,5 @@ import ReportsContainer from '@/app/main/Reports';
 
 export const Route = createFileRoute('/_main/reports')({
   component: ReportsContainer,
+  beforeLoad: () => document.title = "Reports | NSUK TimeMap"
 });

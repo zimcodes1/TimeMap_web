@@ -3,4 +3,5 @@ import DashboardContainer from '@/app/main/Dashboard';
 
 export const Route = createFileRoute('/_main/dashboard')({
   component: DashboardContainer,
+  beforeLoad: () => { document.title = "Dashboard | NSUK TimeMap" }
 });

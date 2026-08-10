@@ -3,4 +3,5 @@ import ForgotPassword from "@/app/auth/ForgotPassword";
 
 export const Route = createFileRoute("/_auth/forgot-password")({
 	component: ForgotPassword,
+	beforeLoad: () => document.title = "Forgot Password | NSUK TimeMap"
 });
