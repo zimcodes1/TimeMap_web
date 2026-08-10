@@ -7,7 +7,7 @@ import Logo from "../elements/logo";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const { isAuthenticated, isLoading, requiresPasswordReset } = useAuth();
+  const { user, isAuthenticated, isLoading, requiresPasswordReset } = useAuth();
 
   if (isLoading) {
     return (
@@ -22,7 +22,7 @@ export default function DashboardLayout() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || user?.role !== "admin") {
     return <Navigate to="/login" replace />;
   }
 
