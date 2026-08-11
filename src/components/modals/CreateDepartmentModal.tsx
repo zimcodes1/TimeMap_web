@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Text } from '@/components/ui/text';
-import type { Department, Faculty } from '@/types';
+import { useState, useEffect } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Text } from "@/components/ui/text";
+import type { Department, Faculty } from "@/types";
 
 interface CreateDepartmentModalProps {
   isOpen: boolean;
@@ -21,14 +21,21 @@ export default function CreateDepartmentModal({
   faculties,
   initialData,
 }: CreateDepartmentModalProps) {
-  const [facultyId, setFacultyId] = useState(initialData?.facultyId || faculties[0]?.id || '');
-  const [name, setName] = useState(initialData?.name || '');
-  const [code, setCode] = useState(initialData?.code || '');
+  const [facultyId, setFacultyId] = useState(initialData?.facultyId || "");
+  const [name, setName] = useState(initialData?.name || "");
+  const [code, setCode] = useState(initialData?.code || "");
+
+  useEffect(() => {
+    if (faculties.length > 0 && !facultyId) {
+      setFacultyId(faculties[0].id);
+    }
+  }, [faculties, facultyId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !code.trim() || !facultyId) return;
-    onSubmit({ facultyId, name, code });
+    const activeFacultyId = facultyId || faculties[0]?.id || "";
+    if (!name.trim() || !code.trim() || !activeFacultyId) return;
+    onSubmit({ facultyId: activeFacultyId, name: name.trim(), code: code.trim().toUpperCase() });
     onClose();
   };
 
@@ -36,15 +43,15 @@ export default function CreateDepartmentModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={initialData ? 'Edit Department' : 'Add New Department'}
+      title={initialData ? "Edit Department" : "Add New Department"}
       description="Select parent faculty and enter department information."
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {initialData ? 'Save Changes' : 'Create Department'}
+          <Button variant="primary" onClick={handleSubmit} className="cursor-pointer">
+            {initialData ? "Save Changes" : "Create Department"}
           </Button>
         </>
       }
@@ -55,7 +62,7 @@ export default function CreateDepartmentModal({
             Parent Faculty
           </Text>
           <Select
-            value={facultyId}
+            value={facultyId || (faculties[0]?.id ?? "")}
             onChange={(e) => setFacultyId(e.target.value)}
             options={faculties.map((f) => ({ value: f.id, label: `${f.name} (${f.code})` }))}
           />
