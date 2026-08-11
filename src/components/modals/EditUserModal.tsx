@@ -1,17 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Modal } from '../ui/modal';
-import { Text } from '../ui/text';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Select } from '../ui/select';
-import type { User, UserRole, AdminLevel, Department } from '@/types';
+import { useState, useEffect } from "react";
+import { Modal } from "../ui/modal";
+import { Text } from "../ui/text";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Select } from "../ui/select";
+import type { User, UserRole, AdminLevel, Department, Faculty, School } from "@/types";
 
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (id: string, updated: Partial<User>) => void;
+  onSubmit: (id: string, updated: Partial<User> & { scopeId?: string }) => void;
   user: User | null;
   departments: Department[];
+  faculties?: Faculty[];
+  schools?: School[];
 }
 
 export default function EditUserModal({
@@ -20,44 +22,60 @@ export default function EditUserModal({
   onSubmit,
   user,
   departments,
+  faculties = [],
+  schools = [],
 }: EditUserModalProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [identifier, setIdentifier] = useState('');
-  const [role, setRole] = useState<UserRole>('admin');
-  const [adminLevel, setAdminLevel] = useState<AdminLevel>('department');
-  const [departmentId, setDepartmentId] = useState('');
-  const [level, setLevel] = useState<number>(300);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [role, setRole] = useState<UserRole>("admin");
+  const [adminLevel, setAdminLevel] = useState<AdminLevel>("department");
+  const [scopeId, setScopeId] = useState("");
+  const [level, setLevel] = useState<number>(100);
   const [isClassRep, setIsClassRep] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
-      setEmail(user.email || '');
-      setIdentifier(user.identifier || '');
-      setRole(user.role || 'admin');
-      setAdminLevel(user.adminLevel || 'department');
-      setDepartmentId(user.departmentId || '');
-      setLevel(user.level || 300);
+      setName(user.name || "");
+      setEmail(user.email || "");
+      setIdentifier(user.identifier || "");
+      setRole(user.role || "admin");
+      setAdminLevel(user.adminLevel || "department");
+      setScopeId(user.departmentId || user.adminScopeId || "");
+      setLevel(user.level || 100);
       setIsClassRep(user.isClassRep || false);
     }
   }, [user]);
 
+  const handleAdminLevelChange = (newLevel: AdminLevel) => {
+    setAdminLevel(newLevel);
+    if (newLevel === "school" && schools.length > 0) {
+      setScopeId(schools[0].id);
+    } else if (newLevel === "faculty" && faculties.length > 0) {
+      setScopeId(faculties[0].id);
+    } else if (newLevel === "department" && departments.length > 0) {
+      setScopeId(departments[0].id);
+    } else {
+      setScopeId("");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (user && name && email && identifier) {
-      const targetDept = departments.find((d) => d.id === departmentId);
+    if (user && name && identifier) {
+      const targetDept = departments.find((d) => d.id === scopeId);
 
       onSubmit(user.id, {
         name,
         email,
         identifier,
         role,
-        adminLevel: role === 'admin' ? adminLevel : undefined,
-        departmentId: role !== 'admin' ? departmentId : undefined,
+        adminLevel: role === "admin" ? adminLevel : undefined,
+        scopeId,
+        departmentId: role !== "admin" || adminLevel === "department" ? scopeId : undefined,
         departmentName: targetDept?.name,
-        level: role === 'student' ? level : undefined,
-        isClassRep: role === 'student' ? isClassRep : false,
+        level: role === "student" ? level : undefined,
+        isClassRep: role === "student" ? isClassRep : false,
       });
       onClose();
     }
@@ -69,7 +87,7 @@ export default function EditUserModal({
     <Modal isOpen={isOpen} onClose={onClose} title={`Edit User Account — ${user.name}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Text variant="body-sm" color="muted">
-          Update user profile credentials, assigned department, and access permissions.
+          Update user profile credentials, assigned scope, and access permissions.
         </Text>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -79,13 +97,13 @@ export default function EditUserModal({
           </div>
           <div className="space-y-1">
             <label className="text-xs font-semibold text-text-main">Email Address</label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-text-main">Identifier / Staff ID / Matric</label>
+            <label className="text-xs font-semibold text-text-main">Unique Identifier</label>
             <Input value={identifier} onChange={(e) => setIdentifier(e.target.value)} required />
           </div>
           <div className="space-y-1">
@@ -98,22 +116,67 @@ export default function EditUserModal({
           </div>
         </div>
 
-        {role === 'admin' && (
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-text-main">Admin Scope Level</label>
-            <Select value={adminLevel} onChange={(e) => setAdminLevel(e.target.value as AdminLevel)}>
-              <option value="university">University Admin</option>
-              <option value="school">School Admin</option>
-              <option value="faculty">Faculty Admin</option>
-              <option value="department">Department Admin</option>
-            </Select>
+        {/* Admin Specific Section: Level FIRST, Scope Entity SECOND */}
+        {role === "admin" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-main">Admin Scope Level</label>
+              <Select
+                value={adminLevel}
+                onChange={(e) => handleAdminLevelChange(e.target.value as AdminLevel)}
+              >
+                <option value="department">Department Admin</option>
+                <option value="faculty">Faculty Admin</option>
+                <option value="school">School Admin</option>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-text-main">
+                {adminLevel === "school"
+                  ? "Assigned Scope School"
+                  : adminLevel === "faculty"
+                  ? "Assigned Scope Faculty"
+                  : "Assigned Scope Department"}
+              </label>
+
+              {adminLevel === "school" && (
+                <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code})
+                    </option>
+                  ))}
+                </Select>
+              )}
+
+              {adminLevel === "faculty" && (
+                <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
+                  {faculties.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.code})
+                    </option>
+                  ))}
+                </Select>
+              )}
+
+              {adminLevel === "department" && (
+                <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name} ({d.code})
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
           </div>
         )}
 
-        {role !== 'admin' && (
+        {role !== "admin" && (
           <div className="space-y-1">
             <label className="text-xs font-semibold text-text-main">Assigned Department</label>
-            <Select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)}>
               <option value="">Select Department</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -124,7 +187,7 @@ export default function EditUserModal({
           </div>
         )}
 
-        {role === 'student' && (
+        {role === "student" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-surface-raised border border-border rounded-xl">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-text-main">Academic Level</label>
@@ -139,12 +202,12 @@ export default function EditUserModal({
             <div className="flex items-center gap-2 pt-5">
               <input
                 type="checkbox"
-                id="isClassRep"
+                id="isClassRepEdit"
                 checked={isClassRep}
                 onChange={(e) => setIsClassRep(e.target.checked)}
-                className="w-4 h-4 text-primary rounded border-border focus:ring-ring"
+                className="w-4 h-4 text-primary rounded border-border focus:ring-ring cursor-pointer"
               />
-              <label htmlFor="isClassRep" className="text-xs font-semibold text-text-main cursor-pointer">
+              <label htmlFor="isClassRepEdit" className="text-xs font-semibold text-text-main cursor-pointer select-none">
                 Designate as Class Rep
               </label>
             </div>
@@ -152,10 +215,10 @@ export default function EditUserModal({
         )}
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" type="button" onClick={onClose}>
+          <Button variant="outline" type="button" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" className="cursor-pointer">
             Save User Changes
           </Button>
         </div>
