@@ -89,7 +89,7 @@ export default function CreateUserModal({
               Unique Identifier
             </Text>
             <Input
-              placeholder="e.g. NSUK/CSC/2021/001"
+              placeholder="Staff ID or Matric Number"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
