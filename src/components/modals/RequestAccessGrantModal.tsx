@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
-import { Text } from '@/components/ui/text';
-import type { Course } from '@/types';
+import { useState, useEffect } from "react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Text } from "@/components/ui/text";
+import type { Course } from "@/types";
 
 interface RequestAccessGrantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { courseId: string; reason?: string }) => void;
+  onSubmit: (data: { courseId: string }) => void;
   externalCourses: Course[];
 }
 
@@ -18,12 +18,19 @@ export default function RequestAccessGrantModal({
   onSubmit,
   externalCourses,
 }: RequestAccessGrantModalProps) {
-  const [courseId, setCourseId] = useState(externalCourses[0]?.id || '');
+  const [courseId, setCourseId] = useState(externalCourses[0]?.id || "");
+
+  useEffect(() => {
+    if (!courseId && externalCourses.length > 0) {
+      setCourseId(externalCourses[0].id);
+    }
+  }, [externalCourses, courseId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!courseId) return;
-    onSubmit({ courseId });
+    const activeCourseId = courseId || externalCourses[0]?.id;
+    if (!activeCourseId) return;
+    onSubmit({ courseId: activeCourseId });
     onClose();
   };
 
@@ -35,10 +42,10 @@ export default function RequestAccessGrantModal({
       description="Request course access permission from another department admin."
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="cursor-pointer">
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
+          <Button variant="primary" onClick={handleSubmit} className="cursor-pointer">
             Submit Access Request
           </Button>
         </>
@@ -50,11 +57,11 @@ export default function RequestAccessGrantModal({
             Select External Course
           </Text>
           <Select
-            value={courseId}
+            value={courseId || externalCourses[0]?.id || ""}
             onChange={(e) => setCourseId(e.target.value)}
             options={externalCourses.map((c) => ({
               value: c.id,
-              label: `${c.code} - ${c.title} (${c.departmentName || 'External'})`,
+              label: `${c.code} - ${c.title} (${c.departmentName || "External Department"})`,
             }))}
           />
         </div>
