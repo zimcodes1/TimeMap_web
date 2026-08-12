@@ -91,24 +91,24 @@ export default function CoursesView({
             <Text variant="h3" weight="bold" className="text-text-main">
               Courses & Access Sharing
             </Text>
-            {onRefresh && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRefresh}
-                disabled={isRefetching}
-                title="Refresh Course & Grant Registry"
-                className="h-8 w-8 p-0 rounded-full cursor-pointer text-text-muted hover:text-primary"
-              >
-                <RefreshCw size={15} className={isRefetching ? "animate-spin text-primary" : ""} />
-              </Button>
-            )}
           </div>
           <Text variant="body-sm" color="muted">
             Manage academic course catalog, student registrations, and cross-department access grants.
           </Text>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onRefresh && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isRefetching}
+              title="Refresh Course & Grant Registry"
+              className="h-8 w-8 p-0 rounded-full cursor-pointer text-text-muted hover:text-primary"
+            >
+              <RefreshCw size={15} className={isRefetching ? "animate-spin text-primary" : ""} />
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onOpenOfferGrant} className="cursor-pointer">
             <Share2 size={16} className="mr-1" /> Offer Grant
           </Button>
