@@ -69,7 +69,7 @@ export default function CreateUserModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !identifier.trim()) return;
+    if (!name.trim() || !identifier.trim() || !email.trim()) return;
 
     if (role === "admin") {
       onSubmit({
@@ -168,9 +168,10 @@ export default function CreateUserModal({
             </Text>
             <Input
               type="email"
-              placeholder="e.g. alice@example.com"
+              placeholder="e.g. admin@timemap.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
             />
           </div>
         </div>

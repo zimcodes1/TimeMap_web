@@ -21,6 +21,7 @@ export interface CreateAdminPayload {
   staff_id: string;
   full_name: string;
   level: AdminLevel;
+  email?: string;
   scope_department?: number | string | null;
   scope_faculty?: number | string | null;
   scope_school?: number | string | null;
@@ -62,6 +63,7 @@ interface RawAdminProfile {
   staff_id: string;
   full_name: string;
   level: AdminLevel;
+  email?: string;
   scope_department?: number | string;
   scope_faculty?: number | string;
   scope_school?: number | string;
@@ -104,7 +106,7 @@ export function mapRawAdminToUser(raw: RawAdminProfile): User {
     id: String(raw.id),
     identifier: raw.staff_id || raw.user?.identifier || "",
     name: raw.full_name,
-    email: "",
+    email: raw.email || "",
     role: "admin",
     adminLevel: raw.level,
     staffId: raw.staff_id,

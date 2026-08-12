@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { User, UserRole } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UsersViewProps {
   admins: User[];
@@ -68,7 +69,16 @@ export default function UsersView({
 
   const rawDataset = getDataset();
 
+  const { user: currentUser } = useAuth();
+
   const filteredUsers = rawDataset.filter((u) => {
+    const isCurrentUser =
+      (currentUser?.identifier && u.identifier?.toUpperCase() === currentUser.identifier.toUpperCase()) ||
+      (currentUser?.email && u.email && u.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+      u.id === currentUser?.id;
+
+    if (isCurrentUser) return false;
+
     const matchesSearch =
       (u.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (u.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -266,11 +276,12 @@ export default function UsersView({
               header: "Actions",
               align: "right",
               accessor: (u: User) => (
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center justify-end gap-1.5">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => onEditUser(u)}
+                    title={`Edit profile details for ${u.name}`}
                     className="h-8 px-2 text-xs cursor-pointer"
                   >
                     <Edit2 size={13} className="mr-1" /> Edit
@@ -279,6 +290,12 @@ export default function UsersView({
                     variant="outline"
                     size="sm"
                     onClick={() => onOpenResetPassword(u)}
+                    disabled={u.requiresPasswordReset}
+                    title={
+                      u.requiresPasswordReset
+                        ? "Password reset flag already issued for this user account"
+                        : `Reset password to default (12345678) for ${u.name}`
+                    }
                     className="h-8 px-2 text-xs cursor-pointer"
                   >
                     <KeyRound size={13} className="mr-1" /> Reset Pwd
@@ -287,9 +304,22 @@ export default function UsersView({
                     variant={u.isActive ? "outline" : "primary"}
                     size="sm"
                     onClick={() => onToggleStatusTrigger(u)}
+                    title={
+                      u.isActive
+                        ? `Deactivate account access for ${u.name}`
+                        : `Activate account access for ${u.name}`
+                    }
                     className="h-8 px-2 text-xs cursor-pointer"
                   >
-                    {u.isActive ? <ShieldOff size={13} /> : <CheckCircle size={13} />}
+                    {u.isActive ? (
+                      <>
+                        <ShieldOff size={13} className="mr-1 text-danger" /> Deactivate
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={13} className="mr-1 text-white" /> Activate
+                      </>
+                    )}
                   </Button>
                 </div>
               ),
