@@ -133,10 +133,10 @@ export default function AuditLogsView({
       ) : filteredLogs.length === 0 ? (
         <Card className="p-8 text-center space-y-3">
           <History size={36} className="mx-auto text-text-muted opacity-40" />
-          <Text variant="h6" weight="bold">
+          <Text variant="h6" weight="bold" className="text-center">
             No Audit Logs Found
           </Text>
-          <Text variant="body-sm" color="muted">
+          <Text variant="body-sm" color="muted" className="text-center">
             {searchQuery || actionFilter || modelFilter
               ? "No system audit log entries match your active filters."
               : "No system audit logs recorded yet."}
@@ -165,10 +165,10 @@ export default function AuditLogsView({
                     l.action === "create"
                       ? "success"
                       : l.action === "approve"
-                      ? "default"
-                      : l.action === "reject" || l.action === "delete"
-                      ? "danger"
-                      : "warning"
+                        ? "default"
+                        : l.action === "reject" || l.action === "delete"
+                          ? "danger"
+                          : "warning"
                   }
                 >
                   {l.action.toUpperCase()}
