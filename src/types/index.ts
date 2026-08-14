@@ -77,7 +77,7 @@ export interface Course {
   title: string;
   level: number;
   creditUnits: number;
-  departmentId: string;
+  departmentId: string | undefined;
   departmentName?: string;
   owningLevel: AdminLevel;
   lecturers: User[];

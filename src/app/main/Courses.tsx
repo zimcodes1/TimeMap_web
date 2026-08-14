@@ -24,7 +24,7 @@ import {
   getLecturersList,
   getStudentsList,
 } from "@/api/main/usersAPI";
-import type { Course, CourseAccessGrant, AdminLevel } from "@/types";
+import type { Course, AdminLevel } from "@/types";
 import { toast } from "sonner";
 
 export default function CoursesContainer() {

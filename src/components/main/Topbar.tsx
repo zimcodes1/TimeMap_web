@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import SideNav from "./SideNav";
-import SearchModal from "./Search";
 import NotificationsDropdown from "./NotificationsDropdown";
 import ProfileDropdown from "./ProfileDropdown";
 
