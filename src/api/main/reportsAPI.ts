@@ -62,73 +62,73 @@ export function mapRawFlagToModel(raw: RawUnreportedFlag): UnreportedSessionFlag
 }
 
 /**
- * GET /api/reporting/class-rep-reports/
+ * GET /api/reporting/reports/
  */
 export async function getClassRepReportsList(): Promise<ClassRepReport[]> {
   try {
     const response = await apiClient.get<RawClassRepReport[] | { results: RawClassRepReport[] }>(
-      "/reporting/class-rep-reports/"
+      "/reporting/reports/"
     );
     const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
     return list.map(mapRawReportToModel);
   } catch (err) {
-    console.warn("Backend API /reporting/class-rep-reports/ error:", err);
+    console.warn("Backend API /reporting/reports/ error:", err);
     return [];
   }
 }
 
 /**
- * POST /api/reporting/class-rep-reports/
+ * POST /api/reporting/reports/
  */
 export async function createClassRepReportAPI(payload: {
   lecture_session: number | string;
   held: boolean;
   reason?: string;
 }): Promise<ClassRepReport> {
-  const response = await apiClient.post<RawClassRepReport>("/reporting/class-rep-reports/", payload);
+  const response = await apiClient.post<RawClassRepReport>("/reporting/reports/", payload);
   return mapRawReportToModel(response.data);
 }
 
 /**
- * POST /api/reporting/class-rep-reports/{id}/respond/
+ * POST /api/reporting/reports/{id}/respond/
  */
 export async function respondToReportAPI(id: string, responseText: string): Promise<ClassRepReport> {
-  const response = await apiClient.post<RawClassRepReport>(`/reporting/class-rep-reports/${id}/respond/`, {
+  const response = await apiClient.post<RawClassRepReport>(`/reporting/reports/${id}/respond/`, {
     response_text: responseText,
   });
   return mapRawReportToModel(response.data);
 }
 
 /**
- * GET /api/reporting/unreported-flags/
+ * GET /api/reporting/flags/
  */
 export async function getUnreportedFlagsList(): Promise<UnreportedSessionFlag[]> {
   try {
     const response = await apiClient.get<RawUnreportedFlag[] | { results: RawUnreportedFlag[] }>(
-      "/reporting/unreported-flags/"
+      "/reporting/flags/"
     );
     const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
     return list.map(mapRawFlagToModel);
   } catch (err) {
-    console.warn("Backend API /reporting/unreported-flags/ error:", err);
+    console.warn("Backend API /reporting/flags/ error:", err);
     return [];
   }
 }
 
 /**
- * POST /api/reporting/unreported-flags/{id}/acknowledge/
+ * POST /api/reporting/flags/{id}/acknowledge/
  */
 export async function acknowledgeFlagAPI(id: string): Promise<UnreportedSessionFlag> {
-  const response = await apiClient.post<RawUnreportedFlag>(`/reporting/unreported-flags/${id}/acknowledge/`);
+  const response = await apiClient.post<RawUnreportedFlag>(`/reporting/flags/${id}/acknowledge/`);
   return mapRawFlagToModel(response.data);
 }
 
 /**
- * POST /api/reporting/unreported-flags/trigger_sweep/
+ * POST /api/reporting/flags/trigger_sweep/
  */
 export async function triggerSweepAPI(): Promise<{ message: string; flagged_count: number }> {
   const response = await apiClient.post<{ message: string; flagged_count: number }>(
-    "/reporting/unreported-flags/trigger_sweep/"
+    "/reporting/flags/trigger_sweep/"
   );
   return response.data;
 }

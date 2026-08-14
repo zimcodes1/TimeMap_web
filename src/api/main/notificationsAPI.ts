@@ -80,14 +80,14 @@ export async function markAllNotificationsReadAPI(): Promise<{ message: string; 
 }
 
 /**
- * POST /api/notifications/device-tokens/
+ * POST /api/notifications/devices/
  */
 export async function registerDeviceTokenAPI(payload: {
   fcm_token: string;
   platform?: string;
 }): Promise<{ id: number | string; fcm_token: string }> {
   const response = await apiClient.post<{ id: number | string; fcm_token: string }>(
-    "/notifications/device-tokens/",
+    "/notifications/devices/",
     {
       fcm_token: payload.fcm_token,
       platform: payload.platform || "web",
@@ -103,7 +103,7 @@ export async function deactivateDeviceTokenAPI(
   fcmToken: string
 ): Promise<{ message: string; success: boolean }> {
   const response = await apiClient.post<{ message: string; success: boolean }>(
-    "/notifications/device-tokens/deactivate/",
+    "/notifications/devices/deactivate/",
     {
       fcm_token: fcmToken,
     }

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import Logo from "@/components/elements/logo";
 import { Text } from "@/components/ui/text";
 import { NAV_GROUPS } from "@/constants/data";
-import { dummyLoggedInUser } from "@/constants/dummy";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SideNavProps {
   collapsed: boolean;
@@ -14,6 +14,7 @@ interface SideNavProps {
 }
 
 export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavProps) {
+  const { user, logout } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -26,7 +27,8 @@ export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavP
     return pathname.startsWith(to);
   };
 
-  const userInitials = dummyLoggedInUser.name
+  const displayName = user?.name || user?.identifier || "Admin User";
+  const userInitials = displayName
     .split(" ")
     .map((n) => n[0])
     .join("")
@@ -229,17 +231,19 @@ export default function SideNav({ collapsed, onToggle, onCloseMobile }: SideNavP
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <Text variant="caption" className="font-bold text-white truncate block">
-                {dummyLoggedInUser.name}
+                {displayName}
               </Text>
               <Text variant="caption" className="text-white/70 truncate block text-[11px]">
-                {dummyLoggedInUser.email}
+                {user?.email || user?.identifier}
               </Text>
             </div>
           )}
           {!collapsed && (
             <button
+              type="button"
+              onClick={logout}
               title="Sign Out"
-              className="text-white/70 hover:text-white hover:bg-white/20 p-1 rounded-md transition-colors cursor-pointer"
+              className="text-white/70 hover:text-white hover:bg-white/20 p-1.5 rounded-md transition-colors cursor-pointer"
             >
               <LogOut size={16} />
             </button>
