@@ -9,16 +9,16 @@ interface CreateExamSittingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { timetableEntryId: string; invigilatorIds: string[] }) => void;
-  entries: TimetableEntry[];
-  lecturers: User[];
+  entries?: TimetableEntry[];
+  lecturers?: User[];
 }
 
 export default function CreateExamSittingModal({
   isOpen,
   onClose,
   onSubmit,
-  entries,
-  lecturers,
+  entries = [],
+  lecturers = [],
 }: CreateExamSittingModalProps) {
   const [timetableEntryId, setTimetableEntryId] = useState(entries[0]?.id || '');
   const [selectedInvigilatorIds, setSelectedInvigilatorIds] = useState<string[]>([]);

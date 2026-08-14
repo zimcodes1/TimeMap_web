@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import SideNav from "./SideNav";
-import SearchModal from "./Search";
 import NotificationsDropdown from "./NotificationsDropdown";
 import ProfileDropdown from "./ProfileDropdown";
 
@@ -29,7 +28,7 @@ export default function Topbar({ }: TopbarProps) {
 
       {/* Right Area: Search, Notifications, Profile Dropdowns */}
       <div className="flex items-center gap-2">
-        <SearchModal />
+        {/* Hide <SearchModal /> for now until use is found for it*/}
         <NotificationsDropdown />
         <ProfileDropdown />
       </div>

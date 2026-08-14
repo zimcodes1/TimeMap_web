@@ -1,34 +1,68 @@
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   CheckCheck,
-  Trash2,
   AlertTriangle,
   FileText,
   Info,
+  CheckCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Text } from "../ui/text";
 import {
-  dummyNotifications as initialNotifications,
-  type NotificationItem,
-} from "@/constants/dummy";
+  getNotificationsList,
+  getUnreadNotificationsCount,
+  markNotificationReadAPI,
+  markAllNotificationsReadAPI,
+} from "@/api/main/notificationsAPI";
+import type { NotificationItem } from "@/types";
+import { toast } from "sonner";
 
 export default function NotificationsDropdown() {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const notifRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  // Fetch unread count with 10s polling interval
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: getUnreadNotificationsCount,
+    refetchInterval: 10000, // 10s polling for live notifications
+  });
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  // Fetch notifications list with 10s polling interval
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications", "list"],
+    queryFn: getNotificationsList,
+    refetchInterval: 10000, // 10s polling for live notifications
+  });
+
+  // Mark single notification read
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => markNotificationReadAPI(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  // Mark all notifications read
+  const markAllReadMutation = useMutation({
+    mutationFn: markAllNotificationsReadAPI,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success(res.message || "All notifications marked as read.");
+    },
+  });
+
+  const handleMarkRead = (id: string) => {
+    markReadMutation.mutate(id);
   };
 
-  const handleClearAll = () => {
-    setNotifications([]);
+  const handleMarkAllRead = () => {
+    markAllReadMutation.mutate();
   };
 
   useEffect(() => {
@@ -49,11 +83,12 @@ export default function NotificationsDropdown() {
         onClick={() => setShowNotifications((prev) => !prev)}
         className="relative rounded-full h-9 w-9 p-0 border-border text-text-muted hover:text-text-main bg-surface cursor-pointer"
         aria-label="Notifications"
+        title="View Notifications"
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-xs">
-            {unreadCount}
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-xs animate-pulse">
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </Button>
@@ -74,7 +109,7 @@ export default function NotificationsDropdown() {
                 </Text>
                 {unreadCount > 0 && (
                   <Badge variant="primary" className="text-[10px] bg-primary-muted text-primary">
-                    {unreadCount} new
+                    {unreadCount} unread
                   </Badge>
                 )}
               </div>
@@ -84,19 +119,9 @@ export default function NotificationsDropdown() {
                     type="button"
                     onClick={handleMarkAllRead}
                     title="Mark all as read"
-                    className="p-1 rounded-md text-text-subtle hover:text-primary transition-colors cursor-pointer"
+                    className="p-1.5 rounded-md text-text-subtle hover:text-primary transition-colors cursor-pointer"
                   >
                     <CheckCheck size={16} />
-                  </button>
-                )}
-                {notifications.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleClearAll}
-                    title="Clear all"
-                    className="p-1 rounded-md text-text-subtle hover:text-danger transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={16} />
                   </button>
                 )}
               </div>
@@ -104,20 +129,21 @@ export default function NotificationsDropdown() {
 
             <div className="mt-2 max-h-72 overflow-y-auto space-y-1 scrollbar-thin">
               {notifications.length > 0 ? (
-                notifications.map((item) => (
+                notifications.map((item: NotificationItem) => (
                   <div
                     key={item.id}
-                    className={`p-2.5 rounded-xl transition-colors border ${
-                      item.unread
+                    onClick={() => !item.isRead && handleMarkRead(item.id)}
+                    className={`p-2.5 rounded-xl transition-colors border cursor-pointer ${
+                      !item.isRead
                         ? "bg-primary-muted/30 border-primary/20"
-                        : "bg-surface hover:bg-surface-raised border-transparent"
+                        : "bg-surface hover:bg-surface-raised border-transparent opacity-80"
                     }`}
                   >
                     <div className="flex items-start gap-2.5">
                       <div className="p-1.5 rounded-lg bg-surface border border-border text-primary shrink-0 mt-0.5">
-                        {item.type === "conflict" ? (
+                        {item.notificationType?.includes("conflict") ? (
                           <AlertTriangle size={14} className="text-warning" />
-                        ) : item.type === "request" ? (
+                        ) : item.notificationType?.includes("discrepancy") ? (
                           <FileText size={14} className="text-info" />
                         ) : (
                           <Info size={14} className="text-primary" />
@@ -129,13 +155,26 @@ export default function NotificationsDropdown() {
                             {item.title}
                           </Text>
                           <Text variant="caption" className="text-[10px] text-text-subtle">
-                            {item.time}
+                            {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </Text>
                         </div>
                         <Text variant="caption" className="text-text-muted text-xs block mt-0.5 line-clamp-2">
-                          {item.message}
+                          {item.body}
                         </Text>
                       </div>
+                      {!item.isRead && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkRead(item.id);
+                          }}
+                          title="Mark as read"
+                          className="p-1 text-text-subtle hover:text-primary cursor-pointer shrink-0"
+                        >
+                          <CheckCircle size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

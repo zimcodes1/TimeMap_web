@@ -1,86 +1,153 @@
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ShieldCheck } from 'lucide-react';
+import { useFormContext } from "react-hook-form";
+import { motion } from "framer-motion";
+import { Lock, Eye, EyeOff, User } from "lucide-react";
+import { useState } from "react";
+import { Text } from "@/components/ui/text";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form";
+import Logo from "@/components/elements/logo";
+import { Link } from "@tanstack/react-router";
+import type { ResetPasswordSchema } from "@/app/auth/ResetPassword";
+import type { User as UserType } from "@/types";
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, ease: "easeOut" as const, delay },
+});
 
 interface ResetPasswordViewProps {
-  onSubmit: (newPassword: string) => void;
+  onSubmit: () => void;
+  isLoading: boolean;
+  user: UserType;
 }
 
-export default function ResetPasswordView({ onSubmit }: ResetPasswordViewProps) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    setError('');
-    onSubmit(newPassword);
-  };
+export default function ResetPasswordView({
+  onSubmit,
+  isLoading,
+  user,
+}: ResetPasswordViewProps) {
+  const {
+    formState: { errors },
+  } = useFormContext<ResetPasswordSchema>();
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md p-8 space-y-6 shadow-xl border-border">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-md">
-            <ShieldCheck size={28} />
-          </div>
-          <Text variant="h4" weight="bold" className="text-text-main">
-            First-Login Password Reset
+    <div className="w-full h-full flex flex-col justify-center items-center px-8 py-12">
+      <div className="w-full max-w-sm flex flex-col gap-6">
+        {/* Mobile-only logo */}
+        <motion.div
+          {...fadeUp(0)}
+          className="flex items-center gap-2 md:hidden mb-2"
+        >
+          <Logo color="#10b981" size={22} />
+          <Text className="text-text-main font-semibold text-sm">
+            NSUK TimeMap
           </Text>
-          <Text variant="body-sm" color="muted">
-            For security compliance, you must set a new password before accessing the system.
+        </motion.div>
+
+        {/* Header */}
+        <motion.div {...fadeUp(0.05)} className="flex flex-col gap-1">
+          <Text variant="h3" className="text-text-main">
+            Reset Password
           </Text>
-        </div>
+          <Text variant="body" color="muted">
+            Set a new password for your account.
+          </Text>
+        </motion.div>
 
-        {error && (
-          <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-semibold">
-            {error}
+        {/* Staff ID / Account Identifier display */}
+        <motion.div
+          {...fadeUp(0.08)}
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised px-4 py-3"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-muted">
+            <User size={15} className="text-primary" />
           </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              New Password
+          <div className="flex flex-col">
+            <Text variant="body-sm" color="muted">
+              Account Identifier
             </Text>
-            <Input
-              type="password"
-              placeholder="Enter new strong password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <Text variant="caption" className="font-semibold mb-1 block">
-              Confirm New Password
+            <Text variant="body" weight="semibold">
+              {user.identifier || user.staffId || "—"}
             </Text>
-            <Input
-              type="password"
-              placeholder="Re-enter new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
           </div>
+        </motion.div>
 
-          <Button variant="primary" className="w-full mt-2" type="submit">
-            Update Password & Continue
-          </Button>
+        {/* Form */}
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <motion.div {...fadeUp(0.15)}>
+            <FormField<ResetPasswordSchema> name="newPassword">
+              {(field) => (
+                <Input
+                  {...field}
+                  label="New Password"
+                  type={showNew ? "text" : "password"}
+                  placeholder="••••••••"
+                  leftIcon={<Lock size={15} />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowNew((p) => !p)}
+                      className="text-text-subtle hover:text-text-muted transition-colors cursor-pointer"
+                    >
+                      {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  }
+                  error={errors.newPassword?.message}
+                  autoComplete="new-password"
+                />
+              )}
+            </FormField>
+          </motion.div>
+
+          <motion.div {...fadeUp(0.2)}>
+            <FormField<ResetPasswordSchema> name="confirmPassword">
+              {(field) => (
+                <Input
+                  {...field}
+                  label="Confirm Password"
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="••••••••"
+                  leftIcon={<Lock size={15} />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm((p) => !p)}
+                      className="text-text-subtle hover:text-text-muted transition-colors cursor-pointer"
+                    >
+                      {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  }
+                  error={errors.confirmPassword?.message}
+                  autoComplete="new-password"
+                />
+              )}
+            </FormField>
+          </motion.div>
+
+          <motion.div {...fadeUp(0.25)}>
+            <Button type="submit" fullWidth size="lg" isLoading={isLoading}>
+              Reset Password
+            </Button>
+          </motion.div>
         </form>
-      </Card>
+
+        {/* Footer */}
+        <motion.div {...fadeUp(0.3)} className="text-center">
+          <Text variant="body-sm" color="muted">
+            Not your account?{" "}
+            <Link
+              to="/login"
+              className="text-primary hover:text-primary-hover transition-colors font-medium cursor-pointer"
+            >
+              Back to login
+            </Link>
+          </Text>
+        </motion.div>
+      </div>
     </div>
   );
 }

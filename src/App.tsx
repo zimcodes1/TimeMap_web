@@ -3,6 +3,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/toast";
 import { routeTree } from "./routeTree.gen";
 import LostPage from "@/pages/lost";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Create router instance using auto-generated routeTree
 const router = createRouter({
@@ -29,8 +30,10 @@ const queryClient = new QueryClient({
 export function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<Toaster />
-			<RouterProvider router={router} />
+			<AuthProvider>
+				<Toaster />
+				<RouterProvider router={router} />
+			</AuthProvider>
 		</QueryClientProvider>
 	);
 }

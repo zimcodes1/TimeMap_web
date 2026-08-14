@@ -1,58 +1,154 @@
-import { useState } from 'react';
-import VenuesView from '@/pages/main/VenuesView';
-import CreateVenueModal from '@/components/modals/CreateVenueModal';
-import CreateFacilityModal from '@/components/modals/CreateFacilityModal';
-import ToggleVenueStatusModal from '@/components/modals/ToggleVenueStatusModal';
-import EditVenueModal from '@/components/modals/EditVenueModal';
-import { mockVenues, mockFacilities, mockDepartments } from '@/constants/mockData';
-import type { Venue, Facility } from '@/types';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import VenuesView from "@/pages/main/VenuesView";
+import CreateVenueModal from "@/components/modals/CreateVenueModal";
+import CreateFacilityModal from "@/components/modals/CreateFacilityModal";
+import ToggleVenueStatusModal from "@/components/modals/ToggleVenueStatusModal";
+import EditVenueModal from "@/components/modals/EditVenueModal";
+import {
+  getVenues,
+  getFacilities,
+  createVenueAPI,
+  updateVenueAPI,
+  activateVenueAPI,
+  deactivateVenueAPI,
+  createFacilityAPI,
+} from "@/api/main/venuesAPI";
+import {
+  getDepartmentsOptions,
+  getFacultiesOptions,
+  getSchoolsOptions,
+} from "@/api/main/usersAPI";
+import type { Venue } from "@/types";
+import { toast } from "sonner";
 
 export default function VenuesContainer() {
-  const [venues, setVenues] = useState<Venue[]>(mockVenues);
-  const [facilities, setFacilities] = useState<Facility[]>(mockFacilities);
+  const queryClient = useQueryClient();
 
+  // Modal Visibility States
   const [isCreateVenueOpen, setIsCreateVenueOpen] = useState(false);
   const [isCreateFacilityOpen, setIsCreateFacilityOpen] = useState(false);
   const [toggleStatusTarget, setToggleStatusTarget] = useState<Venue | null>(null);
   const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
 
-  const handleCreateVenue = (data: Partial<Venue>) => {
-    const newVenue: Venue = {
-      id: `v_${Date.now()}`,
-      name: data.name || 'New Hall',
-      code: data.code || 'NH-01',
-      capacity: data.capacity || 100,
-      examCapacity: data.examCapacity || 50,
-      building: data.building || 'Main Campus',
-      facilities: data.facilities || [],
-      owningLevel: data.owningLevel || 'department',
-      owningDepartmentId: data.owningDepartmentId,
-      isAvailable: true,
-      venueType: data.venueType || 'lecture_hall',
-    };
-    setVenues((prev) => [newVenue, ...prev]);
+  // React Query Fetching
+  const {
+    data: venuesData,
+    isLoading: isVenuesLoading,
+    isRefetching: isVenuesRefetching,
+    refetch: refetchVenues,
+  } = useQuery({
+    queryKey: ["venues", "list"],
+    queryFn: getVenues,
+  });
+
+  const {
+    data: facilitiesData,
+    isLoading: isFacilitiesLoading,
+    refetch: refetchFacilities,
+  } = useQuery({
+    queryKey: ["venues", "facilities"],
+    queryFn: getFacilities,
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["hierarchy", "departments"],
+    queryFn: getDepartmentsOptions,
+  });
+
+  const { data: faculties = [] } = useQuery({
+    queryKey: ["hierarchy", "faculties"],
+    queryFn: getFacultiesOptions,
+  });
+
+  const { data: schools = [] } = useQuery({
+    queryKey: ["hierarchy", "schools"],
+    queryFn: getSchoolsOptions,
+  });
+
+  const venues = venuesData ?? [];
+  const facilities = facilitiesData ?? [];
+  const isLoading = isVenuesLoading || isFacilitiesLoading;
+
+  // React Query Mutations
+  const createVenueMutation = useMutation({
+    mutationFn: (payload: Partial<Venue> & { scopeId?: string }) => createVenueAPI(payload),
+    onSuccess: (newVenue) => {
+      queryClient.invalidateQueries({ queryKey: ["venues", "list"] });
+      toast.success(`Venue "${newVenue.name}" created successfully.`);
+      setIsCreateVenueOpen(false);
+    },
+    onError: (err) => {
+      toast.error("Failed to create venue.");
+      console.error("createVenue error:", err);
+    },
+  });
+
+  const editVenueMutation = useMutation({
+    mutationFn: ({ id, updated }: { id: string; updated: Partial<Venue> & { scopeId?: string } }) =>
+      updateVenueAPI(id, updated),
+    onSuccess: (updatedVenue) => {
+      queryClient.invalidateQueries({ queryKey: ["venues", "list"] });
+      toast.success(`Venue "${updatedVenue.name}" updated successfully.`);
+      setEditingVenue(null);
+    },
+    onError: (err) => {
+      toast.error("Failed to update venue.");
+      console.error("editVenue error:", err);
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: (target: Venue) =>
+      target.isAvailable ? deactivateVenueAPI(target.id) : activateVenueAPI(target.id),
+    onSuccess: (updatedVenue, target) => {
+      queryClient.invalidateQueries({ queryKey: ["venues", "list"] });
+      toast.success(
+        `Venue "${target.name}" has been ${updatedVenue.isAvailable ? "activated" : "deactivated"}.`
+      );
+      setToggleStatusTarget(null);
+    },
+    onError: (err) => {
+      toast.error("Failed to update venue status.");
+      console.error("toggleStatus error:", err);
+    },
+  });
+
+  const createFacilityMutation = useMutation({
+    mutationFn: (payload: { name: string }) => createFacilityAPI(payload),
+    onSuccess: (newFac) => {
+      queryClient.invalidateQueries({ queryKey: ["venues", "facilities"] });
+      toast.success(`Facility tag "${newFac.name}" added successfully.`);
+      setIsCreateFacilityOpen(false);
+    },
+    onError: (err) => {
+      toast.error("Failed to create facility tag.");
+      console.error("createFacility error:", err);
+    },
+  });
+
+  // Action Handlers
+  const handleCreateVenue = (data: Partial<Venue> & { scopeId?: string }) => {
+    createVenueMutation.mutate(data);
   };
 
   const handleCreateFacility = (data: { name: string }) => {
-    const newFac: Facility = {
-      id: `fac_${Date.now()}`,
-      name: data.name,
-    };
-    setFacilities((prev) => [...prev, newFac]);
+    createFacilityMutation.mutate(data);
   };
 
-  const handleEditVenue = (id: string, updated: Partial<Venue>) => {
-    setVenues((prev) => prev.map((v) => (v.id === id ? { ...v, ...updated } : v)));
+  const handleEditVenue = (id: string, updated: Partial<Venue> & { scopeId?: string }) => {
+    editVenueMutation.mutate({ id, updated });
   };
 
   const handleToggleStatus = () => {
-    if (!toggleStatusTarget) return;
-    const targetId = toggleStatusTarget.id;
-    const targetStatus = !toggleStatusTarget.isAvailable;
-    setVenues((prev) =>
-      prev.map((v) => (v.id === targetId ? { ...v, isAvailable: targetStatus } : v))
-    );
-    setToggleStatusTarget(null);
+    if (toggleStatusTarget) {
+      toggleStatusMutation.mutate(toggleStatusTarget);
+    }
+  };
+
+  const handleRefresh = () => {
+    refetchVenues();
+    refetchFacilities();
   };
 
   return (
@@ -60,6 +156,9 @@ export default function VenuesContainer() {
       <VenuesView
         venues={venues}
         facilities={facilities}
+        isLoading={isLoading}
+        isRefetching={isVenuesRefetching}
+        onRefresh={handleRefresh}
         onOpenCreateVenue={() => setIsCreateVenueOpen(true)}
         onOpenCreateFacility={() => setIsCreateFacilityOpen(true)}
         onEditVenue={(v) => setEditingVenue(v)}
@@ -71,7 +170,9 @@ export default function VenuesContainer() {
         onClose={() => setIsCreateVenueOpen(false)}
         onSubmit={handleCreateVenue}
         facilitiesList={facilities}
-        departments={mockDepartments}
+        departments={departments}
+        faculties={faculties}
+        schools={schools}
       />
 
       <CreateFacilityModal

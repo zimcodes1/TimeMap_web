@@ -3,4 +3,5 @@ import CoursesContainer from '@/app/main/Courses';
 
 export const Route = createFileRoute('/_main/courses')({
   component: CoursesContainer,
+  beforeLoad: () => document.title = "Courses & Sharing |  NSUK TimeMap"
 });
