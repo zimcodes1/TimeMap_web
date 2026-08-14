@@ -29,7 +29,7 @@ export default function Topbar({ }: TopbarProps) {
 
       {/* Right Area: Search, Notifications, Profile Dropdowns */}
       <div className="flex items-center gap-2">
-        <SearchModal />
+        {/* Hide <SearchModal /> for now until use is found for it*/}
         <NotificationsDropdown />
         <ProfileDropdown />
       </div>

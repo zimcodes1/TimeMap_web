@@ -111,7 +111,7 @@ export default function DashboardView({
       {/* 4 Primary Summary Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Active Venues */}
-        <Card className="p-4 space-y-2 border-l-4 border-l-primary">
+        <Card className="p-4 space-y-2 border-l-4 border-primary/20 border-l-primary">
           <div className="flex items-center justify-between text-text-muted">
             <Text variant="overline" className="text-[11px]">
               Total Active Venues
@@ -134,7 +134,7 @@ export default function DashboardView({
         </Card>
 
         {/* Card 2: Active Courses Registered */}
-        <Card className="p-4 space-y-2 border-l-4 border-l-blue-600">
+        <Card className="p-4 space-y-2 border-l-4 border-blue-600/20 border-l-blue-600">
           <div className="flex items-center justify-between text-text-muted">
             <Text variant="overline" className="text-[11px]">
               Active Courses Registered
@@ -159,7 +159,7 @@ export default function DashboardView({
         </Card>
 
         {/* Card 3: Pending Discrepancy Queue */}
-        <Card className="p-4 space-y-2 border-l-4 border-l-amber-500">
+        <Card className="p-4 space-y-2 border-l-4 border-amber-500/20 border-l-amber-500">
           <div className="flex items-center justify-between text-text-muted">
             <Text variant="overline" className="text-[11px]">
               Pending Discrepancy Queue
@@ -182,7 +182,7 @@ export default function DashboardView({
         </Card>
 
         {/* Card 4: Unreported Session Flags */}
-        <Card className="p-4 space-y-2 border-l-4 border-l-danger">
+        <Card className="p-4 space-y-2 border-l-4 border-danger/20 border-l-danger">
           <div className="flex items-center justify-between text-text-muted">
             <Text variant="overline" className="text-[11px]">
               Unreported Session Flags
