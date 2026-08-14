@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Text } from "../ui/text";
 import { Badge } from "../ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "@tanstack/react-router";
 
 export default function ProfileDropdown() {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -79,14 +80,14 @@ export default function ProfileDropdown() {
             </div>
 
             <div className="space-y-1">
-              <a
-                href="/settings"
+              <Link
+                to="/settings"
                 onClick={() => setShowUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-text-muted hover:bg-surface-raised hover:text-text-main transition-colors"
               >
                 <UserIcon size={16} />
                 <span>Profile Settings</span>
-              </a>
+              </Link>
               <button
                 type="button"
                 onClick={handleLogout}
