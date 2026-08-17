@@ -147,11 +147,34 @@ export function filterSchoolsByScope(
     return schools.filter((s) => String(s.id) === String(mySchoolId));
   }
 
-  // faculty & department admins don't need to pick a school in forms
-  // so return empty to prevent them seeing all schools
-  if (adminLevel === "faculty" || adminLevel === "department") {
-    return [];
-  }
-
   return schools;
 }
+
+/**
+ * Resolves the visible tabs for user management based on the managers-manage-managers model.
+ * - Department Admin: Lecturers, Students (NO Admin Officers)
+ * - Faculty Admin: Admin Officers only (NO Lecturers, NO Students)
+ * - School Admin: Admin Officers only (NO Lecturers, NO Students)
+ * - University Admin / Superuser: Admin Officers, Lecturers, Students
+ */
+export function getVisibleTabs(currentUser: User | null): ("admin" | "lecturer" | "student")[] {
+  if (!currentUser) return ["admin", "lecturer", "student"];
+
+  if (currentUser.role !== "admin") {
+    return ["lecturer", "student"];
+  }
+
+  const level = currentUser.adminLevel;
+
+  if (level === "department") {
+    return ["lecturer", "student"];
+  }
+
+  if (level === "faculty" || level === "school") {
+    return ["admin"];
+  }
+
+  // Superuser / University level
+  return ["admin", "lecturer", "student"];
+}
+

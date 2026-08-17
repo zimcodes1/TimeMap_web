@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   filterDepartmentsByScope,
   getAdminLevelRank,
+  getVisibleTabs,
 } from "@/lib/scopeUtils";
 import { buildUsersColumns } from "@/components/users/UsersTableColumns";
 import { UsersBulkBar } from "@/components/users/UsersBulkBar";
@@ -77,9 +78,14 @@ export default function UsersView({
 
 
 
-  // ─── Tab / Filter State ────────────────────────────────────────────────────
-  const defaultTab: UserRole = isDeptAdmin ? "lecturer" : "admin";
+  // ─── Visible Tabs ──────────────────────────────────────────────────────────
+  const visibleTabIds = useMemo(() => getVisibleTabs(currentUser), [currentUser]);
+  const defaultTab: UserRole = visibleTabIds[0] || "admin";
   const [activeTab, setActiveTab] = useState<UserRole>(defaultTab);
+
+  // If currentUser changes or activeTab is not in visibleTabIds, reset to defaultTab
+  const currentTab = visibleTabIds.includes(activeTab) ? activeTab : defaultTab;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [scopeFilter, setScopeFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
@@ -91,6 +97,7 @@ export default function UsersView({
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
 
   const resetAllFilters = () => {
     setSearchQuery("");
@@ -107,15 +114,15 @@ export default function UsersView({
 
   // ─── Dataset Selection ─────────────────────────────────────────────────────
   const rawDataset: User[] = (() => {
-    if (activeTab === "admin") return admins;
-    if (activeTab === "lecturer") return lecturers;
+    if (currentTab === "admin") return admins;
+    if (currentTab === "lecturer") return lecturers;
     return students;
   })();
 
   const isCurrentTabLoading =
-    activeTab === "admin"
+    currentTab === "admin"
       ? adminsLoading
-      : activeTab === "lecturer"
+      : currentTab === "lecturer"
         ? lecturersLoading
         : studentsLoading;
 
@@ -250,19 +257,17 @@ export default function UsersView({
   };
 
   // ─── Toolbar Filters ───────────────────────────────────────────────────────
-  // Admin scope-level filter options (only shown on admin tab, and only for
-  // admins above department level — dept admins can't see the admin tab at all)
   const adminScopeOptions = useMemo(() => {
     if (isFacultyAdmin) {
       return [{ label: "Department", value: "department" }];
     }
     if (adminLevel === "school") {
-      return [
-        { label: "Faculty", value: "faculty" },
-        { label: "Department", value: "department" },
-      ];
+      return [{ label: "Faculty", value: "faculty" }];
     }
-    // Superuser/university sees all
+    if (adminLevel === "university") {
+      return [{ label: "School", value: "school" }];
+    }
+    // Superuser sees all
     return [
       { label: "University", value: "university" },
       { label: "School", value: "school" },
@@ -275,7 +280,7 @@ export default function UsersView({
   const showDeptFilter = scopedDepts.length > 1;
 
   const toolbarFilters = useMemo(() => [
-    ...(activeTab === "admin" && !isDeptAdmin
+    ...(currentTab === "admin" && adminScopeOptions.length > 1
       ? [
         {
           id: "adminLevel",
@@ -300,7 +305,7 @@ export default function UsersView({
         },
       ]
       : []),
-    ...(activeTab === "student"
+    ...(currentTab === "student"
       ? [
         {
           id: "level",
@@ -338,8 +343,7 @@ export default function UsersView({
       ],
     },
   ], [
-    activeTab,
-    isDeptAdmin,
+    currentTab,
     scopeFilter,
     adminScopeOptions,
     showDeptFilter,
@@ -352,7 +356,7 @@ export default function UsersView({
 
   // ─── Table Columns ─────────────────────────────────────────────────────────
   const columns = buildUsersColumns({
-    activeTab,
+    activeTab: currentTab,
     loggedInRank,
     selectedUserIds,
     paginatedUsers,
@@ -362,6 +366,14 @@ export default function UsersView({
     onOpenResetPassword,
     onToggleStatusTrigger,
   });
+
+  // Construct tab objects according to visibleTabIds
+  const allTabsList = [
+    { id: "admin", label: "Admin Officers", icon: ShieldAlert, count: admins.length },
+    { id: "lecturer", label: "Lecturers", icon: UsersIcon, count: lecturers.length },
+    { id: "student", label: "Students & Reps", icon: UsersIcon, count: students.length },
+  ];
+  const activeTabsList = allTabsList.filter((tab) => visibleTabIds.includes(tab.id as UserRole));
 
   return (
     <div className="space-y-6">
@@ -374,6 +386,8 @@ export default function UsersView({
           <Text variant="body-sm" color="muted">
             {isDeptAdmin
               ? "Manage lecturers and students in your assigned department."
+              : isFacultyAdmin || adminLevel === "school" || adminLevel === "university"
+              ? "Manage administrative officer accounts for lower scope tiers."
               : "Manage admin officers, lecturers, and student accounts and role privileges."}
           </Text>
         </div>
@@ -395,16 +409,10 @@ export default function UsersView({
         </div>
       </div>
 
-      {/* Tabs — dept admins never see the Admin Officers tab */}
+      {/* Tabs Switcher */}
       <TabSwitcher
-        tabs={[
-          ...(!isDeptAdmin
-            ? [{ id: "admin", label: "Admin Officers", icon: ShieldAlert, count: admins.length }]
-            : []),
-          { id: "lecturer", label: "Lecturers", icon: UsersIcon, count: lecturers.length },
-          { id: "student", label: "Students & Reps", icon: UsersIcon, count: students.length },
-        ]}
-        activeTab={activeTab}
+        tabs={activeTabsList}
+        activeTab={currentTab}
         onChange={(tab) => {
           setActiveTab(tab as UserRole);
           setCurrentPage(1);
@@ -419,7 +427,7 @@ export default function UsersView({
           setSearchQuery(q);
           setCurrentPage(1);
         }}
-        searchPlaceholder={`Search ${activeTab}s by name, email, or ID...`}
+        searchPlaceholder={`Search ${currentTab}s by name, email, or ID...`}
         totalCount={rawDataset.length}
         filteredCount={sortedUsers.length}
         filters={toolbarFilters}
@@ -440,7 +448,7 @@ export default function UsersView({
               { value: "name", label: "Full Name" },
               { value: "identifier", label: "Matric / Staff ID" },
               { value: "department", label: "Department" },
-              ...(activeTab === "student"
+              ...(currentTab === "student"
                 ? [
                   { value: "level", label: "Academic Level" },
                   { value: "isClassRep", label: "Class Rep Status" },
@@ -460,6 +468,7 @@ export default function UsersView({
           </Button>
         </div>
       </TableToolbar>
+
 
       {/* Bulk Action Bar */}
       <UsersBulkBar

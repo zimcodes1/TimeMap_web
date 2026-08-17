@@ -161,11 +161,19 @@ export default function EditUserModal({
     { value: "student", label: "Student / Class Rep" },
   ];
 
-  const adminLevelSelectOptions = [
-    { value: "department", label: "Department Admin" },
-    ...(!isFacultyAdmin && !isSchoolAdmin ? [{ value: "faculty", label: "Faculty Admin" }] : []),
-    ...(!isFacultyAdmin && !isSchoolAdmin ? [{ value: "school", label: "School Admin" }] : []),
-  ];
+  const adminLevelSelectOptions = isFacultyAdmin
+    ? [{ value: "department", label: "Department Admin" }]
+    : isSchoolAdmin
+    ? [{ value: "faculty", label: "Faculty Admin" }]
+    : adminLevel === "university"
+    ? [{ value: "school", label: "School Admin" }]
+    : [
+        { value: "department", label: "Department Admin" },
+        { value: "faculty", label: "Faculty Admin" },
+        { value: "school", label: "School Admin" },
+        { value: "university", label: "University Admin" },
+      ];
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Edit User Account — ${user.name}`}>

@@ -74,8 +74,22 @@ export default function CreateUserModal({
       setName(initialData?.name || "");
       setEmail(initialData?.email || "");
       setIdentifier(initialData?.identifier || "");
-      setRole(initialData?.role || (isDeptAdmin ? "student" : ""));
-      setAdminLevel(initialData?.adminLevel || "");
+
+      const defaultRole: UserRole | "" = isDeptAdmin
+        ? "student"
+        : isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university"
+        ? "admin"
+        : "";
+      setRole(initialData?.role || defaultRole);
+
+      const defaultAdminLevel: AdminLevel | "" = isFacultyAdmin
+        ? "department"
+        : isSchoolAdmin
+        ? "faculty"
+        : currentAdminLevel === "university"
+        ? "school"
+        : "";
+      setAdminLevel(initialData?.adminLevel || defaultAdminLevel);
 
       let matchedScopeId =
         initialData?.departmentId ||
@@ -85,6 +99,12 @@ export default function CreateUserModal({
 
       if (isDeptAdmin && scopedDepts.length > 0) {
         matchedScopeId = scopedDepts[0].id;
+      } else if (isFacultyAdmin && scopedDepts.length > 0 && !matchedScopeId) {
+        matchedScopeId = scopedDepts[0].id;
+      } else if (isSchoolAdmin && scopedFacs.length > 0 && !matchedScopeId) {
+        matchedScopeId = scopedFacs[0].id;
+      } else if (currentAdminLevel === "university" && scopedSchs.length > 0 && !matchedScopeId) {
+        matchedScopeId = scopedSchs[0].id;
       } else if (matchedScopeId) {
         const foundById = scopedDepts.find((d) => String(d.id) === String(matchedScopeId));
         if (foundById) matchedScopeId = foundById.id;
@@ -96,11 +116,9 @@ export default function CreateUserModal({
       setErrors({});
       setFormError(null);
     }
-  // Only reset the form when the modal opens or the target user changes.
-  // scopedDepts is intentionally excluded — it's stable via useMemo and
-  // should not trigger a form reset when the dept list re-fetches.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialData]);
+
 
   // Compute selected department & dynamic max level
   const selectedDept = scopedDepts.find((d) => d.id === scopeId);
@@ -255,19 +273,34 @@ export default function CreateUserModal({
     }
   };
 
-  const roleSelectOptions = [
-    { value: "", label: "-- Select User Role --", disabled: true },
-    { value: "student", label: "Student / Class Rep" },
-    { value: "lecturer", label: "Lecturer / Teaching Staff" },
-    ...(!isDeptAdmin ? [{ value: "admin", label: "Admin Officer" }] : []),
-  ];
+  const roleSelectOptions = isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university"
+    ? [{ value: "admin", label: "Admin Officer" }]
+    : isDeptAdmin
+    ? [
+        { value: "student", label: "Student / Class Rep" },
+        { value: "lecturer", label: "Lecturer / Teaching Staff" },
+      ]
+    : [
+        { value: "", label: "-- Select User Role --", disabled: true },
+        { value: "student", label: "Student / Class Rep" },
+        { value: "lecturer", label: "Lecturer / Teaching Staff" },
+        { value: "admin", label: "Admin Officer" },
+      ];
 
-  const adminLevelSelectOptions = [
-    { value: "", label: "-- Select Scope Level --", disabled: true },
-    { value: "department", label: "Department Admin" },
-    ...(!isFacultyAdmin ? [{ value: "faculty", label: "Faculty Admin" }] : []),
-    ...(!isFacultyAdmin && !isSchoolAdmin ? [{ value: "school", label: "School Admin" }] : []),
-  ];
+  const adminLevelSelectOptions = isFacultyAdmin
+    ? [{ value: "department", label: "Department Admin" }]
+    : isSchoolAdmin
+    ? [{ value: "faculty", label: "Faculty Admin" }]
+    : currentAdminLevel === "university"
+    ? [{ value: "school", label: "School Admin" }]
+    : [
+        { value: "", label: "-- Select Scope Level --", disabled: true },
+        { value: "department", label: "Department Admin" },
+        { value: "faculty", label: "Faculty Admin" },
+        { value: "school", label: "School Admin" },
+        { value: "university", label: "University Admin" },
+      ];
+
 
   return (
     <Modal
