@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 font-medium rounded-full transition-colors border',
+  'text-center inline-flex items-center gap-1.5 font-medium rounded-full transition-colors border',
   {
     variants: {
       variant: {
@@ -38,7 +38,7 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {
+  VariantProps<typeof badgeVariants> {
   icon?: React.ReactNode;
 }
 

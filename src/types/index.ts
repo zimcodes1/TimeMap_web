@@ -44,6 +44,8 @@ export interface Department {
   code: string;
   facultyId: string;
   facultyName?: string;
+  max_level?: number;
+  maxLevel?: number;
 }
 
 // Venue & Facility Types

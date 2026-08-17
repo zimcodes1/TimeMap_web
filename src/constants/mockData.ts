@@ -126,9 +126,9 @@ export const mockFaculties: Faculty[] = [
 ];
 
 export const mockDepartments: Department[] = [
-  { id: 'dept_csc', facultyId: 'fac_1', facultyName: 'Faculty of Natural & Applied Sciences', name: 'Computer Science', code: 'CSC' },
-  { id: 'dept_mat', facultyId: 'fac_1', facultyName: 'Faculty of Natural & Applied Sciences', name: 'Mathematics', code: 'MAT' },
-  { id: 'dept_eee', facultyId: 'fac_2', facultyName: 'Faculty of Engineering', name: 'Electrical Engineering', code: 'EEE' },
+  { id: 'dept_csc', facultyId: 'fac_1', facultyName: 'Faculty of Natural & Applied Sciences', name: 'Computer Science', code: 'CSC', max_level: 400 },
+  { id: 'dept_mat', facultyId: 'fac_1', facultyName: 'Faculty of Natural & Applied Sciences', name: 'Mathematics', code: 'MAT', max_level: 400 },
+  { id: 'dept_eee', facultyId: 'fac_2', facultyName: 'Faculty of Engineering', name: 'Electrical Engineering', code: 'EEE', max_level: 500 },
 ];
 
 export const mockFacilities: Facility[] = [

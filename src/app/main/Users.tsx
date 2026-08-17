@@ -95,30 +95,24 @@ export default function UsersContainer() {
     mutationFn: createStudentAPI,
     onSuccess: () => {
       toast.success("Student account created with default password '12345678'");
-      setIsCreateUserOpen(false);
       queryClient.invalidateQueries({ queryKey: ["auth", "students"] });
     },
-    onError: () => toast.error("Failed to create student account"),
   });
 
   const createLecturerMutation = useMutation({
     mutationFn: createLecturerAPI,
     onSuccess: () => {
       toast.success("Lecturer account created with default password '12345678'");
-      setIsCreateUserOpen(false);
       queryClient.invalidateQueries({ queryKey: ["auth", "lecturers"] });
     },
-    onError: () => toast.error("Failed to create lecturer account"),
   });
 
   const createAdminMutation = useMutation({
     mutationFn: createAdminAPI,
     onSuccess: () => {
       toast.success("Admin officer account created with default password '12345678'");
-      setIsCreateUserOpen(false);
       queryClient.invalidateQueries({ queryKey: ["auth", "admins"] });
     },
-    onError: () => toast.error("Failed to create admin officer account"),
   });
 
   const updateStudentMutation = useMutation({
@@ -177,10 +171,10 @@ export default function UsersContainer() {
     onError: () => toast.error("Failed to update admin details"),
   });
 
-  const handleCreateUser = (data: Partial<User> & { scopeId?: string }) => {
+  const handleCreateUser = async (data: Partial<User> & { scopeId?: string }) => {
     const role = data.role || "student";
     if (role === "student") {
-      createStudentMutation.mutate({
+      await createStudentMutation.mutateAsync({
         matric_number: data.identifier || "",
         full_name: data.name || "",
         department: data.departmentId || departments[0]?.id || 1,
@@ -189,7 +183,7 @@ export default function UsersContainer() {
         email: data.email,
       });
     } else if (role === "lecturer") {
-      createLecturerMutation.mutate({
+      await createLecturerMutation.mutateAsync({
         staff_id: data.identifier || "",
         full_name: data.name || "",
         department: data.departmentId || departments[0]?.id || 1,
@@ -198,7 +192,7 @@ export default function UsersContainer() {
     } else {
       const level = (data.adminLevel as AdminLevel) || "department";
       const targetScopeId = data.scopeId || data.departmentId;
-      createAdminMutation.mutate({
+      await createAdminMutation.mutateAsync({
         staff_id: data.identifier || "",
         full_name: data.name || "",
         level,
@@ -258,6 +252,37 @@ export default function UsersContainer() {
     }
   };
 
+  // Bulk actions handlers
+  const handleBulkToggleStatus = async (userList: User[], targetStatus: boolean) => {
+    try {
+      for (const u of userList) {
+        if (u.role === "student") await toggleStudentActiveAPI(u.id);
+        else if (u.role === "lecturer") await toggleLecturerActiveAPI(u.id);
+        else await toggleAdminActiveAPI(u.id);
+      }
+      toast.success(
+        `Account active status set to ${targetStatus ? "Active" : "Disabled"} for ${userList.length} accounts`
+      );
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+    } catch {
+      toast.error("Failed to update status for selected accounts");
+    }
+  };
+
+  const handleBulkResetPassword = async (userList: User[]) => {
+    try {
+      for (const u of userList) {
+        if (u.role === "student") await resetStudentPasswordAPI(u.id);
+        else if (u.role === "lecturer") await resetLecturerPasswordAPI(u.id);
+        else await resetAdminPasswordAPI(u.id);
+      }
+      toast.success(`Password reset flags set for ${userList.length} selected accounts`);
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+    } catch {
+      toast.error("Failed to reset passwords for selected accounts");
+    }
+  };
+
   return (
     <>
       <UsersView
@@ -267,12 +292,15 @@ export default function UsersContainer() {
         lecturersLoading={lecturersLoading}
         students={students}
         studentsLoading={studentsLoading}
+        departments={departments}
         isRefetching={isRefetching}
         onManualRefresh={handleManualRefresh}
         onOpenCreateUser={() => setIsCreateUserOpen(true)}
         onEditUser={(u) => setEditingUser(u)}
         onOpenResetPassword={(u) => setSelectedUserForReset(u)}
         onToggleStatusTrigger={(u) => setToggleStatusTarget(u)}
+        onBulkToggleStatus={handleBulkToggleStatus}
+        onBulkResetPassword={handleBulkResetPassword}
       />
 
       <CreateUserModal
