@@ -174,6 +174,79 @@ export default function CoursesView({
         ? `Scope: Faculty Level (${currentUser?.adminScopeName || "Faculty Scope"})`
         : `Scope: Department Level (${currentUser?.departmentName || "Department Scope"})`;
 
+  const toolbarFilters = useMemo(() => {
+    const list = [
+      {
+        id: "level",
+        label: "Level",
+        value: levelFilter,
+        onChange: setLevelFilter,
+        options: [
+          { label: "100 Level", value: "100" },
+          { label: "200 Level", value: "200" },
+          { label: "300 Level", value: "300" },
+          { label: "400 Level", value: "400" },
+          { label: "500 Level", value: "500" },
+        ],
+      },
+    ];
+
+    if (isUniversityAdmin) {
+      list.push({
+        id: "scope",
+        label: "Owning Scope",
+        value: scopeFilter,
+        onChange: setScopeFilter,
+        options: [
+          { label: "Department", value: "department" },
+          { label: "Faculty", value: "faculty" },
+          { label: "School", value: "school" },
+          { label: "General", value: "general" },
+        ],
+      });
+    }
+
+    if ((isUniversityAdmin || isSchoolAdmin) && faculties.length > 0) {
+      list.push({
+        id: "faculty",
+        label: "Faculty",
+        value: facultyFilter,
+        onChange: setFacultyFilter,
+        options: faculties.map((f) => ({ label: `${f.code} - ${f.name}`, value: f.id })),
+      });
+    }
+
+    if ((isUniversityAdmin || isSchoolAdmin || isFacultyAdmin) && departments.length > 0) {
+      let deptOptions = departments;
+      if (isFacultyAdmin && currentUser?.adminScopeId) {
+        const scopedDepts = departments.filter(
+          (d) => String(d.facultyId) === String(currentUser.adminScopeId) || d.facultyName === currentUser.adminScopeName
+        );
+        if (scopedDepts.length > 0) deptOptions = scopedDepts;
+      }
+      list.push({
+        id: "department",
+        label: "Department",
+        value: departmentFilter,
+        onChange: setDepartmentFilter,
+        options: deptOptions.map((d) => ({ label: `${d.code} - ${d.name}`, value: d.id })),
+      });
+    }
+
+    return list;
+  }, [
+    isUniversityAdmin,
+    isSchoolAdmin,
+    isFacultyAdmin,
+    levelFilter,
+    scopeFilter,
+    facultyFilter,
+    departmentFilter,
+    faculties,
+    departments,
+    currentUser,
+  ]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -254,55 +327,7 @@ export default function CoursesView({
             searchPlaceholder="Search course code, title, department, or faculty..."
             totalCount={courses.length}
             filteredCount={filteredCourses.length}
-            filters={[
-              {
-                id: "level",
-                label: "Level",
-                value: levelFilter,
-                onChange: setLevelFilter,
-                options: [
-                  { label: "100 Level", value: "100" },
-                  { label: "200 Level", value: "200" },
-                  { label: "300 Level", value: "300" },
-                  { label: "400 Level", value: "400" },
-                  { label: "500 Level", value: "500" },
-                ],
-              },
-              {
-                id: "scope",
-                label: "Owning Scope",
-                value: scopeFilter,
-                onChange: setScopeFilter,
-                options: [
-                  { label: "Department", value: "department" },
-                  { label: "Faculty", value: "faculty" },
-                  { label: "School", value: "school" },
-                  { label: "General", value: "general" },
-                ],
-              },
-              ...(faculties.length > 0
-                ? [
-                  {
-                    id: "faculty",
-                    label: "Faculty",
-                    value: facultyFilter,
-                    onChange: setFacultyFilter,
-                    options: faculties.map((f) => ({ label: `${f.code} - ${f.name}`, value: f.id })),
-                  },
-                ]
-                : []),
-              ...(departments.length > 0
-                ? [
-                  {
-                    id: "department",
-                    label: "Department",
-                    value: departmentFilter,
-                    onChange: setDepartmentFilter,
-                    options: departments.map((d) => ({ label: `${d.code} - ${d.name}`, value: d.id })),
-                  },
-                ]
-                : []),
-            ]}
+            filters={toolbarFilters}
             onResetFilters={() => {
               setSearchQuery("");
               setLevelFilter("");

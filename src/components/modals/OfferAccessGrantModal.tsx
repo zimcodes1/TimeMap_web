@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -32,7 +32,21 @@ export default function OfferAccessGrantModal({
 }: OfferAccessGrantModalProps) {
   const [courseId, setCourseId] = useState(courses[0]?.id || "");
   const [grantedToLevel, setGrantedToLevel] = useState<AdminLevel>("department");
+  const [selectedFacultyId, setSelectedFacultyId] = useState("");
   const [targetId, setTargetId] = useState(departments[0]?.id || "");
+
+  const selectedCourse = courses.find((c) => c.id === (courseId || courses[0]?.id));
+
+  // Filter available departments based on selected target faculty
+  const availableDepartments = useMemo(() => {
+    if (!selectedFacultyId) return departments;
+    const targetFaculty = faculties.find((f) => String(f.id) === String(selectedFacultyId));
+    return departments.filter(
+      (d) =>
+        String(d.facultyId) === String(selectedFacultyId) ||
+        (targetFaculty && d.facultyName === targetFaculty.name)
+    );
+  }, [departments, faculties, selectedFacultyId]);
 
   useEffect(() => {
     if (!courseId && courses.length > 0) {
@@ -45,10 +59,10 @@ export default function OfferAccessGrantModal({
       setTargetId(schools[0].id);
     } else if (grantedToLevel === "faculty" && faculties.length > 0) {
       setTargetId(faculties[0].id);
-    } else if (grantedToLevel === "department" && departments.length > 0) {
-      setTargetId(departments[0].id);
+    } else if (grantedToLevel === "department" && availableDepartments.length > 0) {
+      setTargetId(availableDepartments[0].id);
     }
-  }, [grantedToLevel, departments, faculties, schools]);
+  }, [grantedToLevel, availableDepartments, faculties, schools]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,9 +104,26 @@ export default function OfferAccessGrantModal({
           <Select
             value={courseId || courses[0]?.id || ""}
             onChange={(e) => setCourseId(e.target.value)}
-            options={courses.map((c) => ({ value: c.id, label: `${c.code} - ${c.title}` }))}
+            options={courses.map((c) => ({
+              value: c.id,
+              label: `${c.code} - ${c.title} (${c.level} Level)`,
+            }))}
           />
         </div>
+
+        {selectedCourse && (
+          <div className="p-3 bg-raised/50 border border-border/50 rounded-lg text-xs space-y-1">
+            <div className="flex items-center justify-between text-text-muted">
+              <span>Course Level: <strong className="text-text-main">{selectedCourse.level} Level</strong></span>
+              {selectedCourse.departmentName && (
+                <span>Owner: <strong className="text-text-main">{selectedCourse.departmentName}</strong></span>
+              )}
+            </div>
+            <p className="text-primary/90 font-medium">
+              Note: This grant will grant course access for students at <strong>{selectedCourse.level} Level</strong> in the target domain.
+            </p>
+          </div>
+        )}
 
         <div>
           <Text variant="caption" className="font-semibold mb-1 block">
@@ -108,6 +139,22 @@ export default function OfferAccessGrantModal({
             ]}
           />
         </div>
+
+        {grantedToLevel === "department" && faculties.length > 0 && (
+          <div>
+            <Text variant="caption" className="font-semibold mb-1 block">
+              Target Faculty (Filter)
+            </Text>
+            <Select
+              value={selectedFacultyId}
+              onChange={(e) => setSelectedFacultyId(e.target.value)}
+              options={[
+                { value: "", label: "All Faculties" },
+                ...faculties.map((f) => ({ value: f.id, label: `${f.code} - ${f.name}` })),
+              ]}
+            />
+          </div>
+        )}
 
         <div>
           <Text variant="caption" className="font-semibold mb-1 block">
@@ -136,9 +183,12 @@ export default function OfferAccessGrantModal({
 
           {grantedToLevel === "department" && (
             <Select
-              value={targetId || (departments[0]?.id ?? "")}
+              value={targetId || (availableDepartments[0]?.id ?? "")}
               onChange={(e) => setTargetId(e.target.value)}
-              options={departments.map((d) => ({ value: d.id, label: `${d.code} - ${d.name}` }))}
+              options={availableDepartments.map((d) => ({
+                value: d.id,
+                label: `${d.code} - ${d.name}${d.facultyName ? ` (${d.facultyName})` : ""}`,
+              }))}
             />
           )}
         </div>

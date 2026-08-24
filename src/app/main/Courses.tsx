@@ -297,6 +297,8 @@ export default function CoursesContainer() {
         onClose={() => setIsRequestGrantOpen(false)}
         onSubmit={handleRequestGrant}
         externalCourses={courses}
+        faculties={faculties}
+        departments={departments}
       />
 
       <CourseRegistrationModal
