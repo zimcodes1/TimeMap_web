@@ -193,6 +193,7 @@ export interface DiscrepancyRequest {
   courseTitle: string;
   requestedBy: string;
   requestedByRole: string;
+  requestedByScope?: string;
   reason: string;
   requestType: DiscrepancyRequestType;
   originalVenueName?: string;

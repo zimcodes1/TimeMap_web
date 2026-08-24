@@ -186,14 +186,23 @@ export default function RequestsView({
           columns={[
             {
               header: "Req ID / Course",
-              accessor: (req: DiscrepancyRequest) => (
-                <div>
-                  <div className="font-bold text-primary">#{req.id}</div>
-                  <div className="text-xs text-text-main font-medium">
-                    {req.courseCode} — {req.courseTitle}
+              accessor: (req: DiscrepancyRequest) => {
+                const dateVal = req.proposedDate || req.createdAt;
+                const formattedDate = dateVal
+                  ? new Date(dateVal).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  : "N/A";
+                return (
+                  <div>
+                    <div className="font-bold text-text-main text-sm">
+                      <span className="text-primary font-bold">{req.courseCode}</span>{" "}
+                      <span className="text-text-muted font-normal text-xs">on {formattedDate}</span>
+                    </div>
+                    <div className="text-xs text-text-subtle mt-0.5 font-medium">
+                      <span className="text-primary/80 font-bold">#{req.id}</span> • {req.courseTitle}
+                    </div>
                   </div>
-                </div>
-              ),
+                );
+              },
             },
             {
               header: "Request Type",
@@ -207,8 +216,10 @@ export default function RequestsView({
               header: "Requested By",
               accessor: (req: DiscrepancyRequest) => (
                 <div className="text-xs">
-                  <div className="font-bold text-text-main">{req.requestedBy}</div>
-                  <div className="text-text-muted">{req.requestedByRole}</div>
+                  <div className="font-bold text-text-main text-sm">{req.requestedBy}</div>
+                  <div className="text-text-muted font-medium">
+                    Admin: {req.requestedByScope || "CYB"}
+                  </div>
                 </div>
               ),
             },

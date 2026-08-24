@@ -24,6 +24,7 @@ export default function DiscrepancyDetailSlideOver({
   if (!request) return null;
 
   const isPending = request.status === 'pending';
+  const displayDate = request.proposedDate || (request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A');
 
   return (
     <Modal
@@ -31,7 +32,7 @@ export default function DiscrepancyDetailSlideOver({
       onClose={onClose}
       title={
         <div className="flex items-center gap-2">
-          <span>Discrepancy #{request.id}</span>
+          <span className="font-bold text-text-main">Discrepancy Inspection #{request.id}</span>
           <Badge
             variant={
               request.status === 'approved' || request.status === 'applied'
@@ -45,7 +46,7 @@ export default function DiscrepancyDetailSlideOver({
           </Badge>
         </div>
       }
-      description={`Submitted by ${request.requestedBy} (${request.requestedByRole})`}
+      description={`Discrepancy approval request for ${request.courseCode}`}
       size="lg"
       footer={
         isPending ? (
@@ -57,6 +58,7 @@ export default function DiscrepancyDetailSlideOver({
                 onWithdraw(request.id);
                 onClose();
               }}
+              className="cursor-pointer"
             >
               Withdraw Request
             </Button>
@@ -68,6 +70,7 @@ export default function DiscrepancyDetailSlideOver({
                   onRejectTrigger(request.id);
                   onClose();
                 }}
+                className="cursor-pointer"
               >
                 Reject Request
               </Button>
@@ -78,55 +81,93 @@ export default function DiscrepancyDetailSlideOver({
                   onApprove(request.id);
                   onClose();
                 }}
+                className="cursor-pointer"
               >
                 Approve & Apply
               </Button>
             </div>
           </div>
         ) : (
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="cursor-pointer">
             Close
           </Button>
         )
       }
     >
       <div className="space-y-4">
-        <div className="p-3 bg-surface-raised rounded-xl border border-border space-y-1">
-          <Text variant="caption" className="font-bold text-text-main block">
-            {request.courseCode} - {request.courseTitle}
-          </Text>
-          <Text variant="caption" color="muted" className="block text-xs">
-            Request Type: {request.requestType} • Created: {new Date(request.createdAt).toLocaleString()}
-          </Text>
+        {/* Course Header Banner */}
+        <div className="p-4 bg-raised/50 rounded-xl border border-border/70 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <Text variant="caption" className="font-bold text-primary text-base block">
+                {request.courseCode} <span className="text-text-muted font-normal text-xs">on {displayDate}</span>
+              </Text>
+              <Text variant="caption" className="text-text-main text-xs font-semibold block">
+                {request.courseTitle}
+              </Text>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-md bg-surface border border-border/80 text-primary font-bold">
+              #{request.id}
+            </span>
+          </div>
+          <div className="text-xs text-text-muted flex flex-wrap gap-4 pt-2 border-t border-border/40">
+            <span>Request Type: <strong className="text-text-main capitalize">{request.requestType.replace("_", " ")}</strong></span>
+            <span>Created At: <strong className="text-text-main">{new Date(request.createdAt).toLocaleString()}</strong></span>
+          </div>
         </div>
 
+        {/* Applier Details Box */}
+        <div className="p-3.5 bg-surface rounded-xl border border-border/80 space-y-2">
+          <Text variant="caption" className="font-bold text-text-muted text-xs block uppercase tracking-wider">
+            Applicant Information
+          </Text>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-text-muted block">Applied By (Full Name):</span>
+              <strong className="text-text-main text-sm block">{request.requestedBy}</strong>
+            </div>
+            <div>
+              <span className="text-text-muted block">Admin Scope (Department/Faculty Abbreviation):</span>
+              <strong className="text-primary text-sm block">
+                Admin: {request.requestedByScope || "CYB"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {/* Reason / Justification */}
         <div>
-          <Text variant="caption" className="font-semibold mb-1 block">
+          <Text variant="caption" className="font-semibold mb-1 block text-xs">
             Stated Reason / Justification
           </Text>
-          <p className="text-sm p-3 bg-surface rounded-xl border border-border text-text-main">
+          <p className="text-xs p-3 bg-surface rounded-xl border border-border/80 text-text-main leading-relaxed">
             {request.reason}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-surface rounded-xl border border-border space-y-1">
+        {/* Schedule Comparison Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 bg-surface rounded-xl border border-border/80 space-y-1">
             <Text variant="caption" className="font-bold text-text-muted text-xs block">
               Original Schedule
             </Text>
             <Text variant="caption" className="font-semibold block text-xs">
-              Venue: {request.proposedVenueName || 'Standard Venue'}
-            </Text>
-          </div>
-          <div className="p-3 bg-surface rounded-xl border border-border space-y-1">
-            <Text variant="caption" className="font-bold text-primary text-xs block">
-              Proposed Schedule
-            </Text>
-            <Text variant="caption" className="font-semibold block text-xs">
-              Venue: {request.proposedVenueName || 'N/A'}
+              Venue: {request.originalVenueName || "Standard Assigned Venue"}
             </Text>
             <Text variant="caption" color="muted" className="block text-xs">
-              Time: {request.proposedStartTime || 'N/A'} - {request.proposedEndTime || 'N/A'}
+              Time: {request.originalStartTime && request.originalEndTime ? `${request.originalStartTime} - ${request.originalEndTime}` : "Standard Time Slot"}
+            </Text>
+          </div>
+
+          <div className="p-3 bg-raised/50 rounded-xl border border-primary/30 space-y-1">
+            <Text variant="caption" className="font-bold text-primary text-xs block">
+              Proposed Schedule Adjustment
+            </Text>
+            <Text variant="caption" className="font-semibold block text-xs text-text-main">
+              Venue: {request.proposedVenueName || "No Venue Change"}
+            </Text>
+            <Text variant="caption" color="muted" className="block text-xs">
+              Time: {request.proposedStartTime && request.proposedEndTime ? `${request.proposedStartTime} - ${request.proposedEndTime}` : "No Time Change"}
             </Text>
           </div>
         </div>
