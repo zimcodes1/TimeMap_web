@@ -82,6 +82,11 @@ export interface Course {
   departmentId: string | undefined;
   departmentName?: string;
   owningLevel: AdminLevel;
+  owningSchool?: string;
+  schoolName?: string;
+  owningFaculty?: string;
+  facultyName?: string;
+  owningDepartment?: string;
   lecturers: User[];
   registrationCount?: number;
 }
@@ -94,6 +99,10 @@ export interface CourseAccessGrant {
   grantedToLevel: AdminLevel;
   grantedToDepartmentId?: string;
   grantedToDepartmentName?: string;
+  grantedToFacultyId?: string;
+  grantedToFacultyName?: string;
+  grantedToSchoolId?: string;
+  grantedToSchoolName?: string;
   direction: 'offered' | 'requested';
   status: 'pending' | 'approved' | 'rejected';
   requestedBy: string;

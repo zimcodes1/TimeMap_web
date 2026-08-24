@@ -248,6 +248,8 @@ export default function CoursesContainer() {
       <CoursesView
         courses={courses}
         grants={grants}
+        faculties={faculties}
+        departments={departments}
         isLoading={isLoading}
         isRefetching={isRefetching}
         onRefresh={handleManualRefresh}

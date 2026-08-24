@@ -38,7 +38,7 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
     departmentName: rawProfile?.department_name,
     adminLevel: rawProfile?.scope_level as User["adminLevel"],
     adminScopeId: rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined,
-    adminScopeName: rawProfile?.scope_name,
+    adminScopeName: rawProfile?.scope_name as string | undefined,
     level: rawProfile?.level,
     isClassRep: rawProfile?.is_class_rep,
     isActive: rawUser.is_active,

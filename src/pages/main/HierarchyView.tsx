@@ -62,7 +62,6 @@ export default function HierarchyView({
   const isUniversityAdmin = isSuperuser;
   const isSchoolAdmin = currentUser?.role === "admin" && adminLevel === "school";
   const isFacultyAdmin = currentUser?.role === "admin" && adminLevel === "faculty";
-  const isDeptAdmin = currentUser?.role === "admin" && adminLevel === "department";
 
   // Tab configurations per admin tier
   const visibleTabs = useMemo(() => {

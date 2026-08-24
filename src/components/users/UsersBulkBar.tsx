@@ -1,4 +1,3 @@
-import type { User } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckSquare, ShieldOff, CheckCircle, KeyRound, X } from "lucide-react";

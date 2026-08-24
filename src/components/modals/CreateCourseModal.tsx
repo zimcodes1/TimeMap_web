@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import type { Course, Department, Faculty, School, User, AdminLevel } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 interface CreateCourseModalProps {
   isOpen: boolean;
@@ -27,27 +28,51 @@ export default function CreateCourseModal({
   lecturers,
   initialData,
 }: CreateCourseModalProps) {
+  const { user } = useAuth();
+  const isSchoolAdmin = user?.role === "admin" && user?.adminLevel === "school";
+  const isFacultyAdmin = user?.role === "admin" && user?.adminLevel === "faculty";
+  const isDeptAdmin = user?.role === "admin" && user?.adminLevel === "department";
+  const isLevelLocked = isSchoolAdmin || isFacultyAdmin || isDeptAdmin;
+
   const [code, setCode] = useState(initialData?.code || "");
   const [title, setTitle] = useState(initialData?.title || "");
   const [level, setLevel] = useState(initialData?.level || 300);
   const [creditUnits, setCreditUnits] = useState(initialData?.creditUnits || 3);
-  const [owningLevel, setOwningLevel] = useState<AdminLevel>(initialData?.owningLevel || "department");
+  const [owningLevel, setOwningLevel] = useState<AdminLevel>(
+    initialData?.owningLevel || (isSchoolAdmin ? "school" : isFacultyAdmin ? "faculty" : "department")
+  );
   const [scopeId, setScopeId] = useState<string>(initialData?.departmentId || "");
   const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>(
     initialData?.lecturers?.map((l) => l.id) || []
   );
 
   useEffect(() => {
-    if (owningLevel === "school" && schools.length > 0 && !scopeId) {
-      setScopeId(schools[0].id);
-    } else if (owningLevel === "faculty" && faculties.length > 0 && !scopeId) {
-      setScopeId(faculties[0].id);
-    } else if (owningLevel === "department" && departments.length > 0 && !scopeId) {
-      setScopeId(departments[0].id);
+    if (isSchoolAdmin) {
+      setOwningLevel("school");
+      if (user?.adminScopeId) setScopeId(user.adminScopeId);
+      else if (schools.length > 0) setScopeId(schools[0].id);
+    } else if (isFacultyAdmin) {
+      setOwningLevel("faculty");
+      if (user?.adminScopeId) setScopeId(user.adminScopeId);
+      else if (faculties.length > 0) setScopeId(faculties[0].id);
+    } else if (isDeptAdmin) {
+      setOwningLevel("department");
+      const dId = user?.adminScopeId || user?.departmentId;
+      if (dId) setScopeId(dId);
+      else if (departments.length > 0) setScopeId(departments[0].id);
+    } else {
+      if (owningLevel === "school" && schools.length > 0 && !scopeId) {
+        setScopeId(schools[0].id);
+      } else if (owningLevel === "faculty" && faculties.length > 0 && !scopeId) {
+        setScopeId(faculties[0].id);
+      } else if (owningLevel === "department" && departments.length > 0 && !scopeId) {
+        setScopeId(departments[0].id);
+      }
     }
-  }, [owningLevel, departments, faculties, schools, scopeId]);
+  }, [isSchoolAdmin, isFacultyAdmin, isDeptAdmin, owningLevel, departments, faculties, schools, scopeId, user]);
 
   const handleOwningLevelChange = (newLevel: AdminLevel) => {
+    if (isLevelLocked) return;
     setOwningLevel(newLevel);
     if (newLevel === "school" && schools.length > 0) {
       setScopeId(schools[0].id);
@@ -69,7 +94,14 @@ export default function CreateCourseModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim() || !title.trim()) return;
-    const activeScopeId = scopeId || (owningLevel === "department" ? departments[0]?.id : owningLevel === "faculty" ? faculties[0]?.id : schools[0]?.id) || "";
+    const activeScopeId =
+      scopeId ||
+      (owningLevel === "department"
+        ? departments[0]?.id
+        : owningLevel === "faculty"
+        ? faculties[0]?.id
+        : schools[0]?.id) ||
+      "";
     const assignedLecturers = lecturers.filter((l) => selectedLecturerIds.includes(l.id));
     const dept = departments.find((d) => d.id === activeScopeId);
 
@@ -101,18 +133,19 @@ export default function CreateCourseModal({
           <div className="space-y-1">
             <Text variant="caption" className="font-semibold mb-1 block">Course Code</Text>
             <Input
+              placeholder="e.g. CSC 301"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="e.g. CSC 301"
               required
             />
           </div>
+
           <div className="space-y-1">
             <Text variant="caption" className="font-semibold mb-1 block">Course Title</Text>
             <Input
+              placeholder="e.g. Operating Systems & Architecture"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Database Systems"
               required
             />
           </div>
@@ -152,6 +185,7 @@ export default function CreateCourseModal({
             <Select
               value={owningLevel}
               onChange={(e) => handleOwningLevelChange(e.target.value as AdminLevel)}
+              disabled={isLevelLocked}
               options={[
                 { value: "department", label: "Department Owned" },
                 { value: "faculty", label: "Faculty Level" },
@@ -173,6 +207,7 @@ export default function CreateCourseModal({
               <Select
                 value={scopeId || (schools[0]?.id ?? "")}
                 onChange={(e) => setScopeId(e.target.value)}
+                disabled={isLevelLocked || schools.length <= 1}
                 options={schools.map((s) => ({ value: s.id, label: `${s.code} - ${s.name}` }))}
               />
             )}
@@ -181,6 +216,7 @@ export default function CreateCourseModal({
               <Select
                 value={scopeId || (faculties[0]?.id ?? "")}
                 onChange={(e) => setScopeId(e.target.value)}
+                disabled={isLevelLocked || faculties.length <= 1}
                 options={faculties.map((f) => ({ value: f.id, label: `${f.code} - ${f.name}` }))}
               />
             )}
@@ -189,41 +225,52 @@ export default function CreateCourseModal({
               <Select
                 value={scopeId || (departments[0]?.id ?? "")}
                 onChange={(e) => setScopeId(e.target.value)}
+                disabled={isLevelLocked || departments.length <= 1}
                 options={departments.map((d) => ({ value: d.id, label: `${d.code} - ${d.name}` }))}
               />
             )}
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Text variant="caption" className="font-semibold text-text-main">
-            Assigned Teaching Lecturers
+        {/* Assigned Lecturers Selection */}
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Text variant="caption" className="font-semibold block">
+            Assign Lecturers ({selectedLecturerIds.length} Selected)
           </Text>
-          <div className="max-h-36 overflow-y-auto space-y-1 p-2 border border-border rounded-xl bg-surface-raised">
+          <div className="max-h-40 overflow-y-auto space-y-1.5 border border-border rounded-xl p-2 bg-surface">
             {lecturers.length === 0 ? (
-              <div className="text-xs text-text-muted p-2">No lecturers available for assignment.</div>
+              <Text variant="caption" color="muted" className="p-2 block text-center">
+                No lecturers available to assign.
+              </Text>
             ) : (
               lecturers.map((lec) => {
                 const isSelected = selectedLecturerIds.includes(lec.id);
                 return (
-                  <div
+                  <button
                     key={lec.id}
+                    type="button"
                     onClick={() => toggleLecturer(lec.id)}
-                    className={`p-2 rounded-lg text-xs cursor-pointer flex items-center justify-between transition-colors ${
-                      isSelected ? "bg-primary-muted text-primary font-bold" : "hover:bg-surface"
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "bg-surface-raised hover:bg-surface text-text-main"
                     }`}
                   >
-                    <span>{lec.name}</span>
-                    <span className="text-[10px] text-text-muted">{lec.email || lec.identifier}</span>
-                  </div>
+                    <span>{lec.name} ({lec.staffId})</span>
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
+                      isSelected ? "bg-primary border-primary text-white font-bold" : "border-border"
+                    }`}>
+                      {isSelected ? "✓" : ""}
+                    </span>
+                  </button>
                 );
               })
             )}
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" type="button" onClick={onClose} className="cursor-pointer">
+        <div className="flex justify-end gap-2 pt-4 border-t border-border">
+          <Button variant="outline" onClick={onClose} type="button" className="cursor-pointer">
             Cancel
           </Button>
           <Button variant="primary" type="submit" className="cursor-pointer">
