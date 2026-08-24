@@ -65,6 +65,7 @@ export default function CreateDepartmentModal({
             value={facultyId || (faculties[0]?.id ?? "")}
             onChange={(e) => setFacultyId(e.target.value)}
             options={faculties.map((f) => ({ value: f.id, label: `${f.name} (${f.code})` }))}
+            disabled={faculties.length <= 1}
           />
         </div>
         <div>

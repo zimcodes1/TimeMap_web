@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import {
   Monitor,
 } from "lucide-react";
 import type { School, Faculty, Department } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HierarchyViewProps {
   schools: School[];
@@ -55,7 +56,53 @@ export default function HierarchyView({
   onEditDepartment,
   onDeleteTrigger,
 }: HierarchyViewProps) {
-  const [activeTab, setActiveTab] = useState<"departments" | "faculties" | "schools" | "tree">("departments");
+  const { user: currentUser } = useAuth();
+  const adminLevel = currentUser?.adminLevel;
+  const isSuperuser = currentUser?.role === "admin" && (!adminLevel || adminLevel === "university");
+  const isUniversityAdmin = isSuperuser;
+  const isSchoolAdmin = currentUser?.role === "admin" && adminLevel === "school";
+  const isFacultyAdmin = currentUser?.role === "admin" && adminLevel === "faculty";
+  const isDeptAdmin = currentUser?.role === "admin" && adminLevel === "department";
+
+  // Tab configurations per admin tier
+  const visibleTabs = useMemo(() => {
+    if (isUniversityAdmin) {
+      return [
+        { id: "schools", label: "Schools", icon: SchoolIcon, count: schools.length },
+        { id: "faculties", label: "Faculties", icon: Network, count: faculties.length },
+        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
+        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
+      ];
+    }
+    if (isSchoolAdmin) {
+      return [
+        { id: "faculties", label: "Faculties", icon: Network, count: faculties.length },
+        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
+        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
+      ];
+    }
+    if (isFacultyAdmin) {
+      return [
+        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
+        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
+      ];
+    }
+    // Department Admin
+    return [
+      { id: "tree", label: "Organizational Tree View", icon: GitMerge },
+      { id: "departments", label: "Departments", icon: Building2, count: departments.length },
+    ];
+  }, [isUniversityAdmin, isSchoolAdmin, isFacultyAdmin, schools.length, faculties.length, departments.length]);
+
+  const defaultTab = isUniversityAdmin
+    ? "schools"
+    : isSchoolAdmin
+    ? "faculties"
+    : isFacultyAdmin
+    ? "departments"
+    : "tree";
+
+  const [activeTab, setActiveTab] = useState<"departments" | "faculties" | "schools" | "tree">(defaultTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -89,6 +136,14 @@ export default function HierarchyView({
       ? schoolsLoading
       : false;
 
+  const scopeBadgeText = isUniversityAdmin
+    ? "Scope: University Wide"
+    : isSchoolAdmin
+    ? `Scope: School Level (${currentUser?.adminScopeName || "School Scope"})`
+    : isFacultyAdmin
+    ? `Scope: Faculty Level (${currentUser?.adminScopeName || "Faculty Scope"})`
+    : `Scope: Department Level (${currentUser?.departmentName || "Department Scope"})`;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -99,11 +154,17 @@ export default function HierarchyView({
               Hierarchy Management
             </Text>
             <Badge variant="primary" className="text-xs">
-              Scope: University Wide
+              {scopeBadgeText}
             </Badge>
           </div>
           <Text variant="body-sm" color="muted">
-            Institutional structure tree — Schools, Faculties, and Departments.
+            {isUniversityAdmin
+              ? "Institutional structure tree — Schools, Faculties, and Departments."
+              : isSchoolAdmin
+              ? "Manage faculties and departments within your assigned school."
+              : isFacultyAdmin
+              ? "Manage departments within your assigned faculty."
+              : "Organizational tree view of your department and parent hierarchy."}
           </Text>
         </div>
         <div className="flex items-center gap-2">
@@ -118,17 +179,18 @@ export default function HierarchyView({
             <span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
           </Button>
 
-          {activeTab === "schools" && (
+          {/* Creation Button Guards */}
+          {isUniversityAdmin && activeTab === "schools" && (
             <Button variant="primary" size="sm" onClick={onOpenCreateSchool} className="cursor-pointer">
               <Plus size={16} className="mr-1" /> Add School
             </Button>
           )}
-          {activeTab === "faculties" && (
+          {isSchoolAdmin && activeTab === "faculties" && (
             <Button variant="primary" size="sm" onClick={onOpenCreateFaculty} className="cursor-pointer">
               <Plus size={16} className="mr-1" /> Add Faculty
             </Button>
           )}
-          {activeTab === "departments" && (
+          {isFacultyAdmin && activeTab === "departments" && (
             <Button variant="primary" size="sm" onClick={onOpenCreateDepartment} className="cursor-pointer">
               <Plus size={16} className="mr-1" /> Add Department
             </Button>
@@ -138,12 +200,7 @@ export default function HierarchyView({
 
       {/* Navigation Sub-Tabs */}
       <TabSwitcher
-        tabs={[
-          { id: "departments", label: "Departments", icon: Building2, count: departments.length },
-          { id: "faculties", label: "Faculties", icon: Network, count: faculties.length },
-          { id: "schools", label: "Schools", icon: SchoolIcon, count: schools.length },
-          { id: "tree", label: "Organizational Tree View", icon: GitMerge },
-        ]}
+        tabs={visibleTabs}
         activeTab={activeTab}
         onChange={(tab) => {
           setActiveTab(tab as typeof activeTab);
@@ -224,9 +281,11 @@ export default function HierarchyView({
                 <Text variant="body-sm" color="muted">
                   There are no academic departments matching your criteria.
                 </Text>
-                <Button variant="primary" size="sm" onClick={onOpenCreateDepartment} className="mt-2 cursor-pointer">
-                  <Plus size={16} className="mr-1" /> Add Department
-                </Button>
+                {isFacultyAdmin && (
+                  <Button variant="primary" size="sm" onClick={onOpenCreateDepartment} className="mt-2 cursor-pointer">
+                    <Plus size={16} className="mr-1" /> Add Department
+                  </Button>
+                )}
               </div>
             ) : (
               <DataTable
@@ -247,30 +306,34 @@ export default function HierarchyView({
                       <span className="text-text-muted">{dept.facultyName || "Main Faculty"}</span>
                     ),
                   },
-                  {
-                    header: "Actions",
-                    align: "right",
-                    accessor: (dept: Department) => (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEditDepartment(dept)}
-                          className="h-8 px-2 text-xs cursor-pointer"
-                        >
-                          <Edit2 size={13} className="mr-1" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeleteTrigger(dept.id, dept.name, "Department")}
-                          className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    ),
-                  },
+                  ...(isFacultyAdmin
+                    ? [
+                        {
+                          header: "Actions",
+                          align: "right" as const,
+                          accessor: (dept: Department) => (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onEditDepartment(dept)}
+                                className="h-8 px-2 text-xs cursor-pointer"
+                              >
+                                <Edit2 size={13} className="mr-1" /> Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onDeleteTrigger(dept.id, dept.name, "Department")}
+                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
                 data={filteredDepartments}
                 keyExtractor={(d) => d.id}
@@ -291,9 +354,11 @@ export default function HierarchyView({
                 <Text variant="body-sm" color="muted">
                   There are no faculties matching your criteria.
                 </Text>
-                <Button variant="primary" size="sm" onClick={onOpenCreateFaculty} className="mt-2 cursor-pointer">
-                  <Plus size={16} className="mr-1" /> Add Faculty
-                </Button>
+                {isSchoolAdmin && (
+                  <Button variant="primary" size="sm" onClick={onOpenCreateFaculty} className="mt-2 cursor-pointer">
+                    <Plus size={16} className="mr-1" /> Add Faculty
+                  </Button>
+                )}
               </div>
             ) : (
               <DataTable
@@ -314,30 +379,34 @@ export default function HierarchyView({
                       <span className="text-text-muted">{fac.schoolName || "Main School"}</span>
                     ),
                   },
-                  {
-                    header: "Actions",
-                    align: "right",
-                    accessor: (fac: Faculty) => (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEditFaculty(fac)}
-                          className="h-8 px-2 text-xs cursor-pointer"
-                        >
-                          <Edit2 size={13} className="mr-1" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeleteTrigger(fac.id, fac.name, "Faculty")}
-                          className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    ),
-                  },
+                  ...(isSchoolAdmin
+                    ? [
+                        {
+                          header: "Actions",
+                          align: "right" as const,
+                          accessor: (fac: Faculty) => (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onEditFaculty(fac)}
+                                className="h-8 px-2 text-xs cursor-pointer"
+                              >
+                                <Edit2 size={13} className="mr-1" /> Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onDeleteTrigger(fac.id, fac.name, "Faculty")}
+                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
                 data={filteredFaculties}
                 keyExtractor={(f) => f.id}
@@ -358,9 +427,11 @@ export default function HierarchyView({
                 <Text variant="body-sm" color="muted">
                   There are no schools matching your criteria.
                 </Text>
-                <Button variant="primary" size="sm" onClick={onOpenCreateSchool} className="mt-2 cursor-pointer">
-                  <Plus size={16} className="mr-1" /> Add School
-                </Button>
+                {isUniversityAdmin && (
+                  <Button variant="primary" size="sm" onClick={onOpenCreateSchool} className="mt-2 cursor-pointer">
+                    <Plus size={16} className="mr-1" /> Add School
+                  </Button>
+                )}
               </div>
             ) : (
               <DataTable
@@ -375,30 +446,34 @@ export default function HierarchyView({
                     header: "School Name",
                     accessor: (sch: School) => <span className="font-medium">{sch.name}</span>,
                   },
-                  {
-                    header: "Actions",
-                    align: "right",
-                    accessor: (sch: School) => (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEditSchool(sch)}
-                          className="h-8 px-2 text-xs cursor-pointer"
-                        >
-                          <Edit2 size={13} className="mr-1" /> Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDeleteTrigger(sch.id, sch.name, "School")}
-                          className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    ),
-                  },
+                  ...(isUniversityAdmin
+                    ? [
+                        {
+                          header: "Actions",
+                          align: "right" as const,
+                          accessor: (sch: School) => (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onEditSchool(sch)}
+                                className="h-8 px-2 text-xs cursor-pointer"
+                              >
+                                <Edit2 size={13} className="mr-1" /> Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => onDeleteTrigger(sch.id, sch.name, "School")}
+                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
                 data={filteredSchools}
                 keyExtractor={(s) => s.id}
