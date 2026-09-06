@@ -90,6 +90,8 @@ interface RawLectureSession {
   venue?: number | string;
   venue_name?: string;
   status: "scheduled" | "shifted" | "postponed" | "cancelled" | "held" | "not_held";
+  can_shift?: boolean;
+  report_status?: "held" | "not_held" | "unreported";
 }
 
 interface RawExamSitting {
@@ -147,6 +149,8 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
     status: raw.status || "scheduled",
+    canShift: Boolean(raw.can_shift),
+    reportStatus: raw.report_status || "unreported",
   };
 }
 

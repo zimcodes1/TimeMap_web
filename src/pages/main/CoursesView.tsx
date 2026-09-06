@@ -117,9 +117,48 @@ export default function CoursesView({
         c.departmentName === departmentFilter ||
         departments.find((d) => d.id === departmentFilter)?.name === c.departmentName;
 
-      return matchesSearch && matchesLevel && matchesScope && matchesFaculty && matchesDepartment;
+      // Jurisdiction scoping check
+      let matchesJurisdiction = true;
+      if (isSchoolAdmin) {
+        matchesJurisdiction =
+          c.owningLevel === "school" ||
+          (Boolean(currentUser?.schoolName) && c.schoolName === currentUser?.schoolName) ||
+          (Boolean(currentUser?.schoolId) && String(c.owningSchool) === String(currentUser?.schoolId));
+      } else if (isFacultyAdmin) {
+        matchesJurisdiction =
+          c.owningLevel === "faculty" ||
+          (Boolean(currentUser?.facultyName) && c.facultyName === currentUser?.facultyName) ||
+          (Boolean(currentUser?.facultyId) && String(c.owningFaculty) === String(currentUser?.facultyId));
+      } else if (isDeptAdmin) {
+        matchesJurisdiction =
+          c.owningLevel === "department" ||
+          (Boolean(currentUser?.departmentName) && c.departmentName === currentUser?.departmentName) ||
+          (Boolean(currentUser?.departmentId) && String(c.owningDepartment) === String(currentUser?.departmentId));
+      }
+
+      return (
+        matchesJurisdiction &&
+        matchesSearch &&
+        matchesLevel &&
+        matchesScope &&
+        matchesFaculty &&
+        matchesDepartment
+      );
     });
-  }, [courses, searchQuery, levelFilter, scopeFilter, facultyFilter, departmentFilter, faculties, departments]);
+  }, [
+    courses,
+    searchQuery,
+    levelFilter,
+    scopeFilter,
+    facultyFilter,
+    departmentFilter,
+    faculties,
+    departments,
+    isSchoolAdmin,
+    isFacultyAdmin,
+    isDeptAdmin,
+    currentUser,
+  ]);
 
   // Filter grants
   const filteredGrants = useMemo(() => {

@@ -12,6 +12,10 @@ export interface User {
   adminLevel?: AdminLevel;
   adminScopeId?: string;
   adminScopeName?: string;
+  schoolId?: string;
+  schoolName?: string;
+  facultyId?: string;
+  facultyName?: string;
   departmentId?: string;
   departmentName?: string;
   staffId?: string;
@@ -152,6 +156,8 @@ export interface LectureSession {
   endTime: string;
   status: SessionStatus;
   hasReport?: boolean;
+  canShift?: boolean;
+  reportStatus?: 'held' | 'not_held' | 'unreported';
 }
 
 export interface ExamSitting {
@@ -189,6 +195,8 @@ export interface DiscrepancyRequest {
   id: string;
   timetableEntryId?: string;
   lectureSessionId?: string;
+  initiatedById?: string;
+  routedToId?: string;
   courseCode: string;
   courseTitle: string;
   requestedBy: string;
@@ -206,6 +214,11 @@ export interface DiscrepancyRequest {
   proposedEndTime?: string;
   status: DiscrepancyStatus;
   rejectionReason?: string;
+  canWithdraw?: boolean;
+  canApprove?: boolean;
+  canReject?: boolean;
+  departmentId?: string;
+  departmentName?: string;
   createdAt: string;
   targetLevel?: AdminLevel;
 }
@@ -272,18 +285,24 @@ export interface AnalyticsSummary {
 export interface HoldRateAnalytics {
   summary: {
     totalReports: number;
+    totalSessions?: number;
     heldCount: number;
     notHeldCount: number;
+    unreportedCount?: number;
     holdRatePercentage: number;
   };
   breakdown: Array<{
+    key?: string;
+    label?: string;
     courseId?: string;
-    courseCode: string;
+    courseCode?: string;
     courseTitle?: string;
     heldCount: number;
     notHeldCount?: number;
+    unreportedCount?: number;
     totalCount?: number;
     totalReports?: number;
+    totalSessions?: number;
     holdRatePercentage?: number;
   }>;
 }
@@ -309,6 +328,7 @@ export interface DiscrepancyAnalytics {
       pending: number;
       approved: number;
       rejected: number;
+      withdrawn?: number;
     };
     byRequestType?: Record<string, number>;
   };
