@@ -26,6 +26,10 @@ export interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
+  const scopeLevel = rawProfile?.scope_level as User["adminLevel"];
+  const scopeId = rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined;
+  const scopeName = (rawProfile?.scope_name || rawProfile?.department || rawProfile?.department_name) as string | undefined;
+
   return {
     id: String(rawUser.id),
     identifier: rawUser.identifier,
@@ -34,11 +38,15 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
     role: rawUser.role,
     staffId: rawProfile?.staff_id || rawUser.identifier,
     matricNumber: rawProfile?.matric_number,
-    departmentId: rawProfile?.department ? String(rawProfile.department) : undefined,
-    departmentName: rawProfile?.department_name,
-    adminLevel: rawProfile?.scope_level as User["adminLevel"],
-    adminScopeId: rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined,
-    adminScopeName: rawProfile?.scope_name as string | undefined,
+    departmentId: rawProfile?.department ? String(rawProfile.department) : (scopeLevel === "department" ? scopeId : undefined),
+    departmentName: rawProfile?.department_name || (scopeLevel === "department" ? scopeName : undefined),
+    facultyId: scopeLevel === "faculty" ? scopeId : undefined,
+    facultyName: scopeLevel === "faculty" ? scopeName : undefined,
+    schoolId: scopeLevel === "school" ? scopeId : undefined,
+    schoolName: scopeLevel === "school" ? scopeName : undefined,
+    adminLevel: scopeLevel,
+    adminScopeId: scopeId,
+    adminScopeName: scopeName,
     level: rawProfile?.level,
     isClassRep: rawProfile?.is_class_rep,
     isActive: rawUser.is_active,

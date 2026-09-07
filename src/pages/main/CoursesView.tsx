@@ -109,7 +109,8 @@ export default function CoursesView({
         !facultyFilter ||
         String(c.owningFaculty) === facultyFilter ||
         c.facultyName === facultyFilter ||
-        faculties.find((f) => f.id === facultyFilter)?.name === c.facultyName;
+        faculties.find((f) => f.id === facultyFilter)?.name === c.facultyName ||
+        departments.find((d) => d.id === String(c.owningDepartment))?.facultyId === facultyFilter;
 
       const matchesDepartment =
         !departmentFilter ||
@@ -117,27 +118,7 @@ export default function CoursesView({
         c.departmentName === departmentFilter ||
         departments.find((d) => d.id === departmentFilter)?.name === c.departmentName;
 
-      // Jurisdiction scoping check
-      let matchesJurisdiction = true;
-      if (isSchoolAdmin) {
-        matchesJurisdiction =
-          c.owningLevel === "school" ||
-          (Boolean(currentUser?.schoolName) && c.schoolName === currentUser?.schoolName) ||
-          (Boolean(currentUser?.schoolId) && String(c.owningSchool) === String(currentUser?.schoolId));
-      } else if (isFacultyAdmin) {
-        matchesJurisdiction =
-          c.owningLevel === "faculty" ||
-          (Boolean(currentUser?.facultyName) && c.facultyName === currentUser?.facultyName) ||
-          (Boolean(currentUser?.facultyId) && String(c.owningFaculty) === String(currentUser?.facultyId));
-      } else if (isDeptAdmin) {
-        matchesJurisdiction =
-          c.owningLevel === "department" ||
-          (Boolean(currentUser?.departmentName) && c.departmentName === currentUser?.departmentName) ||
-          (Boolean(currentUser?.departmentId) && String(c.owningDepartment) === String(currentUser?.departmentId));
-      }
-
       return (
-        matchesJurisdiction &&
         matchesSearch &&
         matchesLevel &&
         matchesScope &&
@@ -154,10 +135,6 @@ export default function CoursesView({
     departmentFilter,
     faculties,
     departments,
-    isSchoolAdmin,
-    isFacultyAdmin,
-    isDeptAdmin,
-    currentUser,
   ]);
 
   // Filter grants
@@ -198,7 +175,9 @@ export default function CoursesView({
       const myDeptId = currentUser?.adminScopeId || currentUser?.departmentId;
       return (
         c.owningLevel === "department" &&
-        (String(c.owningDepartment) === String(myDeptId) || c.departmentName === currentUser?.departmentName)
+        (String(c.owningDepartment) === String(myDeptId) ||
+          c.departmentName === currentUser?.departmentName ||
+          c.departmentName === currentUser?.adminScopeName)
       );
     }
 
