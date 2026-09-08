@@ -371,7 +371,7 @@ export default function UsersView({
   const allTabsList = [
     { id: "admin", label: "Admin Officers", icon: ShieldAlert, count: admins.length },
     { id: "lecturer", label: "Lecturers", icon: UsersIcon, count: lecturers.length },
-    { id: "student", label: "Students & Reps", icon: UsersIcon, count: students.length },
+    { id: "student", label: "Class Representatives", icon: UsersIcon, count: students.length },
   ];
   const activeTabsList = allTabsList.filter((tab) => visibleTabIds.includes(tab.id as UserRole));
 
@@ -381,11 +381,11 @@ export default function UsersView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Text variant="h3" weight="bold" className="text-text-main">
-            User &amp; Staff Directory
+            Staff &amp; Class Rep Directory
           </Text>
           <Text variant="body-sm" color="muted">
             {isDeptAdmin
-              ? "Manage lecturers and students in your assigned department."
+              ? "Manage lecturers and class representatives in your assigned department. Student population totals are managed on the Students page."
               : isFacultyAdmin || adminLevel === "school" || adminLevel === "university"
               ? "Manage administrative officer accounts for lower scope tiers."
               : "Manage admin officers, lecturers, and student accounts and role privileges."}

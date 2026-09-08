@@ -112,7 +112,7 @@ export default function CreateUserModal({
 
       setScopeId(String(matchedScopeId));
       setLevel(initialData?.level ? String(initialData.level) : "");
-      setIsClassRep(initialData?.isClassRep || false);
+      setIsClassRep(initialData?.isClassRep || isDeptAdmin);
       setErrors({});
       setFormError(null);
     }
@@ -148,7 +148,7 @@ export default function CreateUserModal({
     setAdminLevel("");
     setScopeId(isDeptAdmin && scopedDepts.length > 0 ? scopedDepts[0].id : "");
     setLevel("");
-    setIsClassRep(false);
+    setIsClassRep(newRole === "student" && isDeptAdmin);
     setErrors((prev) => {
       const copy = { ...prev };
       delete copy.role;
@@ -277,12 +277,12 @@ export default function CreateUserModal({
     ? [{ value: "admin", label: "Admin Officer" }]
     : isDeptAdmin
     ? [
-        { value: "student", label: "Student / Class Rep" },
+        { value: "student", label: "Class Representative" },
         { value: "lecturer", label: "Lecturer / Teaching Staff" },
       ]
     : [
         { value: "", label: "-- Select User Role --", disabled: true },
-        { value: "student", label: "Student / Class Rep" },
+        { value: "student", label: "Class Representative" },
         { value: "lecturer", label: "Lecturer / Teaching Staff" },
         { value: "admin", label: "Admin Officer" },
       ];
@@ -506,6 +506,7 @@ export default function CreateUserModal({
                   type="checkbox"
                   id="isClassRep"
                   checked={isClassRep}
+                  disabled={isDeptAdmin}
                   onChange={(e) => {
                     setIsClassRep(e.target.checked);
                     if (errors.is_class_rep) setErrors((prev) => ({ ...prev, is_class_rep: "" }));

@@ -24,6 +24,7 @@ interface RawDepartment {
   school_name?: string;
   name: string;
   code: string;
+  max_level?: number;
   created_at?: string;
 }
 
@@ -52,6 +53,7 @@ export function mapRawDepartment(raw: RawDepartment): Department {
     code: raw.code,
     facultyId: String(raw.faculty),
     facultyName: raw.faculty_name,
+    maxLevel: raw.max_level,
   };
 }
 

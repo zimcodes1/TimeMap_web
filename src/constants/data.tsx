@@ -80,7 +80,12 @@ export const NAV_GROUPS: NavGroup[] = [
         to: "/reports",
       },
       {
-        label: "User Directory",
+        label: "Students",
+        icon: <Users size={18} />,
+        to: "/students",
+      },
+      {
+        label: "Staff Directory",
         icon: <Users size={18} />,
         to: "/users",
       },
