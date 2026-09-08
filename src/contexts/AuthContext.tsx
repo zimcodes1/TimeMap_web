@@ -34,26 +34,32 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
-		return {
+	const scopeLevel = rawProfile?.scope_level;
+	const scopeId = rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined;
+	const scopeName = rawProfile?.scope_name;
+	return {
 		id: String(rawUser.id),
+		isActive: rawUser.is_active,
 		identifier: rawUser.identifier,
 		name: rawProfile?.full_name || rawUser.identifier,
 		email: rawProfile?.email || "",
 		role: rawUser.role,
 		staffId: rawProfile?.staff_id || rawUser.identifier,
 		matricNumber: rawProfile?.matric_number,
-		departmentId: rawProfile?.department
-			? String(rawProfile.department)
-			: scopeLevel === "department"
-				? scopeId
-				: undefined,
-		departmentName:
-			rawProfile?.department_name ||
-			(scopeLevel === "department" ? scopeName : undefined),
+		departmentId: rawProfile?.department ? String(rawProfile.department) : (scopeLevel === "department" ? scopeId : undefined),
+		departmentName: rawProfile?.department_name || (scopeLevel === "department" ? scopeName : undefined),
 		facultyId: scopeLevel === "faculty" ? scopeId : undefined,
 		facultyName: scopeLevel === "faculty" ? scopeName : undefined,
 		schoolId: scopeLevel === "school" ? scopeId : undefined,
-		}
+		schoolName: scopeLevel === "school" ? scopeName : undefined,
+		adminLevel: scopeLevel as User["adminLevel"],
+		adminScopeId: scopeId,
+		adminScopeName: scopeName,
+		level: rawProfile?.level,
+		isClassRep: rawProfile?.is_class_rep,
+		requiresPasswordReset: rawUser.requires_password_reset,
+	};
+}
 
 interface AuthProviderProps {
 	children: ReactNode;

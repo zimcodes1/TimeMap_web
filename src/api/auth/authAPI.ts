@@ -20,6 +20,7 @@ export interface ApiProfileRaw {
   department_name?: string;
   scope_level?: "department" | "faculty" | "school" | "university";
   scope_id?: number;
+  scope_name?: string;
   level?: number;
   is_class_rep?: boolean;
   email?: string;

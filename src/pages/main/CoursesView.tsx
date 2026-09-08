@@ -11,7 +11,6 @@ import {
 	Plus,
 	Share2,
 	BookOpen,
-	UserCheck,
 	ShieldCheck,
 	Edit2,
 	CheckCircle,
@@ -34,7 +33,6 @@ interface CoursesViewProps {
 	onOpenCreateCourse: () => void;
 	onOpenOfferGrant: () => void;
 	onOpenRequestGrant: () => void;
-	onOpenRegisterStudent: () => void;
 	onEditCourse: (course: Course) => void;
 	onDeleteCourse?: (id: string) => void;
 	onApproveGrant: (id: string) => void;
@@ -52,7 +50,6 @@ export default function CoursesView({
 	onOpenCreateCourse,
 	onOpenOfferGrant,
 	onOpenRequestGrant,
-	onOpenRegisterStudent,
 	onEditCourse,
 	onDeleteCourse,
 	onApproveGrant,
@@ -81,11 +78,6 @@ export default function CoursesView({
 					icon: BookOpen,
 					count: courses.length,
 				},
-				{
-					id: "registrations",
-					label: "Student Registrations",
-					icon: UserCheck,
-				},
 			];
 		}
 		return [
@@ -101,7 +93,6 @@ export default function CoursesView({
 				icon: Share2,
 				count: grants.length,
 			},
-			{ id: "registrations", label: "Student Registrations", icon: UserCheck },
 		];
 	}, [isUniversityAdmin, isSchoolAdmin, courses.length, grants.length]);
 
@@ -215,12 +206,12 @@ export default function CoursesView({
 	};
 
 	const scopeBadgeText = isUniversityAdmin
-		? "Scope: University Wide (View-Only)"
+		? "University Wide (View-Only)"
 		: isSchoolAdmin
-			? `Scope: School Level (${currentUser?.adminScopeName || "School Scope"})`
+			? `${currentUser?.adminScopeName || "School Scope"}`
 			: isFacultyAdmin
-				? `Scope: Faculty Level (${currentUser?.adminScopeName || "Faculty Scope"})`
-				: `Scope: Department Level (${currentUser?.departmentName || "Department Scope"})`;
+				? `${currentUser?.adminScopeName || "Faculty Scope"}`
+				: `${currentUser?.departmentName || "Department Scope"}`;
 
 	const toolbarFilters = useMemo(() => {
 		const list = [
@@ -524,7 +515,7 @@ export default function CoursesView({
 											return (
 												<div className="flex items-center justify-end gap-1 text-[11px] text-text-subtle italic">
 													<Lock size={12} className="text-text-subtle" />
-													<span>Originating Owner Only</span>
+													<span>Originating Admin Only</span>
 												</div>
 											);
 										}
@@ -725,34 +716,6 @@ export default function CoursesView({
 						/>
 					)}
 				</div>
-			)}
-
-			{/* Registrations Tab Placeholder */}
-			{activeTab === "registrations" && (
-				<Card className="p-8 text-center space-y-3">
-					<UserCheck size={36} className="mx-auto text-primary opacity-80" />
-					<Text variant="h6" weight="bold" className="text-center">
-						Student Course Registrations
-					</Text>
-					<Text
-						variant="body-sm"
-						color="muted"
-						className="text-center max-w-md mx-auto"
-					>
-						View student enrollments across departmental courses for the current
-						academic session.
-					</Text>
-					{!isUniversityAdmin && (
-						<Button
-							variant="primary"
-							size="sm"
-							onClick={onOpenRegisterStudent}
-							className="mt-2 cursor-pointer"
-						>
-							<Plus size={14} className="mr-1" /> Register Student
-						</Button>
-					)}
-				</Card>
 			)}
 		</div>
 	);
