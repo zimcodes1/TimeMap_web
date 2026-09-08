@@ -16,7 +16,13 @@ export interface DepartmentStudentCount {
 }
 
 export interface StudentCountAnalytics {
-  summary: { totalStudents: number; levelsReporting: number; departmentsReporting?: number };
+  summary: {
+    totalStudents: number;
+    levelsReporting: number;
+    departmentsReporting?: number;
+    facultiesReporting?: number;
+    schoolsReporting?: number;
+  };
   availableDimensions: Array<"level" | "department" | "faculty" | "school">;
   byDepartment: Array<{ departmentId: string; departmentName: string; departmentCode: string; facultyId: string; facultyName: string; schoolId: string; schoolName: string; studentCount: number }>;
   byFaculty: Array<{ facultyId: string; facultyName: string; studentCount: number }>;
@@ -59,7 +65,13 @@ export async function getStudentCountAnalytics(filters: { departmentId?: string;
   const response = await apiClient.get("/student-counts/departments/analytics/", { params });
   const data = response.data;
   return {
-    summary: { totalStudents: data.summary?.total_students ?? 0, levelsReporting: data.summary?.levels_reporting ?? 0, departmentsReporting: data.summary?.departments_reporting },
+    summary: {
+      totalStudents: data.summary?.total_students ?? 0,
+      levelsReporting: data.summary?.levels_reporting ?? 0,
+      departmentsReporting: data.summary?.departments_reporting,
+      facultiesReporting: data.summary?.faculties_reporting,
+      schoolsReporting: data.summary?.schools_reporting,
+    },
     availableDimensions: data.available_dimensions || ["level"],
     byDepartment: (data.by_department || []).map((item: Record<string, unknown>) => ({
       departmentId: String(item.department_id), departmentName: String(item.department_name), departmentCode: String(item.department_code),
