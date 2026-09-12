@@ -127,10 +127,16 @@ export default function ExamsView({
 						variant="outline"
 						size="sm"
 						onClick={onOpenExamSitting}
+						disabled={examSittingsLoading}
 						className="h-9 gap-1.5 text-xs cursor-pointer"
 					>
 						<UserCheck size={14} />
 						<span>Assign Invigilators</span>
+						{examSittings && examSittings.length > 0 && (
+							<Badge variant="primary" className="ml-1 text-[10px] py-0 px-1.5">
+								{examSittings.length}
+							</Badge>
+						)}
 					</Button>
 
 					<Button

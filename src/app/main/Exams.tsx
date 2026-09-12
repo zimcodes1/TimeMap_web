@@ -61,6 +61,7 @@ export default function ExamsContainer() {
 	const [conflictDetailMsg, setConflictDetailMsg] = useState("");
 	const [conflictsList, setConflictsList] = useState<
 		Array<{
+			type: string;
 			venueName?: string;
 			date?: string;
 			startTime?: string;
@@ -255,6 +256,7 @@ export default function ExamsContainer() {
 				setConflictDetailMsg(result.detail);
 				setConflictsList(
 					result.conflicts.map((c) => ({
+						type: c.type || "VENUE_CLASH",
 						venueName: c.venue_name,
 						date: c.date,
 						startTime: c.start_time,
@@ -329,32 +331,19 @@ export default function ExamsContainer() {
 		setIsScheduleEntryOpen(true);
 	};
 
-	const handleCreateScheduleEntrySubmit = (data: {
-		entryType: "lecture" | "exam" | "event";
-		title?: string;
-		courseId: string;
-		venueId: string;
-		dayOfWeek?: string;
-		startTime: string;
-		endTime: string;
-		recurrenceRule?: string;
-		startDate?: string;
-		endDate?: string;
-		semesterId?: string;
-		targetProgramId?: string;
-	}) => {
+	const handleCreateScheduleEntrySubmit = (data: Record<string, any>) => {
 		createEntryMutation.mutate({
 			entry_type: "exam",
-			title: data.title || "Exam",
-			course: data.courseId,
-			venue: data.venueId,
-			start_time: data.startTime,
-			end_time: data.endTime,
-			recurrence_rule: data.recurrenceRule,
-			recurrence_start_date: data.startDate,
-			recurrence_end_date: data.endDate,
-			semester: data.semesterId,
-			program: data.targetProgramId,
+			title: (data.title as string) || "Exam",
+			course: data.courseId as string,
+			venue: data.venueId as string,
+			start_time: data.startTime as string,
+			end_time: data.endTime as string,
+			recurrence_rule: data.recurrenceRule as string | undefined,
+			recurrence_start_date: data.startDate as string | undefined,
+			recurrence_end_date: data.endDate as string | undefined,
+			semester: data.semesterId as string | undefined,
+			program: data.targetProgramId as string | undefined,
 		});
 	};
 
@@ -422,25 +411,29 @@ export default function ExamsContainer() {
 			<SessionShiftModal
 				isOpen={Boolean(selectedSessionForShift)}
 				onClose={() => setSelectedSessionForShift(null)}
-				onSubmit={(data) =>
-					shiftSessionMutation.mutate({
-						id: data.sessionId,
-						venue: data.venueId,
-						startTime: data.startTime,
-						endTime: data.endTime,
-					})
-				}
+				onSubmit={(data) => {
+					if (selectedSessionForShift) {
+						shiftSessionMutation.mutate({
+							id: selectedSessionForShift.id,
+							venue: data.venueId,
+							startTime: data.startTime,
+							endTime: data.endTime,
+						});
+					}
+				}}
 				session={selectedSessionForShift}
 				venues={venuesData}
 			/>
 
-			<ConflictFeedbackModal
-				isOpen={isConflictModalOpen}
-				onClose={() => setIsConflictModalOpen(false)}
-				outcomeType={conflictOutcome}
-				detailMessage={conflictDetailMsg}
-				conflicts={conflictsList}
-			/>
+			{conflictOutcome && (
+				<ConflictFeedbackModal
+					isOpen={isConflictModalOpen}
+					onClose={() => setIsConflictModalOpen(false)}
+					outcomeType={conflictOutcome}
+					detailMessage={conflictDetailMsg}
+					conflicts={conflictsList}
+				/>
+			)}
 		</>
 	);
 }

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BarChart3, GraduationCap, Layers3 } from "lucide-react";
+import { BarChart3, GraduationCap, Layers3, BookOpen } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import type { Department, Faculty, School, Program, User } from "@/types";
@@ -53,17 +53,6 @@ export default function StudentsView({
 	const isDepartmentAdmin =
 		user?.role === "admin" && adminLevel === "department";
 	const ownDepartmentId = user?.adminScopeId || user?.departmentId;
-	const ownCounts = counts.filter(
-		(item) => item.departmentId === ownDepartmentId,
-	);
-	const dimensions = analytics?.availableDimensions ?? ["level"];
-	const canSeeSchools = dimensions.includes("school");
-	const canSeeFaculties = dimensions.includes("faculty");
-	const canSeeDepartments = dimensions.includes("department");
-	const canFilterSchools = adminLevel === "university";
-	const canFilterFaculties = adminLevel === "school";
-	const canFilterDepartments = adminLevel === "faculty";
-	const canFilterPrograms = isDepartmentAdmin || Boolean(filters.departmentId);
 
 	const scopedPrograms = useMemo(() => {
 		if (isDepartmentAdmin && ownDepartmentId) {
@@ -79,6 +68,106 @@ export default function StudentsView({
 		return programs;
 	}, [programs, isDepartmentAdmin, ownDepartmentId, filters.departmentId]);
 
+	const ownCounts = useMemo(() => {
+		return counts.filter((item) => {
+			if (
+				ownDepartmentId &&
+				String(item.departmentId) === String(ownDepartmentId)
+			) {
+				return true;
+			}
+			if (scopedPrograms.some((p) => String(p.id) === String(item.programId))) {
+				return true;
+			}
+			return false;
+		});
+	}, [counts, ownDepartmentId, scopedPrograms]);
+
+	const dimensions = analytics?.availableDimensions ?? ["level"];
+	const canSeeSchools = dimensions.includes("school");
+	const canSeeFaculties = dimensions.includes("faculty");
+	const canSeeDepartments = dimensions.includes("department");
+	const canSeePrograms = dimensions.includes("program") || isDepartmentAdmin;
+	const canFilterSchools = adminLevel === "university";
+	const canFilterFaculties = adminLevel === "school";
+	const canFilterDepartments = adminLevel === "faculty";
+	const canFilterPrograms = isDepartmentAdmin || Boolean(filters.departmentId);
+
+	// Calculate programs reporting
+	const programsReporting = useMemo(() => {
+		if (analytics?.summary.programsReporting !== undefined) {
+			return analytics.summary.programsReporting;
+		}
+		if (scopedPrograms.length === 0) return 0;
+		const targetCounts = isDepartmentAdmin ? ownCounts : counts;
+		const reportingProgramIds = new Set(
+			targetCounts.filter((c) => c.count > 0).map((c) => String(c.programId)),
+		);
+		return scopedPrograms.filter((p) => reportingProgramIds.has(String(p.id)))
+			.length;
+	}, [
+		analytics?.summary.programsReporting,
+		scopedPrograms,
+		isDepartmentAdmin,
+		ownCounts,
+		counts,
+	]);
+
+	// Calculate program population distribution for pie chart
+	const programData = useMemo(() => {
+		if (analytics?.byProgram && analytics.byProgram.length > 0) {
+			return analytics.byProgram.map((item) => ({
+				name: item.programCode
+					? `${item.programName} (${item.programCode})`
+					: item.programName,
+				value: item.studentCount,
+			}));
+		}
+		const targetCounts = isDepartmentAdmin ? ownCounts : counts;
+		return scopedPrograms
+			.map((prog) => {
+				const total = targetCounts
+					.filter((c) => String(c.programId) === String(prog.id))
+					.reduce((sum, c) => sum + (c.count || 0), 0);
+				return {
+					name: `${prog.name} (${prog.code})`,
+					value: total,
+				};
+			})
+			.filter((item) => item.value > 0);
+	}, [
+		analytics?.byProgram,
+		scopedPrograms,
+		isDepartmentAdmin,
+		ownCounts,
+		counts,
+	]);
+
+	// Dynamic available levels based on selected program or in-scope programs
+	const availableLevels = useMemo(() => {
+		let maxLvl = 600;
+		if (filters.programId) {
+			const prog = scopedPrograms.find(
+				(p) => String(p.id) === String(filters.programId),
+			);
+			if (prog?.maxLevel) {
+				maxLvl = prog.maxLevel;
+			}
+		} else if (scopedPrograms.length > 0) {
+			const maxInScope = Math.max(
+				...scopedPrograms.map((p) => p.maxLevel || 400),
+			);
+			if (Number.isFinite(maxInScope) && maxInScope > 0) {
+				maxLvl = maxInScope;
+			}
+		}
+		const levels: number[] = [];
+		for (let lvl = 100; lvl <= maxLvl; lvl += 100) {
+			levels.push(lvl);
+		}
+		return levels;
+	}, [filters.programId, scopedPrograms]);
+
 	const change = (key: keyof Filters, value: string) => {
 		const next = { ...filters, [key]: value };
 		if (key === "schoolId") {
@@ -90,9 +179,15 @@ export default function StudentsView({
 			next.programId = "";
 		} else if (key === "departmentId") {
 			next.programId = "";
+		} else if (key === "programId" && value) {
+			const prog = scopedPrograms.find((p) => String(p.id) === String(value));
+			if (prog && Number(filters.level) > prog.maxLevel) {
+				next.level = "";
+			}
 		}
 		onFiltersChange(next);
 	};
+
 	const schoolData =
 		analytics?.bySchool.map((item) => ({
 			name: item.schoolName,
@@ -149,6 +244,18 @@ export default function StudentsView({
 					label="Levels reported"
 					value={analytics?.summary.levelsReporting ?? 0}
 				/>
+				{canSeePrograms && (
+					<Metric
+						icon={<BookOpen />}
+						label="Programs reporting"
+						value={programsReporting}
+						subtitle={
+							scopedPrograms.length > 0
+								? `${programsReporting} of ${scopedPrograms.length} programs`
+								: undefined
+						}
+					/>
+				)}
 				{canSeeDepartments && (
 					<Metric
 						icon={<BarChart3 />}
@@ -235,7 +342,7 @@ export default function StudentsView({
 						onChange={(event) => change("level", event.target.value)}
 						options={[
 							{ value: "", label: "All levels" },
-							...[100, 200, 300, 400, 500, 600].map((level) => ({
+							...availableLevels.map((level) => ({
 								value: String(level),
 								label: `${level} Level`,
 							})),
@@ -249,6 +356,13 @@ export default function StudentsView({
 				</div>
 			) : (
 				<div className="grid gap-6 xl:grid-cols-2">
+					{canSeePrograms && (
+						<StudentCountPieChart
+							title="Distribution by program"
+							description="How the recorded population is distributed across degree programs."
+							data={programData}
+						/>
+					)}
 					{canSeeSchools && (
 						<StudentCountPieChart
 							title="Distribution by school"
@@ -285,10 +399,12 @@ function Metric({
 	icon,
 	label,
 	value,
+	subtitle,
 }: {
 	icon: React.ReactNode;
 	label: string;
-	value: number;
+	value: number | string;
+	subtitle?: string;
 }) {
 	return (
 		<Card>
@@ -297,8 +413,11 @@ function Metric({
 				<div>
 					<p className="text-sm text-text-muted">{label}</p>
 					<p className="text-2xl font-bold text-text-main">
-						{value.toLocaleString()}
+						{typeof value === "number" ? value.toLocaleString() : value}
 					</p>
+					{subtitle && (
+						<p className="text-xs text-text-muted mt-0.5">{subtitle}</p>
+					)}
 				</div>
 			</CardContent>
 		</Card>

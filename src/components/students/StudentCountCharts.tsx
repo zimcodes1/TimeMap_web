@@ -24,7 +24,7 @@ interface ChartDatum {
 }
 const COLOURS = [
 	"#4f46e5",
-	"#0891b2",
+	"#ff0000",
 	"#16a34a",
 	"#d97706",
 	"#db2777",

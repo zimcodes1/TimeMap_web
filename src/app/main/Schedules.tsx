@@ -54,6 +54,7 @@ export default function SchedulesContainer() {
 	const [conflictDetailMsg, setConflictDetailMsg] = useState("");
 	const [conflictsList, setConflictsList] = useState<
 		Array<{
+			type: string;
 			venueName?: string;
 			date?: string;
 			startTime?: string;
@@ -214,6 +215,7 @@ export default function SchedulesContainer() {
 				setConflictDetailMsg(result.detail);
 				setConflictsList(
 					result.conflicts.map((c) => ({
+						type: c.type || "VENUE_CLASH",
 						venueName: c.venue_name,
 						date: c.date,
 						startTime: c.start_time,
@@ -289,43 +291,30 @@ export default function SchedulesContainer() {
 		setIsScheduleEntryOpen(true);
 	};
 
-	const handleCreateScheduleEntrySubmit = (data: {
-		entryType: "lecture" | "exam" | "event";
-		title?: string;
-		courseId: string;
-		venueId: string;
-		dayOfWeek?: string;
-		startTime: string;
-		endTime: string;
-		recurrenceRule?: string;
-		startDate?: string;
-		endDate?: string;
-		semesterId?: string;
-		targetProgramId?: string;
-	}) => {
+	const handleCreateScheduleEntrySubmit = (data: Record<string, any>) => {
 		createEntryMutation.mutate({
-			entry_type: data.entryType,
-			title: data.title,
-			course: data.courseId,
-			venue: data.venueId,
-			start_time: data.startTime,
-			end_time: data.endTime,
-			recurrence_rule: data.recurrenceRule,
-			recurrence_start_date: data.startDate,
-			recurrence_end_date: data.endDate,
-			semester: data.semesterId,
-			program: data.targetProgramId,
+			entry_type: (data.entryType as "lecture" | "exam" | "event") || "lecture",
+			title: data.title as string | undefined,
+			course: data.courseId as string,
+			venue: data.venueId as string,
+			start_time: data.startTime as string,
+			end_time: data.endTime as string,
+			recurrence_rule: data.recurrenceRule as string | undefined,
+			recurrence_start_date: data.startDate as string | undefined,
+			recurrence_end_date: data.endDate as string | undefined,
+			semester: data.semesterId as string | undefined,
+			program: data.targetProgramId as string | undefined,
 		});
 	};
 
 	const handleShiftSessionSubmit = (data: {
-		sessionId: string;
-		venueId?: string;
-		startTime?: string;
-		endTime?: string;
+		venueId: string;
+		startTime: string;
+		endTime: string;
 	}) => {
+		if (!selectedSessionForShift) return;
 		shiftSessionMutation.mutate({
-			id: data.sessionId,
+			id: selectedSessionForShift.id,
 			venue: data.venueId,
 			startTime: data.startTime,
 			endTime: data.endTime,
@@ -380,13 +369,15 @@ export default function SchedulesContainer() {
 				venues={venuesData}
 			/>
 
-			<ConflictFeedbackModal
-				isOpen={isConflictModalOpen}
-				onClose={() => setIsConflictModalOpen(false)}
-				outcomeType={conflictOutcome}
-				detailMessage={conflictDetailMsg}
-				conflicts={conflictsList}
-			/>
+			{conflictOutcome && (
+				<ConflictFeedbackModal
+					isOpen={isConflictModalOpen}
+					onClose={() => setIsConflictModalOpen(false)}
+					outcomeType={conflictOutcome}
+					detailMessage={conflictDetailMsg}
+					conflicts={conflictsList}
+				/>
+			)}
 		</>
 	);
 }

@@ -24,11 +24,13 @@ export interface StudentCountAnalytics {
   summary: {
     totalStudents: number;
     levelsReporting: number;
+    programsReporting?: number;
     departmentsReporting?: number;
     facultiesReporting?: number;
     schoolsReporting?: number;
   };
-  availableDimensions: Array<"level" | "department" | "faculty" | "school">;
+  availableDimensions: Array<"level" | "program" | "department" | "faculty" | "school">;
+  byProgram?: Array<{ programId: string; programName: string; programCode: string; studentCount: number }>;
   byDepartment: Array<{ departmentId: string; departmentName: string; departmentCode: string; facultyId: string; facultyName: string; schoolId: string; schoolName: string; studentCount: number }>;
   byFaculty: Array<{ facultyId: string; facultyName: string; studentCount: number }>;
   bySchool: Array<{ schoolId: string; schoolName: string; studentCount: number }>;
@@ -38,9 +40,11 @@ export interface StudentCountAnalytics {
 interface RawCount {
   id: number | string;
   program?: number | string;
+  program_id?: number | string;
   program_name?: string;
   program_code?: string;
   department?: number | string;
+  department_id?: number | string;
   department_name: string;
   department_code: string;
   faculty_id: number | string;
@@ -55,10 +59,10 @@ interface RawCount {
 
 const mapCount = (item: RawCount): ProgramStudentCount => ({
   id: String(item.id),
-  programId: String(item.program ?? ""),
+  programId: String(item.program ?? item.program_id ?? ""),
   programName: item.program_name ?? "",
   programCode: item.program_code ?? "",
-  departmentId: String(item.department ?? ""),
+  departmentId: String(item.department_id ?? item.department ?? ""),
   departmentName: item.department_name,
   departmentCode: item.department_code,
   facultyId: String(item.faculty_id),
@@ -111,11 +115,18 @@ export async function getStudentCountAnalytics(filters: { departmentId?: string;
     summary: {
       totalStudents: data.summary?.total_students ?? 0,
       levelsReporting: data.summary?.levels_reporting ?? 0,
+      programsReporting: data.summary?.programs_reporting,
       departmentsReporting: data.summary?.departments_reporting,
       facultiesReporting: data.summary?.faculties_reporting,
       schoolsReporting: data.summary?.schools_reporting,
     },
     availableDimensions: data.available_dimensions || ["level"],
+    byProgram: (data.by_program || []).map((item: Record<string, unknown>) => ({
+      programId: String(item.program_id),
+      programName: String(item.program_name),
+      programCode: String(item.program_code),
+      studentCount: Number(item.student_count ?? 0),
+    })),
     byDepartment: (data.by_department || []).map((item: Record<string, unknown>) => ({
       departmentId: String(item.department_id), departmentName: String(item.department_name), departmentCode: String(item.department_code),
       facultyId: String(item.faculty_id), facultyName: String(item.faculty_name), schoolId: String(item.school_id), schoolName: String(item.school_name), studentCount: Number(item.student_count ?? 0),

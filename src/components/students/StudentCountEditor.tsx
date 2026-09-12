@@ -59,6 +59,10 @@ export function StudentCountEditor({
 	const [error, setError] = useState("");
 	const [isEditing, setIsEditing] = useState(false);
 
+	if (Number(level) > maxLevel) {
+		setLevel("100");
+	}
+
 	if (selectedProgramId !== prevProgramId) {
 		setPrevProgramId(selectedProgramId);
 		setLevel("100");
@@ -138,26 +142,38 @@ export function StudentCountEditor({
 						options={levelOptions}
 					/>
 
-					<Input
-						label="Number of students"
-						type="number"
-						min="0"
-						step="1"
-						value={value}
-						onChange={(event) => setValue(event.target.value)}
-						error={error}
-						placeholder="e.g. 120"
-						disabled={hasExistingTotal && !isEditing}
-					/>
+					<div className="space-y-1">
+						<Input
+							label="Number of students"
+							type="number"
+							min="0"
+							step="1"
+							value={value}
+							onChange={(event) => setValue(event.target.value)}
+							error={error}
+							placeholder="e.g. 120"
+							disabled={hasExistingTotal && !isEditing}
+						/>
+						{hasExistingTotal && !isEditing && (
+							<p className="text-[11px] text-text-muted">
+								Recorded total:{" "}
+								<span className="font-semibold text-text-main">
+									{currentCount} students
+								</span>
+								. Click Edit to change.
+							</p>
+						)}
+					</div>
 
 					{hasExistingTotal && !isEditing ? (
 						<Button
 							type="button"
 							variant="outline"
 							onClick={() => setIsEditing(true)}
+							className="cursor-pointer font-semibold"
 						>
-							<Pencil size={15} className="mr-1" />
-							Edit total
+							<Pencil size={14} className="mr-1.5" />
+							Edit
 						</Button>
 					) : (
 						<div className="flex gap-2">
