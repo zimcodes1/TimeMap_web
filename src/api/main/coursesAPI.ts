@@ -13,6 +13,13 @@ interface RawCourse {
   owning_faculty_name?: string;
   owning_school?: number | string | null;
   owning_school_name?: string;
+  semester?: number | string | null;
+  semester_name?: string;
+  session_label?: string;
+  program_scope?: "general" | "program";
+  target_program?: number | string | null;
+  target_program_name?: string;
+  target_program_code?: string;
   lecturers?: (number | string)[];
   registration_count?: number;
 }
@@ -29,6 +36,9 @@ interface RawGrant {
   granted_to_faculty_name?: string;
   granted_to_school?: number | string | null;
   granted_to_school_name?: string;
+  grant_scope?: "general" | "program";
+  target_program?: number | string | null;
+  target_program_name?: string;
   direction: "offered" | "requested";
   status: "pending" | "approved" | "rejected";
   initiated_by?: number | string;
@@ -59,7 +69,6 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     code: raw.code,
     title: raw.title,
     level: raw.level,
-    creditUnits: 3, // Standard default or derived
     departmentId: raw.owning_department ? String(raw.owning_department) : undefined,
     departmentName: raw.owning_department_name,
     owningLevel: raw.owning_level || "department",
@@ -68,6 +77,13 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     owningFaculty: raw.owning_faculty ? String(raw.owning_faculty) : undefined,
     facultyName: raw.owning_faculty_name,
     owningDepartment: raw.owning_department ? String(raw.owning_department) : undefined,
+    semesterId: raw.semester ? String(raw.semester) : undefined,
+    semesterName: raw.semester_name,
+    sessionLabel: raw.session_label,
+    programScope: raw.program_scope || "general",
+    targetProgramId: raw.target_program ? String(raw.target_program) : undefined,
+    targetProgramName: raw.target_program_name,
+    targetProgramCode: raw.target_program_code,
     lecturers: assignedLecturers,
     registrationCount: raw.registration_count || 0,
   };
@@ -86,6 +102,9 @@ export function mapRawGrantToGrant(raw: RawGrant): CourseAccessGrant {
     grantedToFacultyName: raw.granted_to_faculty_name,
     grantedToSchoolId: raw.granted_to_school ? String(raw.granted_to_school) : undefined,
     grantedToSchoolName: raw.granted_to_school_name,
+    grantScope: raw.grant_scope || "general",
+    targetProgramId: raw.target_program ? String(raw.target_program) : undefined,
+    targetProgramName: raw.target_program_name,
     direction: raw.direction || "offered",
     status: raw.status || "pending",
     requestedBy: raw.initiated_by_name || "Admin Officer",
@@ -99,8 +118,8 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
   const lecturerIds = Array.isArray(data.lecturers)
     ? data.lecturers.map((l) => Number(l.id)).filter(Boolean)
     : Array.isArray(data.lecturerIds)
-    ? data.lecturerIds.map(Number).filter(Boolean)
-    : [];
+      ? data.lecturerIds.map(Number).filter(Boolean)
+      : [];
 
   return {
     code: data.code?.trim().toUpperCase(),
@@ -110,6 +129,9 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
     owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : undefined,
     owning_faculty: owningLevel === "faculty" && targetScopeId ? Number(targetScopeId) : undefined,
     owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : undefined,
+    semester: data.semesterId ? Number(data.semesterId) : undefined,
+    program_scope: data.programScope || "general",
+    target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
     lecturers: lecturerIds,
   };
 }
@@ -117,8 +139,11 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
 /**
  * GET /api/courses/courses/
  */
-export async function getCoursesList(lecturersList: User[] = []): Promise<Course[]> {
-  const response = await apiClient.get<RawCourse[] | { results: RawCourse[] }>("/courses/courses/");
+export async function getCoursesList(
+  lecturersList: User[] = [],
+  params?: { semester?: string | number; program?: string | number }
+): Promise<Course[]> {
+  const response = await apiClient.get<RawCourse[] | { results: RawCourse[] }>("/courses/courses/", { params });
   const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
   return list.map((item) => mapRawCourseToCourse(item, lecturersList));
 }
@@ -173,6 +198,8 @@ export async function createCourseGrantAPI(payload: {
   granted_to_department?: number | string | null;
   granted_to_faculty?: number | string | null;
   granted_to_school?: number | string | null;
+  grant_scope?: "general" | "program";
+  target_program?: number | string | null;
   direction: "offered" | "requested";
 }): Promise<CourseAccessGrant> {
   const response = await apiClient.post<RawGrant>("/courses/grants/", payload);

@@ -24,6 +24,8 @@ import {
 	getLecturersList,
 	getStudentsList,
 } from "@/api/main/usersAPI";
+import { getPrograms } from "@/api/main/programsAPI";
+import { getSemesters } from "@/api/main/semestersAPI";
 import type { Course, AdminLevel } from "@/types";
 import { toast } from "sonner";
 
@@ -61,6 +63,16 @@ export default function CoursesContainer() {
 	const { data: schools = [] } = useQuery({
 		queryKey: ["hierarchy", "schools"],
 		queryFn: getSchoolsOptions,
+	});
+
+	const { data: programs = [] } = useQuery({
+		queryKey: ["hierarchy", "programs"],
+		queryFn: () => getPrograms(),
+	});
+
+	const { data: semesters = [] } = useQuery({
+		queryKey: ["scheduling", "semesters"],
+		queryFn: () => getSemesters(),
 	});
 
 	// React Query Fetching for Courses & Grants
@@ -264,6 +276,8 @@ export default function CoursesContainer() {
 				grants={grants}
 				faculties={faculties}
 				departments={departments}
+				programs={programs}
+				semesters={semesters}
 				isLoading={isLoading}
 				isRefetching={isRefetching}
 				onRefresh={handleManualRefresh}
@@ -283,6 +297,8 @@ export default function CoursesContainer() {
 				departments={departments}
 				faculties={faculties}
 				schools={schools}
+				programs={programs}
+				semesters={semesters}
 				lecturers={lecturers}
 			/>
 
@@ -292,6 +308,8 @@ export default function CoursesContainer() {
 				onSubmit={handleEditCourse}
 				course={editingCourse}
 				departments={departments}
+				programs={programs}
+				semesters={semesters}
 				lecturers={lecturers}
 			/>
 
@@ -303,6 +321,7 @@ export default function CoursesContainer() {
 				departments={departments}
 				faculties={faculties}
 				schools={schools}
+				programs={programs}
 			/>
 
 			<RequestAccessGrantModal

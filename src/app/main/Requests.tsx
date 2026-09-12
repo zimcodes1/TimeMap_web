@@ -62,7 +62,7 @@ export default function RequestsContainer() {
 
 	const { data: entries = [] } = useQuery({
 		queryKey: ["schedules", "entries"],
-		queryFn: getTimetableEntries,
+		queryFn: () => getTimetableEntries(),
 	});
 
 	const { data: allDepartments = [] } = useQuery({

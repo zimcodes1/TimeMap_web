@@ -18,6 +18,9 @@ export interface User {
   facultyName?: string;
   departmentId?: string;
   departmentName?: string;
+  programId?: string;
+  programName?: string;
+  programCode?: string;
   staffId?: string;
   matricNumber?: string;
   level?: number;
@@ -42,6 +45,22 @@ export interface Faculty {
   departmentsCount?: number;
 }
 
+export interface Program {
+  id: string;
+  departmentId: string;
+  departmentName?: string;
+  departmentCode?: string;
+  facultyId?: string;
+  facultyName?: string;
+  schoolId?: string;
+  schoolName?: string;
+  name: string;
+  code: string;
+  maxLevel: number;
+  isDefault: boolean;
+  createdAt?: string;
+}
+
 export interface Department {
   id: string;
   name: string;
@@ -50,6 +69,41 @@ export interface Department {
   facultyName?: string;
   max_level?: number;
   maxLevel?: number;
+  programs?: Program[];
+}
+
+export interface AcademicSession {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  schoolCode?: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  semesters?: Semester[];
+  createdAt?: string;
+}
+
+export interface Semester {
+  id: string;
+  sessionId: string;
+  sessionLabel?: string;
+  schoolId?: string;
+  schoolName?: string;
+  name: 'first' | 'second';
+  displayName?: string;
+  startDate: string;
+  endDate: string;
+  durationType: 'weeks' | 'months' | 'fixed';
+  durationValue?: number;
+  lectureStartDate?: string;
+  lectureEndDate?: string;
+  examStartDate?: string;
+  examEndDate?: string;
+  isActive: boolean;
+  createdByName?: string;
+  createdAt?: string;
 }
 
 // Venue & Facility Types
@@ -82,7 +136,7 @@ export interface Course {
   code: string;
   title: string;
   level: number;
-  creditUnits: number;
+  creditUnits?: number;
   departmentId: string | undefined;
   departmentName?: string;
   owningLevel: AdminLevel;
@@ -91,6 +145,13 @@ export interface Course {
   owningFaculty?: string;
   facultyName?: string;
   owningDepartment?: string;
+  semesterId?: string;
+  semesterName?: string;
+  sessionLabel?: string;
+  programScope?: 'general' | 'program';
+  targetProgramId?: string;
+  targetProgramName?: string;
+  targetProgramCode?: string;
   lecturers: User[];
   registrationCount?: number;
 }
@@ -107,6 +168,9 @@ export interface CourseAccessGrant {
   grantedToFacultyName?: string;
   grantedToSchoolId?: string;
   grantedToSchoolName?: string;
+  grantScope?: 'general' | 'program';
+  targetProgramId?: string;
+  targetProgramName?: string;
   direction: 'offered' | 'requested';
   status: 'pending' | 'approved' | 'rejected';
   requestedBy: string;
@@ -131,6 +195,12 @@ export interface TimetableEntry {
   startTime: string;
   endTime: string;
   type: SessionType;
+  semesterId?: string;
+  semesterName?: string;
+  sessionLabel?: string;
+  programScope?: 'general' | 'program';
+  targetProgramId?: string;
+  targetProgramName?: string;
   academicSession?: string;
   academicSessionId?: string;
   recurrenceRule?: string;
@@ -155,6 +225,9 @@ export interface LectureSession {
   startTime: string;
   endTime: string;
   status: SessionStatus;
+  programName?: string;
+  programCode?: string;
+  programScope?: 'general' | 'program';
   hasReport?: boolean;
   canShift?: boolean;
   reportStatus?: 'held' | 'not_held' | 'unreported';

@@ -1,7 +1,10 @@
 import apiClient from "../apiClient";
 
-export interface DepartmentStudentCount {
+export interface ProgramStudentCount {
   id: string;
+  programId: string;
+  programName: string;
+  programCode: string;
   departmentId: string;
   departmentName: string;
   departmentCode: string;
@@ -14,6 +17,8 @@ export interface DepartmentStudentCount {
   updatedByName?: string;
   updatedAt: string;
 }
+
+export type DepartmentStudentCount = ProgramStudentCount;
 
 export interface StudentCountAnalytics {
   summary: {
@@ -31,37 +36,75 @@ export interface StudentCountAnalytics {
 }
 
 interface RawCount {
-  id: number | string; department: number | string; department_name: string; department_code: string;
-  faculty_id: number | string; faculty_name: string; school_id: number | string; school_name: string;
-  level: number; count: number; updated_by_name?: string; updated_at: string;
+  id: number | string;
+  program?: number | string;
+  program_name?: string;
+  program_code?: string;
+  department?: number | string;
+  department_name: string;
+  department_code: string;
+  faculty_id: number | string;
+  faculty_name: string;
+  school_id: number | string;
+  school_name: string;
+  level: number;
+  count: number;
+  updated_by_name?: string;
+  updated_at: string;
 }
 
-const mapCount = (item: RawCount): DepartmentStudentCount => ({
-  id: String(item.id), departmentId: String(item.department), departmentName: item.department_name,
-  departmentCode: item.department_code, facultyId: String(item.faculty_id), facultyName: item.faculty_name,
-  schoolId: String(item.school_id), schoolName: item.school_name, level: item.level, count: item.count,
-  updatedByName: item.updated_by_name, updatedAt: item.updated_at,
+const mapCount = (item: RawCount): ProgramStudentCount => ({
+  id: String(item.id),
+  programId: String(item.program ?? ""),
+  programName: item.program_name ?? "",
+  programCode: item.program_code ?? "",
+  departmentId: String(item.department ?? ""),
+  departmentName: item.department_name,
+  departmentCode: item.department_code,
+  facultyId: String(item.faculty_id),
+  facultyName: item.faculty_name,
+  schoolId: String(item.school_id),
+  schoolName: item.school_name,
+  level: item.level,
+  count: item.count,
+  updatedByName: item.updated_by_name,
+  updatedAt: item.updated_at,
 });
 
-export async function getDepartmentStudentCounts(): Promise<DepartmentStudentCount[]> {
-  const response = await apiClient.get<RawCount[] | { results: RawCount[] }>("/student-counts/departments/");
+export async function getProgramStudentCounts(programId?: string): Promise<ProgramStudentCount[]> {
+  const params: Record<string, string> = {};
+  if (programId) params.program_id = programId;
+  const response = await apiClient.get<RawCount[] | { results: RawCount[] }>("/student-counts/programs/", { params });
   const data = Array.isArray(response.data) ? response.data : response.data.results || [];
   return data.map(mapCount);
 }
 
-export async function saveDepartmentStudentCount(payload: { id?: string; department: string; level: number; count: number }): Promise<DepartmentStudentCount> {
+export const getDepartmentStudentCounts = getProgramStudentCounts;
+
+export async function saveProgramStudentCount(payload: { id?: string; program: string; level: number; count: number }): Promise<ProgramStudentCount> {
+  const response = payload.id
+    ? await apiClient.patch<RawCount>(`/student-counts/programs/${payload.id}/`, { count: payload.count })
+    : await apiClient.post<RawCount>("/student-counts/programs/", { program: payload.program, level: payload.level, count: payload.count });
+  return mapCount(response.data);
+}
+
+export async function saveDepartmentStudentCount(payload: { id?: string; department?: string; program?: string; level: number; count: number }): Promise<ProgramStudentCount> {
+  if (payload.program) {
+    return saveProgramStudentCount({ id: payload.id, program: payload.program, level: payload.level, count: payload.count });
+  }
   const response = payload.id
     ? await apiClient.patch<RawCount>(`/student-counts/departments/${payload.id}/`, { count: payload.count })
     : await apiClient.post<RawCount>("/student-counts/departments/", { department: payload.department, level: payload.level, count: payload.count });
   return mapCount(response.data);
 }
 
-export async function getStudentCountAnalytics(filters: { departmentId?: string; facultyId?: string; schoolId?: string; level?: string }): Promise<StudentCountAnalytics> {
+export async function getStudentCountAnalytics(filters: { departmentId?: string; facultyId?: string; schoolId?: string; level?: string; programId?: string }): Promise<StudentCountAnalytics> {
   const params: Record<string, string> = {};
   if (filters.departmentId) params.department_id = filters.departmentId;
   if (filters.facultyId) params.faculty_id = filters.facultyId;
   if (filters.schoolId) params.school_id = filters.schoolId;
   if (filters.level) params.level = filters.level;
+  if (filters.programId) params.program_id = filters.programId;
   const response = await apiClient.get("/student-counts/departments/analytics/", { params });
   const data = response.data;
   return {

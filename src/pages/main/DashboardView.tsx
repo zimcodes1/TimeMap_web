@@ -27,6 +27,7 @@ import type {
 	VenueUtilizationAnalytics,
 	DiscrepancyAnalytics,
 	Department,
+	Semester,
 } from "@/types";
 import type { DashboardSummaryCounts } from "@/api/main/dashboardAPI";
 
@@ -41,6 +42,7 @@ interface DashboardViewProps {
 	countsLoading?: boolean;
 	departments?: Department[];
 	adminLevel?: string;
+	activeSemester?: Semester;
 
 	startDate: string;
 	onStartDateChange: (val: string) => void;
@@ -66,6 +68,7 @@ export default function DashboardView({
 	countsLoading = false,
 	departments = [],
 	adminLevel,
+	activeSemester,
 	startDate,
 	onStartDateChange,
 	endDate,
@@ -138,7 +141,7 @@ export default function DashboardView({
 	return (
 		<div className="space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
 					<Text variant="h3" weight="bold" className="text-text-main">
 						Dashboard & Analytics
@@ -147,12 +150,33 @@ export default function DashboardView({
 						Administrative oversight metrics scoped to your institutional level.
 					</Text>
 				</div>
-				{isAnyLoading && (
-					<div className="flex items-center gap-2 text-primary text-xs font-medium bg-primary-muted/20 px-3 py-1.5 rounded-full border border-primary/20">
-						<Loader2 size={14} className="animate-spin text-primary" />
-						<span>Fetching analytics...</span>
-					</div>
-				)}
+				<div className="flex items-center gap-3">
+					{activeSemester && (
+						<div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-raised border border-border text-xs">
+							<span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+							<span className="font-semibold text-text-main">
+								{activeSemester.sessionLabel
+									? `${activeSemester.sessionLabel} • `
+									: ""}
+								{activeSemester.name === "first"
+									? "1st Semester"
+									: "2nd Semester"}
+							</span>
+							<Badge
+								variant="success"
+								className="text-[10px] uppercase font-bold py-0 px-1.5"
+							>
+								Current
+							</Badge>
+						</div>
+					)}
+					{isAnyLoading && (
+						<div className="flex items-center gap-2 text-primary text-xs font-medium bg-primary-muted/20 px-3 py-1.5 rounded-full border border-primary/20">
+							<Loader2 size={14} className="animate-spin text-primary" />
+							<span>Fetching analytics...</span>
+						</div>
+					)}
+				</div>
 			</div>
 
 			{/* 4 Primary Summary Metrics Cards */}

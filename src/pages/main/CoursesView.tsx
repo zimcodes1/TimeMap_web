@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabSwitcher } from "@/components/ui/tabs";
-import { TableToolbar } from "@/components/ui/table-toolbar";
+import {
+	TableToolbar,
+	type ToolbarFilter,
+} from "@/components/ui/table-toolbar";
 import { DataTable } from "@/components/ui/data-table";
 import {
 	Plus,
@@ -19,7 +22,14 @@ import {
 	Trash2,
 	Lock,
 } from "lucide-react";
-import type { Course, CourseAccessGrant, Faculty, Department } from "@/types";
+import type {
+	Course,
+	CourseAccessGrant,
+	Faculty,
+	Department,
+	Program,
+	Semester,
+} from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 
 interface CoursesViewProps {
@@ -27,6 +37,8 @@ interface CoursesViewProps {
 	grants: CourseAccessGrant[];
 	faculties?: Faculty[];
 	departments?: Department[];
+	programs?: Program[];
+	semesters?: Semester[];
 	isLoading?: boolean;
 	isRefetching?: boolean;
 	onRefresh?: () => void;
@@ -44,6 +56,8 @@ export default function CoursesView({
 	grants,
 	faculties = [],
 	departments = [],
+	programs = [],
+	semesters = [],
 	isLoading = false,
 	isRefetching = false,
 	onRefresh,
@@ -104,6 +118,8 @@ export default function CoursesView({
 	const [scopeFilter, setScopeFilter] = useState("");
 	const [facultyFilter, setFacultyFilter] = useState("");
 	const [departmentFilter, setDepartmentFilter] = useState("");
+	const [semesterFilter, setSemesterFilter] = useState("");
+	const [programFilter, setProgramFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 
@@ -121,6 +137,13 @@ export default function CoursesView({
 
 			const matchesLevel = !levelFilter || c.level === Number(levelFilter);
 			const matchesScope = !scopeFilter || c.owningLevel === scopeFilter;
+			const matchesSemester =
+				!semesterFilter || c.semesterId === semesterFilter;
+			const matchesProgram =
+				!programFilter ||
+				(programFilter === "general"
+					? c.programScope === "general"
+					: c.targetProgramId === programFilter);
 
 			const matchesFaculty =
 				!facultyFilter ||
@@ -141,6 +164,8 @@ export default function CoursesView({
 				matchesSearch &&
 				matchesLevel &&
 				matchesScope &&
+				matchesSemester &&
+				matchesProgram &&
 				matchesFaculty &&
 				matchesDepartment
 			);
@@ -150,6 +175,8 @@ export default function CoursesView({
 		searchQuery,
 		levelFilter,
 		scopeFilter,
+		semesterFilter,
+		programFilter,
 		facultyFilter,
 		departmentFilter,
 		faculties,
@@ -205,16 +232,8 @@ export default function CoursesView({
 		return false;
 	};
 
-	const scopeBadgeText = isUniversityAdmin
-		? "University Wide (View-Only)"
-		: isSchoolAdmin
-			? `${currentUser?.adminScopeName || "School Scope"}`
-			: isFacultyAdmin
-				? `${currentUser?.adminScopeName || "Faculty Scope"}`
-				: `${currentUser?.departmentName || "Department Scope"}`;
-
 	const toolbarFilters = useMemo(() => {
-		const list = [
+		const list: ToolbarFilter[] = [
 			{
 				id: "level",
 				label: "Level",
@@ -229,6 +248,35 @@ export default function CoursesView({
 				],
 			},
 		];
+
+		if (semesters.length > 0) {
+			list.unshift({
+				id: "semester",
+				label: "Semester",
+				value: semesterFilter,
+				onChange: setSemesterFilter,
+				options: semesters.map((s) => ({
+					label: `${s.displayName || (s.name === "first" ? "First Semester" : "Second Semester")}${s.isActive ? " (Active)" : ""}`,
+					value: s.id,
+				})),
+			});
+		}
+
+		if (programs.length > 0) {
+			list.push({
+				id: "program",
+				label: "Program",
+				value: programFilter,
+				onChange: setProgramFilter,
+				options: [
+					{ label: "General Courses Only", value: "general" },
+					...programs.map((p) => ({
+						label: `${p.code} - ${p.name}`,
+						value: p.id,
+					})),
+				],
+			});
+		}
 
 		if (isUniversityAdmin) {
 			list.push({
@@ -290,8 +338,12 @@ export default function CoursesView({
 		isFacultyAdmin,
 		levelFilter,
 		scopeFilter,
+		semesterFilter,
+		programFilter,
 		facultyFilter,
 		departmentFilter,
+		semesters,
+		programs,
 		faculties,
 		departments,
 		currentUser,
@@ -302,13 +354,10 @@ export default function CoursesView({
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
-					<div className="flex items-center gap-2">
+					<div className="flex-col sm:mb-2 sm:flex items-left gap-2">
 						<Text variant="h3" weight="bold" className="text-text-main">
 							Courses & Access Sharing
 						</Text>
-						<Badge variant="primary" className="text-xs">
-							{scopeBadgeText}
-						</Badge>
 					</div>
 					<Text variant="body-sm" color="muted">
 						{isUniversityAdmin
@@ -330,8 +379,9 @@ export default function CoursesView({
 							onClick={onRefresh}
 							disabled={isRefetching}
 							title="Refresh Course & Grant Registry"
-							className="h-8 w-8 p-0 rounded-full cursor-pointer text-text-muted hover:text-primary"
+							className="px-2 sm:rounded-full cursor-pointer text-text-muted hover:text-primary"
 						>
+							<p className="sm:hidden">Refresh</p>
 							<RefreshCw
 								size={15}
 								className={isRefetching ? "animate-spin text-primary" : ""}
@@ -399,6 +449,8 @@ export default function CoursesView({
 						onResetFilters={() => {
 							setSearchQuery("");
 							setLevelFilter("");
+							setSemesterFilter("");
+							setProgramFilter("");
 							setScopeFilter("");
 							setFacultyFilter("");
 							setDepartmentFilter("");
@@ -431,6 +483,8 @@ export default function CoursesView({
 							<Text variant="body-sm" color="muted" className="text-center">
 								{searchQuery ||
 								levelFilter ||
+								semesterFilter ||
+								programFilter ||
 								scopeFilter ||
 								facultyFilter ||
 								departmentFilter
@@ -463,12 +517,31 @@ export default function CoursesView({
 									),
 								},
 								{
-									header: "Level / Units",
+									header: "Level & Program",
 									accessor: (c: Course) => (
 										<div className="text-xs">
-											<span className="font-bold">{c.level}L</span> •{" "}
-											{c.creditUnits} Units
+											<span className="font-bold text-text-main">
+												{c.level}L
+											</span>
+											{c.programScope === "program" && (
+												<div className="text-[11px] text-primary font-medium mt-0.5">
+													{c.targetProgramName || "Program Scoped"}
+												</div>
+											)}
+											{c.programScope === "general" && (
+												<div className="text-[10px] text-text-muted mt-0.5">
+													All Programs
+												</div>
+											)}
 										</div>
+									),
+								},
+								{
+									header: "Semester",
+									accessor: (c: Course) => (
+										<span className="text-xs font-medium text-text-muted">
+											{c.semesterName || "Current"}
+										</span>
 									),
 								},
 								{

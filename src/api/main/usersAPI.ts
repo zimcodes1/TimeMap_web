@@ -1,10 +1,11 @@
 import apiClient from "../apiClient";
-import type { User, Department, Faculty, School, UserRole, AdminLevel } from "@/types";
+import type { User, Department, Faculty, School, Program, UserRole, AdminLevel } from "@/types";
 
 export interface CreateStudentPayload {
   matric_number: string;
   full_name: string;
   department: number | string;
+  program?: number | string;
   level: number;
   is_class_rep?: boolean;
   email?: string;
@@ -42,6 +43,9 @@ interface RawStudentProfile {
   full_name: string;
   department: number | string;
   department_name?: string;
+  program?: number | string;
+  program_name?: string;
+  program_code?: string;
   level: number;
   is_class_rep: boolean;
   email?: string;
@@ -78,6 +82,9 @@ export function mapRawStudentToUser(raw: RawStudentProfile): User {
     role: "student",
     departmentId: raw.department ? String(raw.department) : undefined,
     departmentName: raw.department_name,
+    programId: raw.program ? String(raw.program) : undefined,
+    programName: raw.program_name,
+    programCode: raw.program_code,
     matricNumber: raw.matric_number,
     level: raw.level,
     isClassRep: raw.is_class_rep,
@@ -114,10 +121,10 @@ export function mapRawAdminToUser(raw: RawAdminProfile): User {
     adminScopeId: raw.scope_school
       ? String(raw.scope_school)
       : raw.scope_faculty
-      ? String(raw.scope_faculty)
-      : raw.scope_department
-      ? String(raw.scope_department)
-      : undefined,
+        ? String(raw.scope_faculty)
+        : raw.scope_department
+          ? String(raw.scope_department)
+          : undefined,
     isActive: raw.user?.is_active ?? true,
     requiresPasswordReset: raw.user?.requires_password_reset ?? true,
   };
@@ -331,3 +338,26 @@ export async function getSchoolsOptions(): Promise<School[]> {
     return [];
   }
 }
+
+/**
+ * GET /api/hierarchy/programs/
+ */
+export async function getProgramsOptions(departmentId?: string): Promise<Program[]> {
+  try {
+    const params: Record<string, string> = {};
+    if (departmentId) params.department = departmentId;
+    const response = await apiClient.get("/hierarchy/programs/", { params });
+    const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
+    return list.map((p: Record<string, unknown>) => ({
+      id: String(p.id),
+      name: String(p.name || ""),
+      code: String(p.code || ""),
+      departmentId: String(p.department || ""),
+      maxLevel: Number(p.max_level || 400),
+      isDefault: Boolean(p.is_default),
+    }));
+  } catch {
+    return [];
+  }
+}
+

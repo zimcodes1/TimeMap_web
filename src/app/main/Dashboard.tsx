@@ -8,6 +8,7 @@ import {
 	getDashboardSummaryCounts,
 	getDepartmentsList,
 } from "@/api/main/dashboardAPI";
+import { getSemesters } from "@/api/main/semestersAPI";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function DashboardContainer() {
@@ -49,6 +50,13 @@ export default function DashboardContainer() {
 		queryFn: getDepartmentsList,
 	});
 
+	const { data: semesters = [] } = useQuery({
+		queryKey: ["semesters", "list"],
+		queryFn: () => getSemesters(),
+	});
+
+	const activeSemester = semesters.find((s) => s.isActive);
+
 	const handleResetFilters = () => {
 		setStartDate("");
 		setEndDate("");
@@ -68,6 +76,7 @@ export default function DashboardContainer() {
 			countsLoading={countsLoading}
 			departments={departments}
 			adminLevel={currentUser?.adminLevel}
+			activeSemester={activeSemester}
 			startDate={startDate}
 			onStartDateChange={setStartDate}
 			endDate={endDate}

@@ -18,9 +18,15 @@ import {
 	List,
 	RefreshCw,
 	Edit,
-	Inbox,
 } from "lucide-react";
-import type { TimetableEntry, LectureSession, ExamSitting } from "@/types";
+import type {
+	TimetableEntry,
+	LectureSession,
+	ExamSitting,
+	Program,
+	Semester,
+} from "@/types";
+import { TimetableAcademicGrid } from "@/components/schedules/TimetableAcademicGrid";
 
 interface SchedulesViewProps {
 	entries: TimetableEntry[] | undefined;
@@ -30,8 +36,13 @@ interface SchedulesViewProps {
 	examSittings: ExamSitting[] | undefined;
 	examSittingsLoading?: boolean;
 	isRefetching?: boolean;
+	programs?: Program[];
+	semesters?: Semester[];
 	onManualRefresh: () => void;
-	onOpenScheduleEntry: () => void;
+	onOpenScheduleEntry: (
+		defaultDay?: string,
+		defaultSlot?: { start: string; end: string },
+	) => void;
 	onOpenExamSitting: () => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
 }
@@ -44,6 +55,7 @@ export default function SchedulesView({
 	examSittings,
 	examSittingsLoading = false,
 	isRefetching = false,
+	programs = [],
 	onManualRefresh,
 	onOpenScheduleEntry,
 	onOpenExamSitting,
@@ -172,7 +184,7 @@ export default function SchedulesView({
 						<Button variant="outline" size="sm" onClick={onOpenExamSitting}>
 							<UserCheck size={16} className="mr-1" /> Create Exam Sitting
 						</Button>
-						<Button variant="primary" size="sm" onClick={onOpenScheduleEntry}>
+						<Button variant="primary" size="sm" onClick={() => onOpenScheduleEntry()}>
 							<Plus size={16} className="mr-1" /> Schedule Entry
 						</Button>
 					</div>
@@ -308,81 +320,18 @@ export default function SchedulesView({
 					</div>
 				)
 			) : viewMode === "grid" && activeTab === "entries" ? (
-				/* Grid Mode View */
-				!filteredEntries || filteredEntries.length === 0 ? (
-					<Card className="p-12 text-center border-dashed flex flex-col items-center justify-center space-y-3 bg-surface border-border">
-						<div className="p-3 rounded-full bg-surface-raised border border-border text-text-subtle">
-							<Inbox size={32} />
-						</div>
-						<div className="space-y-1 flex flex-col gap-2">
-							<Text
-								variant="h6"
-								weight="bold"
-								className="text-text-main text-center"
-							>
-								No records found
-							</Text>
-							<Text variant="body-sm" color="muted">
-								There are no schedule entries matching your criteria.
-							</Text>
-						</div>
-					</Card>
-				) : (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{filteredEntries.map((entry) => (
-							<Card
-								key={entry.id}
-								className={`p-4 space-y-3 relative border-l-4 ${entry.hasConflict ? "border-red-500/20 border-l-red-500" : "border-l-primary"}`}
-							>
-								<div className="flex items-start justify-between">
-									<div>
-										<div className="font-extrabold text-primary text-base">
-											{entry.courseCode}
-										</div>
-										<div className="text-xs text-text-main font-semibold line-clamp-1">
-											{entry.courseTitle}
-										</div>
-									</div>
-									<Badge
-										variant={entry.type === "exam" ? "warning" : "default"}
-										className="capitalize text-[10px]"
-									>
-										{entry.type}
-									</Badge>
-								</div>
-
-								<div className="p-2.5 bg-surface-raised border border-border rounded-xl text-xs space-y-1">
-									<div className="flex items-center justify-between">
-										<span className="text-text-muted">Day & Slot:</span>
-										<span className="font-bold text-text-main">
-											{entry.dayOfWeek} ({entry.startTime} - {entry.endTime})
-										</span>
-									</div>
-									<div className="flex items-center justify-between">
-										<span className="text-text-muted">Venue:</span>
-										<span className="font-semibold text-text-main">
-											{entry.venueName}
-										</span>
-									</div>
-									<div className="flex items-center justify-between">
-										<span className="text-text-muted">Lecturer:</span>
-										<span className="text-text-main">{entry.lecturerName}</span>
-									</div>
-								</div>
-
-								<div className="flex items-center justify-between pt-1">
-									{entry.hasConflict ? (
-										<span className="text-xs font-bold text-danger flex items-center gap-1">
-											<AlertTriangle size={14} /> Clash Detected
-										</span>
-									) : (
-										<Badge variant="success">Clear (PROCEED)</Badge>
-									)}
-								</div>
-							</Card>
-						))}
-					</div>
-				)
+				<TimetableAcademicGrid
+					entries={filteredEntries || []}
+					programs={programs}
+					onOpenCreateEntry={(defaultDay, defaultSlot) =>
+						onOpenScheduleEntry(
+							defaultDay,
+							defaultSlot
+								? { start: defaultSlot.start, end: defaultSlot.end }
+								: undefined,
+						)
+					}
+				/>
 			) : (
 				/* List Mode View */
 				<div>

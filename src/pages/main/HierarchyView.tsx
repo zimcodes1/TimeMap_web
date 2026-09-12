@@ -7,482 +7,656 @@ import { TabSwitcher } from "@/components/ui/tabs";
 import { TableToolbar } from "@/components/ui/table-toolbar";
 import { DataTable } from "@/components/ui/data-table";
 import { OrgTree } from "@/components/elements/OrgTree";
+import { ProgramsTable } from "@/components/hierarchy/ProgramsTable";
 import {
-  Plus,
-  Building2,
-  School as SchoolIcon,
-  Network,
-  GitMerge,
-  Edit2,
-  Trash2,
-  RefreshCw,
-  Monitor,
+	Plus,
+	Building2,
+	School as SchoolIcon,
+	Network,
+	GitMerge,
+	Edit2,
+	Trash2,
+	RefreshCw,
+	Monitor,
+	BookOpen,
 } from "lucide-react";
-import type { School, Faculty, Department } from "@/types";
+import type { School, Faculty, Department, Program } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 
 interface HierarchyViewProps {
-  schools: School[];
-  schoolsLoading?: boolean;
-  faculties: Faculty[];
-  facultiesLoading?: boolean;
-  departments: Department[];
-  departmentsLoading?: boolean;
-  isRefetching?: boolean;
-  onManualRefresh: () => void;
-  onOpenCreateSchool: () => void;
-  onOpenCreateFaculty: () => void;
-  onOpenCreateDepartment: () => void;
-  onEditSchool: (school: School) => void;
-  onEditFaculty: (faculty: Faculty) => void;
-  onEditDepartment: (dept: Department) => void;
-  onDeleteTrigger: (id: string, name: string, type: "School" | "Faculty" | "Department") => void;
+	schools: School[];
+	schoolsLoading?: boolean;
+	faculties: Faculty[];
+	facultiesLoading?: boolean;
+	departments: Department[];
+	departmentsLoading?: boolean;
+	programs?: Program[];
+	programsLoading?: boolean;
+	isRefetching?: boolean;
+	onManualRefresh: () => void;
+	onOpenCreateSchool: () => void;
+	onOpenCreateFaculty: () => void;
+	onOpenCreateDepartment: () => void;
+	onOpenCreateProgram?: () => void;
+	onEditSchool: (school: School) => void;
+	onEditFaculty: (faculty: Faculty) => void;
+	onEditDepartment: (dept: Department) => void;
+	onEditProgram?: (program: Program) => void;
+	onDeleteTrigger: (
+		id: string,
+		name: string,
+		type: "School" | "Faculty" | "Department" | "Program",
+	) => void;
 }
 
 export default function HierarchyView({
-  schools,
-  schoolsLoading = false,
-  faculties,
-  facultiesLoading = false,
-  departments,
-  departmentsLoading = false,
-  isRefetching = false,
-  onManualRefresh,
-  onOpenCreateSchool,
-  onOpenCreateFaculty,
-  onOpenCreateDepartment,
-  onEditSchool,
-  onEditFaculty,
-  onEditDepartment,
-  onDeleteTrigger,
+	schools,
+	schoolsLoading = false,
+	faculties,
+	facultiesLoading = false,
+	departments,
+	departmentsLoading = false,
+	programs = [],
+	programsLoading = false,
+	isRefetching = false,
+	onManualRefresh,
+	onOpenCreateSchool,
+	onOpenCreateFaculty,
+	onOpenCreateDepartment,
+	onOpenCreateProgram,
+	onEditSchool,
+	onEditFaculty,
+	onEditDepartment,
+	onEditProgram,
+	onDeleteTrigger,
 }: HierarchyViewProps) {
-  const { user: currentUser } = useAuth();
-  const adminLevel = currentUser?.adminLevel;
-  const isSuperuser = currentUser?.role === "admin" && (!adminLevel || adminLevel === "university");
-  const isUniversityAdmin = isSuperuser;
-  const isSchoolAdmin = currentUser?.role === "admin" && adminLevel === "school";
-  const isFacultyAdmin = currentUser?.role === "admin" && adminLevel === "faculty";
+	const { user: currentUser } = useAuth();
+	const adminLevel = currentUser?.adminLevel;
+	const isSuperuser =
+		currentUser?.role === "admin" &&
+		(!adminLevel || adminLevel === "university");
+	const isUniversityAdmin = isSuperuser;
+	const isSchoolAdmin =
+		currentUser?.role === "admin" && adminLevel === "school";
+	const isFacultyAdmin =
+		currentUser?.role === "admin" && adminLevel === "faculty";
+	const isDepartmentAdmin =
+		currentUser?.role === "admin" && adminLevel === "department";
 
-  // Tab configurations per admin tier
-  const visibleTabs = useMemo(() => {
-    if (isUniversityAdmin) {
-      return [
-        { id: "schools", label: "Schools", icon: SchoolIcon, count: schools.length },
-        { id: "faculties", label: "Faculties", icon: Network, count: faculties.length },
-        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
-        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
-      ];
-    }
-    if (isSchoolAdmin) {
-      return [
-        { id: "faculties", label: "Faculties", icon: Network, count: faculties.length },
-        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
-        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
-      ];
-    }
-    if (isFacultyAdmin) {
-      return [
-        { id: "departments", label: "Departments", icon: Building2, count: departments.length },
-        { id: "tree", label: "Organizational Tree View", icon: GitMerge },
-      ];
-    }
-    // Department Admin
-    return [
-      { id: "tree", label: "Organizational Tree View", icon: GitMerge },
-      { id: "departments", label: "Departments", icon: Building2, count: departments.length },
-    ];
-  }, [isUniversityAdmin, isSchoolAdmin, isFacultyAdmin, schools.length, faculties.length, departments.length]);
+	// Tab configurations per admin tier
+	const visibleTabs = useMemo(() => {
+		if (isUniversityAdmin) {
+			return [
+				{
+					id: "schools",
+					label: "Schools",
+					icon: SchoolIcon,
+					count: schools.length,
+				},
+				{
+					id: "faculties",
+					label: "Faculties",
+					icon: Network,
+					count: faculties.length,
+				},
+				{
+					id: "departments",
+					label: "Departments",
+					icon: Building2,
+					count: departments.length,
+				},
+				{
+					id: "programs",
+					label: "Programs",
+					icon: BookOpen,
+					count: programs.length,
+				},
+				{ id: "tree", label: "Organizational Tree View", icon: GitMerge },
+			];
+		}
+		if (isSchoolAdmin) {
+			return [
+				{
+					id: "faculties",
+					label: "Faculties",
+					icon: Network,
+					count: faculties.length,
+				},
+				{
+					id: "departments",
+					label: "Departments",
+					icon: Building2,
+					count: departments.length,
+				},
+				{
+					id: "programs",
+					label: "Programs",
+					icon: BookOpen,
+					count: programs.length,
+				},
+				{ id: "tree", label: "Organizational Tree View", icon: GitMerge },
+			];
+		}
+		if (isFacultyAdmin) {
+			return [
+				{
+					id: "departments",
+					label: "Departments",
+					icon: Building2,
+					count: departments.length,
+				},
+				{
+					id: "programs",
+					label: "Programs",
+					icon: BookOpen,
+					count: programs.length,
+				},
+				{ id: "tree", label: "Organizational Tree View", icon: GitMerge },
+			];
+		}
+		// Department Admin
+		return [
+			{
+				id: "programs",
+				label: "Programs",
+				icon: BookOpen,
+				count: programs.length,
+			},
+			{
+				id: "departments",
+				label: "Department Info",
+				icon: Building2,
+				count: departments.length,
+			},
+			{ id: "tree", label: "Organizational Tree View", icon: GitMerge },
+		];
+	}, [
+		isUniversityAdmin,
+		isSchoolAdmin,
+		isFacultyAdmin,
+		schools.length,
+		faculties.length,
+		departments.length,
+		programs.length,
+	]);
 
-  const defaultTab = isUniversityAdmin
-    ? "schools"
-    : isSchoolAdmin
-    ? "faculties"
-    : isFacultyAdmin
-    ? "departments"
-    : "tree";
+	const defaultTab = isUniversityAdmin
+		? "schools"
+		: isSchoolAdmin
+			? "faculties"
+			: isFacultyAdmin
+				? "departments"
+				: "programs";
 
-  const [activeTab, setActiveTab] = useState<"departments" | "faculties" | "schools" | "tree">(defaultTab);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+	const [activeTab, setActiveTab] = useState<
+		"departments" | "faculties" | "schools" | "programs" | "tree"
+	>(defaultTab);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [currentPage, setCurrentPage] = useState(1);
 
-  // Filter lists based on search query
-  const filteredDepartments = departments.filter(
-    (d) =>
-      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (d.facultyName && d.facultyName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+	// Filter lists based on search query
+	const filteredDepartments = departments.filter(
+		(d) =>
+			d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			d.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(d.facultyName &&
+				d.facultyName.toLowerCase().includes(searchQuery.toLowerCase())),
+	);
 
-  const filteredFaculties = faculties.filter(
-    (f) =>
-      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (f.schoolName && f.schoolName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+	const filteredFaculties = faculties.filter(
+		(f) =>
+			f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			(f.schoolName &&
+				f.schoolName.toLowerCase().includes(searchQuery.toLowerCase())),
+	);
 
-  const filteredSchools = schools.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+	const filteredSchools = schools.filter(
+		(s) =>
+			s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			s.code.toLowerCase().includes(searchQuery.toLowerCase()),
+	);
 
-  const isCurrentTabLoading =
-    activeTab === "departments"
-      ? departmentsLoading
-      : activeTab === "faculties"
-      ? facultiesLoading
-      : activeTab === "schools"
-      ? schoolsLoading
-      : false;
+	const isCurrentTabLoading =
+		activeTab === "departments"
+			? departmentsLoading
+			: activeTab === "faculties"
+				? facultiesLoading
+				: activeTab === "schools"
+					? schoolsLoading
+					: false;
 
-  const scopeBadgeText = isUniversityAdmin
-    ? "Scope: University Wide"
-    : isSchoolAdmin
-    ? `Scope: School Level (${currentUser?.adminScopeName || "School Scope"})`
-    : isFacultyAdmin
-    ? `Scope: Faculty Level (${currentUser?.adminScopeName || "Faculty Scope"})`
-    : `Scope: Department Level (${currentUser?.departmentName || "Department Scope"})`;
+	const scopeBadgeText = isUniversityAdmin
+		? "Scope: University Wide"
+		: isSchoolAdmin
+			? `Scope: School Level (${currentUser?.adminScopeName || "School Scope"})`
+			: isFacultyAdmin
+				? `Scope: Faculty Level (${currentUser?.adminScopeName || "Faculty Scope"})`
+				: `Scope: Department Level (${currentUser?.departmentName || "Department Scope"})`;
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Text variant="h3" weight="bold" className="text-text-main">
-              Hierarchy Management
-            </Text>
-            <Badge variant="primary" className="text-xs">
-              {scopeBadgeText}
-            </Badge>
-          </div>
-          <Text variant="body-sm" color="muted">
-            {isUniversityAdmin
-              ? "Institutional structure tree — Schools, Faculties, and Departments."
-              : isSchoolAdmin
-              ? "Manage faculties and departments within your assigned school."
-              : isFacultyAdmin
-              ? "Manage departments within your assigned faculty."
-              : "Organizational tree view of your department and parent hierarchy."}
-          </Text>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onManualRefresh}
-            disabled={isRefetching}
-            className="h-8 gap-1.5 text-xs cursor-pointer"
-          >
-            <RefreshCw size={13} className={isRefetching ? "animate-spin text-primary" : ""} />
-            <span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
-          </Button>
+	return (
+		<div className="space-y-6">
+			{/* Header */}
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+				<div>
+					<div className="flex items-center gap-2">
+						<Text variant="h3" weight="bold" className="text-text-main">
+							Hierarchy Management
+						</Text>
+						<Badge variant="primary" className="text-xs">
+							{scopeBadgeText}
+						</Badge>
+					</div>
+					<Text variant="body-sm" color="muted">
+						{isUniversityAdmin
+							? "Institutional structure tree — Schools, Faculties, Departments, and Programs."
+							: isSchoolAdmin
+								? "Manage faculties, departments, and academic semesters within your school."
+								: isFacultyAdmin
+									? "Manage departments and view academic programs within your assigned faculty."
+									: "Manage degree programs and view organizational structure for your department."}
+					</Text>
+				</div>
+				<div className="flex items-center gap-2">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={onManualRefresh}
+						disabled={isRefetching}
+						className="h-8 gap-1.5 text-xs cursor-pointer"
+					>
+						<RefreshCw
+							size={13}
+							className={isRefetching ? "animate-spin text-primary" : ""}
+						/>
+						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
+					</Button>
 
-          {/* Creation Button Guards */}
-          {isUniversityAdmin && activeTab === "schools" && (
-            <Button variant="primary" size="sm" onClick={onOpenCreateSchool} className="cursor-pointer">
-              <Plus size={16} className="mr-1" /> Add School
-            </Button>
-          )}
-          {isSchoolAdmin && activeTab === "faculties" && (
-            <Button variant="primary" size="sm" onClick={onOpenCreateFaculty} className="cursor-pointer">
-              <Plus size={16} className="mr-1" /> Add Faculty
-            </Button>
-          )}
-          {isFacultyAdmin && activeTab === "departments" && (
-            <Button variant="primary" size="sm" onClick={onOpenCreateDepartment} className="cursor-pointer">
-              <Plus size={16} className="mr-1" /> Add Department
-            </Button>
-          )}
-        </div>
-      </div>
+					{/* Creation Button Guards */}
+					{isUniversityAdmin && activeTab === "schools" && (
+						<Button
+							variant="primary"
+							size="sm"
+							onClick={onOpenCreateSchool}
+							className="cursor-pointer"
+						>
+							<Plus size={16} className="mr-1" /> Add School
+						</Button>
+					)}
+					{isSchoolAdmin && activeTab === "faculties" && (
+						<Button
+							variant="primary"
+							size="sm"
+							onClick={onOpenCreateFaculty}
+							className="cursor-pointer"
+						>
+							<Plus size={16} className="mr-1" /> Add Faculty
+						</Button>
+					)}
+					{isFacultyAdmin && activeTab === "departments" && (
+						<Button
+							variant="primary"
+							size="sm"
+							onClick={onOpenCreateDepartment}
+							className="cursor-pointer"
+						>
+							<Plus size={16} className="mr-1" /> Add Department
+						</Button>
+					)}
+					{isDepartmentAdmin &&
+						activeTab === "programs" &&
+						onOpenCreateProgram && (
+							<Button
+								variant="primary"
+								size="sm"
+								onClick={onOpenCreateProgram}
+								className="cursor-pointer"
+							>
+								<Plus size={16} className="mr-1" /> Add Program
+							</Button>
+						)}
+				</div>
+			</div>
 
-      {/* Navigation Sub-Tabs */}
-      <TabSwitcher
-        tabs={visibleTabs}
-        activeTab={activeTab}
-        onChange={(tab) => {
-          setActiveTab(tab as typeof activeTab);
-          setCurrentPage(1);
-        }}
-      />
+			{/* Navigation Sub-Tabs */}
+			<TabSwitcher
+				tabs={visibleTabs}
+				activeTab={activeTab}
+				onChange={(tab) => {
+					setActiveTab(tab as typeof activeTab);
+					setCurrentPage(1);
+				}}
+			/>
 
-      {/* Organizational Tree View */}
-      {activeTab === "tree" ? (
-        <>
-          {/* Mobile Fallback Card */}
-          <div className="block md:hidden flex flex-col items-center justify-center p-8 text-center bg-surface border border-border rounded-2xl space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-              <Monitor size={28} />
-            </div>
-            <Text variant="h6" weight="bold" className="text-text-main">
-              Use a PC to view
-            </Text>
-            <Text variant="body-sm" color="muted" className="max-w-xs">
-              The interactive organizational tree diagram requires a desktop monitor or larger screen display for full structural visualization.
-            </Text>
-          </div>
+			{/* Organizational Tree View */}
+			{activeTab === "tree" ? (
+				<>
+					{/* Mobile Fallback Card */}
+					<div className="md:hidden flex flex-col items-center justify-center p-8 text-center bg-surface border border-border rounded-2xl space-y-3">
+						<div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+							<Monitor size={28} />
+						</div>
+						<Text variant="h6" weight="bold" className="text-text-main">
+							Use a PC to view
+						</Text>
+						<Text variant="body-sm" color="muted" className="max-w-xs">
+							The interactive organizational tree diagram requires a desktop
+							monitor or larger screen display for full structural
+							visualization.
+						</Text>
+					</div>
 
-          {/* Desktop Org Tree */}
-          <div className="hidden md:block">
-            <OrgTree schools={schools} faculties={faculties} departments={departments} />
-          </div>
-        </>
-      ) : (
-        <div className="space-y-4">
-          {/* Table Toolbar */}
-          <TableToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchPlaceholder={`Search ${activeTab}...`}
-            totalCount={
-              activeTab === "departments"
-                ? departments.length
-                : activeTab === "faculties"
-                ? faculties.length
-                : schools.length
-            }
-            filteredCount={
-              activeTab === "departments"
-                ? filteredDepartments.length
-                : activeTab === "faculties"
-                ? filteredFaculties.length
-                : filteredSchools.length
-            }
-          />
+					{/* Desktop Org Tree */}
+					<div className="hidden md:block">
+						<OrgTree
+							schools={schools}
+							faculties={faculties}
+							departments={departments}
+						/>
+					</div>
+				</>
+			) : activeTab === "programs" ? (
+				<ProgramsTable
+					programs={programs}
+					isLoading={programsLoading}
+					canManage={isDepartmentAdmin}
+					onOpenCreate={() => onOpenCreateProgram?.()}
+					onEdit={(prog) => onEditProgram?.(prog)}
+					onDelete={(id, name) => onDeleteTrigger(id, name, "Program")}
+				/>
+			) : (
+				<div className="space-y-4">
+					{/* Table Toolbar */}
+					<TableToolbar
+						searchQuery={searchQuery}
+						onSearchChange={setSearchQuery}
+						searchPlaceholder={`Search ${activeTab}...`}
+						totalCount={
+							activeTab === "departments"
+								? departments.length
+								: activeTab === "faculties"
+									? faculties.length
+									: schools.length
+						}
+						filteredCount={
+							activeTab === "departments"
+								? filteredDepartments.length
+								: activeTab === "faculties"
+									? filteredFaculties.length
+									: filteredSchools.length
+						}
+					/>
 
-          {/* Loading Skeleton */}
-          {isCurrentTabLoading ? (
-            <div className="space-y-3 bg-surface border border-border p-4 rounded-2xl">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <Skeleton className="h-5 w-36" />
-                <Skeleton className="h-5 w-24" />
-              </div>
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between py-3 border-b border-border/50">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-44" />
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-7 w-28 rounded-lg" />
-                </div>
-              ))}
-            </div>
-          ) : activeTab === "departments" ? (
-            /* Departments Table */
-            filteredDepartments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
-                  <Building2 size={24} />
-                </div>
-                <Text variant="h6" weight="bold" className="text-text-main">
-                  No departments found
-                </Text>
-                <Text variant="body-sm" color="muted">
-                  There are no academic departments matching your criteria.
-                </Text>
-                {isFacultyAdmin && (
-                  <Button variant="primary" size="sm" onClick={onOpenCreateDepartment} className="mt-2 cursor-pointer">
-                    <Plus size={16} className="mr-1" /> Add Department
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <DataTable
-                columns={[
-                  {
-                    header: "Department Code",
-                    accessor: (dept: Department) => (
-                      <span className="font-bold text-primary">{dept.code}</span>
-                    ),
-                  },
-                  {
-                    header: "Department Name",
-                    accessor: (dept: Department) => <span className="font-medium">{dept.name}</span>,
-                  },
-                  {
-                    header: "Parent Faculty",
-                    accessor: (dept: Department) => (
-                      <span className="text-text-muted">{dept.facultyName || "Main Faculty"}</span>
-                    ),
-                  },
-                  ...(isFacultyAdmin
-                    ? [
-                        {
-                          header: "Actions",
-                          align: "right" as const,
-                          accessor: (dept: Department) => (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onEditDepartment(dept)}
-                                className="h-8 px-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 size={13} className="mr-1" /> Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onDeleteTrigger(dept.id, dept.name, "Department")}
-                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                              >
-                                <Trash2 size={13} />
-                              </Button>
-                            </div>
-                          ),
-                        },
-                      ]
-                    : []),
-                ]}
-                data={filteredDepartments}
-                keyExtractor={(d) => d.id}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-              />
-            )
-          ) : activeTab === "faculties" ? (
-            /* Faculties Table */
-            filteredFaculties.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
-                  <Network size={24} />
-                </div>
-                <Text variant="h6" weight="bold" className="text-text-main">
-                  No faculties found
-                </Text>
-                <Text variant="body-sm" color="muted">
-                  There are no faculties matching your criteria.
-                </Text>
-                {isSchoolAdmin && (
-                  <Button variant="primary" size="sm" onClick={onOpenCreateFaculty} className="mt-2 cursor-pointer">
-                    <Plus size={16} className="mr-1" /> Add Faculty
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <DataTable
-                columns={[
-                  {
-                    header: "Faculty Code",
-                    accessor: (fac: Faculty) => (
-                      <span className="font-bold text-primary">{fac.code}</span>
-                    ),
-                  },
-                  {
-                    header: "Faculty Name",
-                    accessor: (fac: Faculty) => <span className="font-medium">{fac.name}</span>,
-                  },
-                  {
-                    header: "Parent School",
-                    accessor: (fac: Faculty) => (
-                      <span className="text-text-muted">{fac.schoolName || "Main School"}</span>
-                    ),
-                  },
-                  ...(isSchoolAdmin
-                    ? [
-                        {
-                          header: "Actions",
-                          align: "right" as const,
-                          accessor: (fac: Faculty) => (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onEditFaculty(fac)}
-                                className="h-8 px-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 size={13} className="mr-1" /> Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onDeleteTrigger(fac.id, fac.name, "Faculty")}
-                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                              >
-                                <Trash2 size={13} />
-                              </Button>
-                            </div>
-                          ),
-                        },
-                      ]
-                    : []),
-                ]}
-                data={filteredFaculties}
-                keyExtractor={(f) => f.id}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-              />
-            )
-          ) : (
-            /* Schools Table */
-            filteredSchools.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
-                <div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
-                  <SchoolIcon size={24} />
-                </div>
-                <Text variant="h6" weight="bold" className="text-text-main">
-                  No schools found
-                </Text>
-                <Text variant="body-sm" color="muted">
-                  There are no schools matching your criteria.
-                </Text>
-                {isUniversityAdmin && (
-                  <Button variant="primary" size="sm" onClick={onOpenCreateSchool} className="mt-2 cursor-pointer">
-                    <Plus size={16} className="mr-1" /> Add School
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <DataTable
-                columns={[
-                  {
-                    header: "School Code",
-                    accessor: (sch: School) => (
-                      <span className="font-bold text-primary">{sch.code}</span>
-                    ),
-                  },
-                  {
-                    header: "School Name",
-                    accessor: (sch: School) => <span className="font-medium">{sch.name}</span>,
-                  },
-                  ...(isUniversityAdmin
-                    ? [
-                        {
-                          header: "Actions",
-                          align: "right" as const,
-                          accessor: (sch: School) => (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onEditSchool(sch)}
-                                className="h-8 px-2 text-xs cursor-pointer"
-                              >
-                                <Edit2 size={13} className="mr-1" /> Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onDeleteTrigger(sch.id, sch.name, "School")}
-                                className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
-                              >
-                                <Trash2 size={13} />
-                              </Button>
-                            </div>
-                          ),
-                        },
-                      ]
-                    : []),
-                ]}
-                data={filteredSchools}
-                keyExtractor={(s) => s.id}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-              />
-            )
-          )}
-        </div>
-      )}
-    </div>
-  );
+					{/* Loading Skeleton */}
+					{isCurrentTabLoading ? (
+						<div className="space-y-3 bg-surface border border-border p-4 rounded-2xl">
+							<div className="flex items-center justify-between pb-3 border-b border-border">
+								<Skeleton className="h-5 w-36" />
+								<Skeleton className="h-5 w-24" />
+							</div>
+							{[...Array(5)].map((_, i) => (
+								<div
+									key={i}
+									className="flex items-center justify-between py-3 border-b border-border/50"
+								>
+									<Skeleton className="h-4 w-24" />
+									<Skeleton className="h-4 w-44" />
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-7 w-28 rounded-lg" />
+								</div>
+							))}
+						</div>
+					) : activeTab === "departments" ? (
+						/* Departments Table */
+						filteredDepartments.length === 0 ? (
+							<div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
+								<div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
+									<Building2 size={24} />
+								</div>
+								<Text variant="h6" weight="bold" className="text-text-main">
+									No departments found
+								</Text>
+								<Text variant="body-sm" color="muted">
+									There are no academic departments matching your criteria.
+								</Text>
+								{isFacultyAdmin && (
+									<Button
+										variant="primary"
+										size="sm"
+										onClick={onOpenCreateDepartment}
+										className="mt-2 cursor-pointer"
+									>
+										<Plus size={16} className="mr-1" /> Add Department
+									</Button>
+								)}
+							</div>
+						) : (
+							<DataTable
+								columns={[
+									{
+										header: "Department Code",
+										accessor: (dept: Department) => (
+											<span className="font-bold text-primary">
+												{dept.code}
+											</span>
+										),
+									},
+									{
+										header: "Department Name",
+										accessor: (dept: Department) => (
+											<span className="font-medium">{dept.name}</span>
+										),
+									},
+									{
+										header: "Parent Faculty",
+										accessor: (dept: Department) => (
+											<span className="text-text-muted">
+												{dept.facultyName || "Main Faculty"}
+											</span>
+										),
+									},
+									...(isFacultyAdmin
+										? [
+												{
+													header: "Actions",
+													align: "right" as const,
+													accessor: (dept: Department) => (
+														<div className="flex items-center justify-end gap-1">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => onEditDepartment(dept)}
+																className="h-8 px-2 text-xs cursor-pointer"
+															>
+																<Edit2 size={13} className="mr-1" /> Edit
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() =>
+																	onDeleteTrigger(
+																		dept.id,
+																		dept.name,
+																		"Department",
+																	)
+																}
+																className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+															>
+																<Trash2 size={13} />
+															</Button>
+														</div>
+													),
+												},
+											]
+										: []),
+								]}
+								data={filteredDepartments}
+								keyExtractor={(d) => d.id}
+								currentPage={currentPage}
+								onPageChange={setCurrentPage}
+							/>
+						)
+					) : activeTab === "faculties" ? (
+						/* Faculties Table */
+						filteredFaculties.length === 0 ? (
+							<div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
+								<div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
+									<Network size={24} />
+								</div>
+								<Text variant="h6" weight="bold" className="text-text-main">
+									No faculties found
+								</Text>
+								<Text variant="body-sm" color="muted">
+									There are no faculties matching your criteria.
+								</Text>
+								{isSchoolAdmin && (
+									<Button
+										variant="primary"
+										size="sm"
+										onClick={onOpenCreateFaculty}
+										className="mt-2 cursor-pointer"
+									>
+										<Plus size={16} className="mr-1" /> Add Faculty
+									</Button>
+								)}
+							</div>
+						) : (
+							<DataTable
+								columns={[
+									{
+										header: "Faculty Code",
+										accessor: (fac: Faculty) => (
+											<span className="font-bold text-primary">{fac.code}</span>
+										),
+									},
+									{
+										header: "Faculty Name",
+										accessor: (fac: Faculty) => (
+											<span className="font-medium">{fac.name}</span>
+										),
+									},
+									{
+										header: "Parent School",
+										accessor: (fac: Faculty) => (
+											<span className="text-text-muted">
+												{fac.schoolName || "Main School"}
+											</span>
+										),
+									},
+									...(isSchoolAdmin
+										? [
+												{
+													header: "Actions",
+													align: "right" as const,
+													accessor: (fac: Faculty) => (
+														<div className="flex items-center justify-end gap-1">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() => onEditFaculty(fac)}
+																className="h-8 px-2 text-xs cursor-pointer"
+															>
+																<Edit2 size={13} className="mr-1" /> Edit
+															</Button>
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() =>
+																	onDeleteTrigger(fac.id, fac.name, "Faculty")
+																}
+																className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+															>
+																<Trash2 size={13} />
+															</Button>
+														</div>
+													),
+												},
+											]
+										: []),
+								]}
+								data={filteredFaculties}
+								keyExtractor={(f) => f.id}
+								currentPage={currentPage}
+								onPageChange={setCurrentPage}
+							/>
+						)
+					) : /* Schools Table */
+					filteredSchools.length === 0 ? (
+						<div className="flex flex-col items-center justify-center p-12 text-center bg-surface border border-border rounded-2xl space-y-3">
+							<div className="w-12 h-12 rounded-full bg-surface-raised flex items-center justify-center text-text-subtle">
+								<SchoolIcon size={24} />
+							</div>
+							<Text variant="h6" weight="bold" className="text-text-main">
+								No schools found
+							</Text>
+							<Text variant="body-sm" color="muted">
+								There are no schools matching your criteria.
+							</Text>
+							{isUniversityAdmin && (
+								<Button
+									variant="primary"
+									size="sm"
+									onClick={onOpenCreateSchool}
+									className="mt-2 cursor-pointer"
+								>
+									<Plus size={16} className="mr-1" /> Add School
+								</Button>
+							)}
+						</div>
+					) : (
+						<DataTable
+							columns={[
+								{
+									header: "School Code",
+									accessor: (sch: School) => (
+										<span className="font-bold text-primary">{sch.code}</span>
+									),
+								},
+								{
+									header: "School Name",
+									accessor: (sch: School) => (
+										<span className="font-medium">{sch.name}</span>
+									),
+								},
+								...(isUniversityAdmin
+									? [
+											{
+												header: "Actions",
+												align: "right" as const,
+												accessor: (sch: School) => (
+													<div className="flex items-center justify-end gap-1">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => onEditSchool(sch)}
+															className="h-8 px-2 text-xs cursor-pointer"
+														>
+															<Edit2 size={13} className="mr-1" /> Edit
+														</Button>
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() =>
+																onDeleteTrigger(sch.id, sch.name, "School")
+															}
+															className="h-8 px-2 text-xs text-danger hover:bg-danger-surface border-danger-surface cursor-pointer"
+														>
+															<Trash2 size={13} />
+														</Button>
+													</div>
+												),
+											},
+										]
+									: []),
+							]}
+							data={filteredSchools}
+							keyExtractor={(s) => s.id}
+							currentPage={currentPage}
+							onPageChange={setCurrentPage}
+						/>
+					)}
+				</div>
+			)}
+		</div>
+	);
 }

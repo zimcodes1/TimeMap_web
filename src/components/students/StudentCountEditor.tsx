@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,29 +10,62 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import type { Program } from "@/types";
+import type { ProgramStudentCount } from "@/api/main/studentCountsAPI";
+
+interface StudentCountEditorProps {
+	departmentName: string;
+	programs?: Program[];
+	counts?: ProgramStudentCount[];
+	onSave: (programId: string, level: number, count: number) => Promise<void>;
+	saving: boolean;
+}
 
 export function StudentCountEditor({
 	departmentName,
-	maxLevel,
-	countsByLevel,
+	programs = [],
+	counts = [],
 	onSave,
 	saving,
-}: {
-	departmentName: string;
-	maxLevel: number;
-	countsByLevel: Map<number, number>;
-	onSave: (level: number, count: number) => Promise<void>;
-	saving: boolean;
-}) {
+}: StudentCountEditorProps) {
+	const defaultProgram = programs.find((p) => p.isDefault) || programs[0];
+	const [selectedProgramId, setSelectedProgramId] = useState(
+		defaultProgram?.id || "",
+	);
 	const [level, setLevel] = useState("100");
+
+	const activeProgram = useMemo(() => {
+		return programs.find((p) => p.id === selectedProgramId) || defaultProgram;
+	}, [programs, selectedProgramId, defaultProgram]);
+
+	const maxLevel = activeProgram?.maxLevel || 400;
+
+	const countsByLevel = useMemo(() => {
+		const map = new Map<number, number>();
+		counts
+			.filter(
+				(c) =>
+					!activeProgram || String(c.programId) === String(activeProgram.id),
+			)
+			.forEach((c) => map.set(c.level, c.count));
+		return map;
+	}, [counts, activeProgram]);
+
 	const currentCount = countsByLevel.get(Number(level));
 	const [value, setValue] = useState(currentCount?.toString() ?? "");
 	const [prevCount, setPrevCount] = useState(currentCount);
 	const [prevLevel, setPrevLevel] = useState(level);
+	const [prevProgramId, setPrevProgramId] = useState(selectedProgramId);
 	const [error, setError] = useState("");
 	const [isEditing, setIsEditing] = useState(false);
 
-	if (level !== prevLevel) {
+	if (selectedProgramId !== prevProgramId) {
+		setPrevProgramId(selectedProgramId);
+		setLevel("100");
+		setIsEditing(false);
+		setValue(countsByLevel.get(100)?.toString() ?? "");
+		setPrevCount(countsByLevel.get(100));
+	} else if (level !== prevLevel) {
 		setPrevLevel(level);
 		setIsEditing(false);
 		setValue(currentCount?.toString() ?? "");
@@ -41,6 +74,7 @@ export function StudentCountEditor({
 		setPrevCount(currentCount);
 		setValue(currentCount?.toString() ?? "");
 	}
+
 	const submit = async (event: React.FormEvent) => {
 		event.preventDefault();
 		const count = Number(value);
@@ -49,9 +83,11 @@ export function StudentCountEditor({
 			return;
 		}
 		setError("");
-		await onSave(Number(level), count);
+		const targetProgId = activeProgram?.id || selectedProgramId;
+		await onSave(targetProgId, Number(level), count);
 		setIsEditing(false);
 	};
+
 	const levelOptions = Array.from(
 		{ length: Math.floor(maxLevel / 100) },
 		(_, index) => ({
@@ -59,33 +95,49 @@ export function StudentCountEditor({
 			label: `${(index + 1) * 100} Level`,
 		}),
 	);
+
 	const hasExistingTotal = currentCount !== undefined;
+
 	const cancelEdit = () => {
 		setValue(currentCount?.toString() ?? "");
 		setError("");
 		setIsEditing(false);
 	};
+
 	return (
 		<Card>
 			<CardHeader>
 				<CardTitle>Your department’s planning totals</CardTitle>
 				<CardDescription>
-					Record the current number of students in {departmentName} for each
-					academic level. Existing totals require an explicit edit to prevent
-					routine changes.
+					Record current student headcounts for {departmentName} per academic
+					program and level. Totals are used for venue sizing and timetable
+					scheduling.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<form
 					onSubmit={submit}
-					className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+					className="grid gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
 				>
+					{programs.length > 1 && (
+						<Select
+							label="Academic Program"
+							value={selectedProgramId || (defaultProgram?.id ?? "")}
+							onChange={(event) => setSelectedProgramId(event.target.value)}
+							options={programs.map((p) => ({
+								value: p.id,
+								label: `${p.name} (${p.code})`,
+							}))}
+						/>
+					)}
+
 					<Select
 						label="Academic level"
 						value={level}
 						onChange={(event) => setLevel(event.target.value)}
 						options={levelOptions}
 					/>
+
 					<Input
 						label="Number of students"
 						type="number"
@@ -97,6 +149,7 @@ export function StudentCountEditor({
 						placeholder="e.g. 120"
 						disabled={hasExistingTotal && !isEditing}
 					/>
+
 					{hasExistingTotal && !isEditing ? (
 						<Button
 							type="button"

@@ -17,6 +17,8 @@ import {
 	getLecturersOptions,
 	type CreateScheduleEntryPayload,
 } from "@/api/main/schedulesAPI";
+import { getPrograms } from "@/api/main/programsAPI";
+import { getSemesters } from "@/api/main/semestersAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -30,6 +32,11 @@ export default function SchedulesContainer() {
 	const queryClient = useQueryClient();
 
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
+	const [scheduleEntryDefaults, setScheduleEntryDefaults] = useState<{
+		day?: string;
+		startTime?: string;
+		endTime?: string;
+	}>({});
 	const [isExamSittingOpen, setIsExamSittingOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
@@ -58,7 +65,7 @@ export default function SchedulesContainer() {
 		refetch: refetchEntries,
 	} = useQuery({
 		queryKey: ["scheduling", "entries"],
-		queryFn: getTimetableEntries,
+		queryFn: () => getTimetableEntries(),
 	});
 
 	const {
@@ -68,7 +75,7 @@ export default function SchedulesContainer() {
 		refetch: refetchSessions,
 	} = useQuery({
 		queryKey: ["scheduling", "sessions"],
-		queryFn: getLectureSessions,
+		queryFn: () => getLectureSessions(),
 	});
 
 	const {
@@ -96,6 +103,16 @@ export default function SchedulesContainer() {
 		queryFn: getLecturersOptions,
 	});
 
+	const { data: programsData } = useQuery({
+		queryKey: ["programs", "list"],
+		queryFn: () => getPrograms(),
+	});
+
+	const { data: semestersData } = useQuery({
+		queryKey: ["semesters", "list"],
+		queryFn: () => getSemesters(),
+	});
+
 	// Combine with mock fallback if backend list is empty during dev setup
 	const entries: TimetableEntry[] | undefined = entriesData;
 	const sessions: LectureSession[] | undefined = sessionsData;
@@ -104,6 +121,8 @@ export default function SchedulesContainer() {
 	const courses = coursesData ?? [];
 	const venues = venuesData ?? [];
 	const lecturers = lecturersData ?? [];
+	const programs = programsData ?? [];
+	const semesters = semestersData ?? [];
 
 	const isRefetching =
 		entriesRefetching || sessionsRefetching || examSittingsRefetching;
@@ -215,6 +234,18 @@ export default function SchedulesContainer() {
 		},
 	});
 
+	const handleOpenScheduleEntry = (
+		defaultDay?: string,
+		defaultSlot?: { start: string; end: string },
+	) => {
+		setScheduleEntryDefaults({
+			day: defaultDay,
+			startTime: defaultSlot?.start,
+			endTime: defaultSlot?.end,
+		});
+		setIsScheduleEntryOpen(true);
+	};
+
 	const handleCreateScheduleEntrySubmit = (data: Record<string, unknown>) => {
 		createEntryMutation.mutate({
 			entry_type:
@@ -230,7 +261,9 @@ export default function SchedulesContainer() {
 				(data.recurrence_start_date as string) ||
 				new Date().toISOString().split("T")[0],
 			recurrence_end_date: (data.recurrence_end_date as string) || "",
-			academic_session: (data.academic_session as string) || "2025/2026",
+			academic_session: (data.academic_session as string) || undefined,
+			semester: (data.semester as string) || undefined,
+			program: (data.target_program as string) || undefined,
 		});
 	};
 
@@ -268,8 +301,10 @@ export default function SchedulesContainer() {
 				examSittings={examSittings}
 				examSittingsLoading={examSittingsLoading}
 				isRefetching={isRefetching}
+				programs={programs}
+				semesters={semesters}
 				onManualRefresh={handleManualRefresh}
-				onOpenScheduleEntry={() => setIsScheduleEntryOpen(true)}
+				onOpenScheduleEntry={handleOpenScheduleEntry}
 				onOpenExamSitting={() => setIsExamSittingOpen(true)}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
 			/>
@@ -280,6 +315,11 @@ export default function SchedulesContainer() {
 				onSubmit={handleCreateScheduleEntrySubmit}
 				courses={courses}
 				venues={venues}
+				semesters={semesters}
+				programs={programs}
+				defaultDay={scheduleEntryDefaults.day}
+				defaultStartTime={scheduleEntryDefaults.startTime}
+				defaultEndTime={scheduleEntryDefaults.endTime}
 			/>
 
 			<SessionShiftModal

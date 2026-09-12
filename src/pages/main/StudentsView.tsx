@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { BarChart3, GraduationCap, Layers3 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import type { Department, Faculty, School, User } from "@/types";
+import type { Department, Faculty, School, Program, User } from "@/types";
 import type {
 	DepartmentStudentCount,
 	StudentCountAnalytics,
@@ -17,6 +18,7 @@ interface Filters {
 	facultyId: string;
 	schoolId: string;
 	level: string;
+	programId?: string;
 }
 interface Props {
 	user: User | null;
@@ -25,9 +27,10 @@ interface Props {
 	departments: Department[];
 	faculties: Faculty[];
 	schools: School[];
+	programs?: Program[];
 	filters: Filters;
 	onFiltersChange: (filters: Filters) => void;
-	onSave: (level: number, count: number) => Promise<void>;
+	onSave: (programId: string, level: number, count: number) => Promise<void>;
 	saving: boolean;
 	loading: boolean;
 }
@@ -39,6 +42,7 @@ export default function StudentsView({
 	departments,
 	faculties,
 	schools,
+	programs = [],
 	filters,
 	onFiltersChange,
 	onSave,
@@ -52,7 +56,6 @@ export default function StudentsView({
 	const ownCounts = counts.filter(
 		(item) => item.departmentId === ownDepartmentId,
 	);
-	const ownDepartment = departments.find((item) => item.id === ownDepartmentId);
 	const dimensions = analytics?.availableDimensions ?? ["level"];
 	const canSeeSchools = dimensions.includes("school");
 	const canSeeFaculties = dimensions.includes("faculty");
@@ -60,13 +63,33 @@ export default function StudentsView({
 	const canFilterSchools = adminLevel === "university";
 	const canFilterFaculties = adminLevel === "school";
 	const canFilterDepartments = adminLevel === "faculty";
+	const canFilterPrograms = isDepartmentAdmin || Boolean(filters.departmentId);
+
+	const scopedPrograms = useMemo(() => {
+		if (isDepartmentAdmin && ownDepartmentId) {
+			return programs.filter(
+				(p) => String(p.departmentId) === String(ownDepartmentId),
+			);
+		}
+		if (filters.departmentId) {
+			return programs.filter(
+				(p) => String(p.departmentId) === String(filters.departmentId),
+			);
+		}
+		return programs;
+	}, [programs, isDepartmentAdmin, ownDepartmentId, filters.departmentId]);
+
 	const change = (key: keyof Filters, value: string) => {
 		const next = { ...filters, [key]: value };
 		if (key === "schoolId") {
 			next.facultyId = "";
 			next.departmentId = "";
+			next.programId = "";
 		} else if (key === "facultyId") {
 			next.departmentId = "";
+			next.programId = "";
+		} else if (key === "departmentId") {
+			next.programId = "";
 		}
 		onFiltersChange(next);
 	};
@@ -107,10 +130,10 @@ export default function StudentsView({
 						ownCounts[0]?.departmentName ||
 						"your department"
 					}
-					maxLevel={ownDepartment?.maxLevel || ownDepartment?.max_level || 400}
-					countsByLevel={
-						new Map(ownCounts.map((item) => [item.level, item.count]))
-					}
+					programs={programs.filter(
+						(p) => String(p.departmentId) === String(ownDepartmentId),
+					)}
+					counts={ownCounts}
 					onSave={onSave}
 					saving={saving}
 				/>
@@ -186,6 +209,20 @@ export default function StudentsView({
 							options={[
 								{ value: "", label: "All departments" },
 								...departments.map((item) => ({
+									value: item.id,
+									label: `${item.name} (${item.code})`,
+								})),
+							]}
+						/>
+					)}
+					{canFilterPrograms && scopedPrograms.length > 0 && (
+						<Select
+							label="Program"
+							value={filters.programId || ""}
+							onChange={(event) => change("programId", event.target.value)}
+							options={[
+								{ value: "", label: "All programs" },
+								...scopedPrograms.map((item: Program) => ({
 									value: item.id,
 									label: `${item.name} (${item.code})`,
 								})),
