@@ -1,11 +1,20 @@
 import { useState, useMemo } from "react";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { TabSwitcher } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, RefreshCw, CalendarOff } from "lucide-react";
+import {
+	UserCheck,
+	LayoutGrid,
+	List,
+	RefreshCw,
+	CalendarOff,
+	Plus,
+} from "lucide-react";
 import type {
 	TimetableEntry,
 	LectureSession,
+	ExamSitting,
 	Program,
 	Semester,
 } from "@/types";
@@ -16,11 +25,13 @@ import { TimetableTitle } from "@/components/schedules/TimetableTitle";
 import { WeekNavigator } from "@/components/schedules/WeekNavigator";
 import { TimetableFilterBar } from "@/components/schedules/TimetableFilterBar";
 
-interface SchedulesViewProps {
+interface ExamsViewProps {
 	entries: TimetableEntry[] | undefined;
 	entriesLoading?: boolean;
 	sessions: LectureSession[] | undefined;
 	sessionsLoading?: boolean;
+	examSittings: ExamSitting[] | undefined;
+	examSittingsLoading?: boolean;
 	isRefetching?: boolean;
 	programs?: Program[];
 	selectedProgramId: string;
@@ -37,18 +48,21 @@ interface SchedulesViewProps {
 	weekDayDates: WeekDayInfo[];
 	activeSemester?: Semester;
 	onManualRefresh: () => void;
-	onOpenScheduleEntry: (
+	onOpenCreateExamEntry: (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
 	) => void;
+	onOpenExamSitting: () => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
 }
 
-export default function SchedulesView({
+export default function ExamsView({
 	entries,
 	entriesLoading = false,
 	sessions,
 	sessionsLoading = false,
+	examSittings,
+	examSittingsLoading = false,
 	isRefetching = false,
 	programs = [],
 	selectedProgramId,
@@ -65,16 +79,15 @@ export default function SchedulesView({
 	weekDayDates,
 	activeSemester,
 	onManualRefresh,
-	onOpenScheduleEntry,
+	onOpenCreateExamEntry,
+	onOpenExamSitting,
 	onShiftSessionTrigger,
-}: SchedulesViewProps) {
-	// Main view modes: List and Grid are the primary tabs
-	const [activeTab, setActiveTab] = useState<"list" | "grid">("grid");
+}: ExamsViewProps) {
+	const [activeTab, setActiveTab] = useState<"grid" | "list">("grid");
 
 	const today = new Date();
 	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-	// Find active program name
 	const currentProgram = useMemo(() => {
 		return programs.find((p) => p.id === selectedProgramId) || programs[0];
 	}, [programs, selectedProgramId]);
@@ -87,11 +100,11 @@ export default function SchedulesView({
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
 					<Text variant="h3" weight="bold" className="text-text-main">
-						Lecture Timetables
+						Exam Timetables
 					</Text>
 					<Text variant="body-sm" color="muted">
-						Weekly academic schedule per program and level with Conflict
-						Detection integration.
+						Weekly examination schedule, candidate sittings, and invigilator
+						allocation.
 					</Text>
 				</div>
 
@@ -111,13 +124,23 @@ export default function SchedulesView({
 					</Button>
 
 					<Button
+						variant="outline"
+						size="sm"
+						onClick={onOpenExamSitting}
+						className="h-9 gap-1.5 text-xs cursor-pointer"
+					>
+						<UserCheck size={14} />
+						<span>Assign Invigilators</span>
+					</Button>
+
+					<Button
 						variant="primary"
 						size="sm"
-						onClick={() => onOpenScheduleEntry()}
+						onClick={() => onOpenCreateExamEntry()}
 						className="h-9 gap-1.5 text-xs cursor-pointer"
 					>
 						<Plus size={15} />
-						<span>Schedule Lecture</span>
+						<span>Schedule Exam</span>
 					</Button>
 				</div>
 			</div>
@@ -128,8 +151,8 @@ export default function SchedulesView({
 					<CalendarOff size={20} className="shrink-0 text-amber-400" />
 					<div className="text-xs">
 						<span className="font-bold">No active semester detected.</span>{" "}
-						Please configure and activate a semester in Sessions & Semesters to
-						enable week-based schedule tracking.
+						Please configure and activate a semester to enable examination week
+						tracking.
 					</div>
 				</div>
 			)}
@@ -150,21 +173,22 @@ export default function SchedulesView({
 				weekNumber={currentWeek}
 				totalWeeks={totalWeeks}
 				dateRangeLabel={weekRange.rangeLabel}
+				isExam={true}
 				semesterName={activeSemester?.displayName || activeSemester?.name}
 			/>
 
-			{/* Main Tabs: List View & Grid View */}
+			{/* Main Tabs: Grid View & List View */}
 			<div className="flex justify-center">
 				<TabSwitcher<"grid" | "list">
 					tabs={[
 						{
 							id: "grid",
-							label: "Grid View",
+							label: "Exam Grid View",
 							icon: LayoutGrid,
 						},
 						{
 							id: "list",
-							label: "List View",
+							label: "Exam List View",
 							icon: List,
 							count: sessions?.length,
 						},
@@ -178,7 +202,7 @@ export default function SchedulesView({
 			{activeTab === "grid" ? (
 				entriesLoading ? (
 					<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-						Loading timetable grid...
+						Loading exam timetable grid...
 					</div>
 				) : (
 					<TimetableAcademicGrid
@@ -187,7 +211,7 @@ export default function SchedulesView({
 						selectedLevel={selectedLevel}
 						weekDayDates={weekDayDates}
 						onOpenCreateEntry={(defaultDay, defaultSlot) =>
-							onOpenScheduleEntry(
+							onOpenCreateExamEntry(
 								defaultDay,
 								defaultSlot
 									? { start: defaultSlot.start, end: defaultSlot.end }
@@ -198,7 +222,7 @@ export default function SchedulesView({
 				)
 			) : sessionsLoading ? (
 				<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-					Loading weekly lecture sessions...
+					Loading exam sessions...
 				</div>
 			) : (
 				<TimetableListView
@@ -206,6 +230,7 @@ export default function SchedulesView({
 					weekDayDates={weekDayDates}
 					todayStr={todayStr}
 					onShiftSessionTrigger={onShiftSessionTrigger}
+					isExam={true}
 				/>
 			)}
 

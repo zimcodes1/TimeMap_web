@@ -4,8 +4,11 @@ import { toast } from "sonner";
 import {
 	getTimetableEntries,
 	getLectureSessions,
+	getExamSittings,
 	getCoursesOptions,
 	getVenuesOptions,
+	getLecturersOptions,
+	createExamSittingAPI,
 	createTimetableEntry,
 	updateLectureSessionAPI,
 	type CreateScheduleEntryPayload,
@@ -15,8 +18,10 @@ import { getSemesters } from "@/api/main/semestersAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
+	ExamSitting,
 	Course,
 	Venue,
+	User,
 	Program,
 	Semester,
 } from "@/types";
@@ -26,15 +31,17 @@ import {
 	getWeekRange,
 	getWeekDayDates,
 } from "@/utils/semesterWeeks";
-import SchedulesView from "@/pages/main/SchedulesView";
+import ExamsView from "@/pages/main/ExamsView";
+import CreateExamSittingModal from "@/components/modals/CreateExamSittingModal";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
 
-export default function SchedulesContainer() {
+export default function ExamsContainer() {
 	const queryClient = useQueryClient();
 
 	// Modals state
+	const [isExamSittingOpen, setIsExamSittingOpen] = useState(false);
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
@@ -62,7 +69,7 @@ export default function SchedulesContainer() {
 		}>
 	>([]);
 
-	// Base Data Queries
+	// Base Queries
 	const { data: programsData = [] } = useQuery<Program[]>({
 		queryKey: ["programs", "list"],
 		queryFn: () => getPrograms(),
@@ -83,24 +90,38 @@ export default function SchedulesContainer() {
 		queryFn: getVenuesOptions,
 	});
 
-	// Identify active semester
+	const { data: lecturersData = [] } = useQuery<User[]>({
+		queryKey: ["auth", "lecturers"],
+		queryFn: getLecturersOptions,
+	});
+
+	const {
+		data: examSittingsData = [],
+		isLoading: examSittingsLoading,
+		refetch: refetchExams,
+	} = useQuery<ExamSitting[]>({
+		queryKey: ["scheduling", "exam-sittings"],
+		queryFn: getExamSittings,
+	});
+
+	// Active semester
 	const activeSemester = useMemo(() => {
 		return semestersData.find((s) => s.isActive) || semestersData[0];
 	}, [semestersData]);
 
-	// Compute semester weeks
+	// Exam period weeks calculation (uses examStartDate & examEndDate, or defaults to 4 weeks)
 	const totalWeeks = useMemo(() => {
 		return getTotalWeeks(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
-			15,
+			activeSemester?.examStartDate || activeSemester?.startDate,
+			activeSemester?.examEndDate || activeSemester?.endDate,
+			4,
 		);
 	}, [activeSemester]);
 
 	const defaultCurrentWeek = useMemo(() => {
 		return getCurrentWeekNumber(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
+			activeSemester?.examStartDate || activeSemester?.startDate,
+			activeSemester?.examEndDate || activeSemester?.endDate,
 			totalWeeks,
 		);
 	}, [activeSemester, totalWeeks]);
@@ -110,7 +131,6 @@ export default function SchedulesContainer() {
 	const [selectedLevel, setSelectedLevel] = useState<number>(100);
 	const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-	// Initialize selectedProgramId once programsData is loaded
 	useEffect(() => {
 		if (programsData.length > 0 && !selectedProgramId) {
 			const defaultProg =
@@ -121,16 +141,18 @@ export default function SchedulesContainer() {
 		}
 	}, [programsData, selectedProgramId]);
 
-	// Sync currentWeek with defaultCurrentWeek when semester is detected
 	useEffect(() => {
 		if (defaultCurrentWeek) {
 			setCurrentWeek(defaultCurrentWeek);
 		}
 	}, [defaultCurrentWeek]);
 
-	// Week range and day dates calculation
+	// Week range and day dates
 	const weekRange = useMemo(() => {
-		return getWeekRange(activeSemester?.lectureStartDate, currentWeek);
+		return getWeekRange(
+			activeSemester?.examStartDate || activeSemester?.startDate,
+			currentWeek,
+		);
 	}, [activeSemester, currentWeek]);
 
 	const weekDayDates = useMemo(() => {
@@ -139,7 +161,7 @@ export default function SchedulesContainer() {
 
 	const isCurrentWeekActive = currentWeek === defaultCurrentWeek;
 
-	// Timetable Entries Query (filtered by active semester, program, level, and entry_type="lecture")
+	// Exam Timetable Entries Query (entry_type="exam")
 	const {
 		data: entriesData,
 		isLoading: entriesLoading,
@@ -149,6 +171,7 @@ export default function SchedulesContainer() {
 		queryKey: [
 			"scheduling",
 			"entries",
+			"exam",
 			activeSemester?.id,
 			selectedProgramId,
 			selectedLevel,
@@ -158,11 +181,11 @@ export default function SchedulesContainer() {
 				semester: activeSemester?.id,
 				program: selectedProgramId || undefined,
 				level: selectedLevel || undefined,
-				entry_type: "lecture",
+				entry_type: "exam",
 			}),
 	});
 
-	// Lecture Sessions Query (filtered by week date range, active semester, program, level)
+	// Exam Sessions Query (entry_type="exam")
 	const {
 		data: sessionsData,
 		isLoading: sessionsLoading,
@@ -172,6 +195,7 @@ export default function SchedulesContainer() {
 		queryKey: [
 			"scheduling",
 			"sessions",
+			"exam",
 			activeSemester?.id,
 			selectedProgramId,
 			selectedLevel,
@@ -186,19 +210,36 @@ export default function SchedulesContainer() {
 				level: selectedLevel || undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
-				entry_type: "lecture",
+				entry_type: "exam",
 			}),
 	});
 
 	const isRefetching = entriesRefetching || sessionsRefetching;
 
-	// Mutation: Create Timetable Entry
+	// Mutations
+	const createExamSittingMutation = useMutation({
+		mutationFn: (data: {
+			timetable_entry: string | number;
+			invigilators: Array<string | number>;
+		}) => createExamSittingAPI(data),
+		onSuccess: () => {
+			toast.success("Exam sitting created and invigilators assigned!");
+			setIsExamSittingOpen(false);
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "exam-sittings"],
+			});
+		},
+		onError: (err: Error) => {
+			toast.error(err.message || "Failed to create exam sitting.");
+		},
+	});
+
 	const createEntryMutation = useMutation({
 		mutationFn: (payload: CreateScheduleEntryPayload) =>
 			createTimetableEntry(payload),
 		onSuccess: (result) => {
 			if (result.outcome === "PROCEED") {
-				toast.success("Schedule entry created successfully!");
+				toast.success("Exam schedule entry created successfully!");
 				setIsScheduleEntryOpen(false);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
@@ -225,11 +266,10 @@ export default function SchedulesContainer() {
 			}
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create schedule entry.");
+			toast.error(error.message || "Failed to create exam entry.");
 		},
 	});
 
-	// Mutation: Shift a single session instance
 	const shiftSessionMutation = useMutation({
 		mutationFn: ({
 			id,
@@ -249,16 +289,15 @@ export default function SchedulesContainer() {
 				status: "shifted",
 			}),
 		onSuccess: () => {
-			toast.success("Session instance shifted successfully.");
+			toast.success("Exam session shifted successfully.");
 			setSelectedSessionForShift(null);
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 		},
 		onError: (error: Error) => {
-			toast.error(error.message || "Failed to shift session.");
+			toast.error(error.message || "Failed to shift exam session.");
 		},
 	});
 
-	// Navigation handlers
 	const handlePreviousWeek = () => {
 		setCurrentWeek((prev) => Math.max(1, prev - 1));
 	};
@@ -274,10 +313,11 @@ export default function SchedulesContainer() {
 	const handleManualRefresh = () => {
 		refetchEntries();
 		refetchSessions();
-		toast.info("Refreshing schedule data...");
+		refetchExams();
+		toast.info("Refreshing exam schedule data...");
 	};
 
-	const handleOpenScheduleEntry = (
+	const handleOpenCreateExamEntry = (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
 	) => {
@@ -304,8 +344,8 @@ export default function SchedulesContainer() {
 		targetProgramId?: string;
 	}) => {
 		createEntryMutation.mutate({
-			entry_type: data.entryType,
-			title: data.title,
+			entry_type: "exam",
+			title: data.title || "Exam",
 			course: data.courseId,
 			venue: data.venueId,
 			start_time: data.startTime,
@@ -318,27 +358,25 @@ export default function SchedulesContainer() {
 		});
 	};
 
-	const handleShiftSessionSubmit = (data: {
-		sessionId: string;
-		venueId?: string;
-		startTime?: string;
-		endTime?: string;
+	const handleCreateExamSittingSubmit = (data: {
+		timetableEntryId: string;
+		invigilatorIds: string[];
 	}) => {
-		shiftSessionMutation.mutate({
-			id: data.sessionId,
-			venue: data.venueId,
-			startTime: data.startTime,
-			endTime: data.endTime,
+		createExamSittingMutation.mutate({
+			timetable_entry: data.timetableEntryId,
+			invigilators: data.invigilatorIds,
 		});
 	};
 
 	return (
 		<>
-			<SchedulesView
+			<ExamsView
 				entries={entriesData}
 				entriesLoading={entriesLoading}
 				sessions={sessionsData}
 				sessionsLoading={sessionsLoading}
+				examSittings={examSittingsData}
+				examSittingsLoading={examSittingsLoading}
 				isRefetching={isRefetching}
 				programs={programsData}
 				selectedProgramId={selectedProgramId}
@@ -355,8 +393,17 @@ export default function SchedulesContainer() {
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
 				onManualRefresh={handleManualRefresh}
-				onOpenScheduleEntry={handleOpenScheduleEntry}
+				onOpenCreateExamEntry={handleOpenCreateExamEntry}
+				onOpenExamSitting={() => setIsExamSittingOpen(true)}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
+			/>
+
+			<CreateExamSittingModal
+				isOpen={isExamSittingOpen}
+				onClose={() => setIsExamSittingOpen(false)}
+				onSubmit={handleCreateExamSittingSubmit}
+				entries={entriesData ?? []}
+				lecturers={lecturersData}
 			/>
 
 			<ScheduleEntryModal
@@ -375,7 +422,14 @@ export default function SchedulesContainer() {
 			<SessionShiftModal
 				isOpen={Boolean(selectedSessionForShift)}
 				onClose={() => setSelectedSessionForShift(null)}
-				onSubmit={handleShiftSessionSubmit}
+				onSubmit={(data) =>
+					shiftSessionMutation.mutate({
+						id: data.sessionId,
+						venue: data.venueId,
+						startTime: data.startTime,
+						endTime: data.endTime,
+					})
+				}
 				session={selectedSessionForShift}
 				venues={venuesData}
 			/>

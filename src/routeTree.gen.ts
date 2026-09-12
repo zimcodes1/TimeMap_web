@@ -18,6 +18,7 @@ import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-pass
 import { Route as MainAuditLogsRouteImport } from './routes/_main/audit-logs'
 import { Route as MainCoursesRouteImport } from './routes/_main/courses'
 import { Route as MainDashboardRouteImport } from './routes/_main/dashboard'
+import { Route as MainExamsRouteImport } from './routes/_main/exams'
 import { Route as MainHierarchyRouteImport } from './routes/_main/hierarchy'
 import { Route as MainNotificationsRouteImport } from './routes/_main/notifications'
 import { Route as MainReportsRouteImport } from './routes/_main/reports'
@@ -70,6 +71,11 @@ const MainCoursesRoute = MainCoursesRouteImport.update({
 const MainDashboardRoute = MainDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainExamsRoute = MainExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
   getParentRoute: () => MainRouteRoute,
 } as any)
 const MainHierarchyRoute = MainHierarchyRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof MainAuditLogsRoute
   '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/exams': typeof MainExamsRoute
   '/hierarchy': typeof MainHierarchyRoute
   '/notifications': typeof MainNotificationsRoute
   '/reports': typeof MainReportsRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof MainAuditLogsRoute
   '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/exams': typeof MainExamsRoute
   '/hierarchy': typeof MainHierarchyRoute
   '/notifications': typeof MainNotificationsRoute
   '/reports': typeof MainReportsRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/_main/audit-logs': typeof MainAuditLogsRoute
   '/_main/courses': typeof MainCoursesRoute
   '/_main/dashboard': typeof MainDashboardRoute
+  '/_main/exams': typeof MainExamsRoute
   '/_main/hierarchy': typeof MainHierarchyRoute
   '/_main/notifications': typeof MainNotificationsRoute
   '/_main/reports': typeof MainReportsRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/courses'
     | '/dashboard'
+    | '/exams'
     | '/hierarchy'
     | '/notifications'
     | '/reports'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/courses'
     | '/dashboard'
+    | '/exams'
     | '/hierarchy'
     | '/notifications'
     | '/reports'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/_main/audit-logs'
     | '/_main/courses'
     | '/_main/dashboard'
+    | '/_main/exams'
     | '/_main/hierarchy'
     | '/_main/notifications'
     | '/_main/reports'
@@ -314,6 +326,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof MainDashboardRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/exams': {
+      id: '/_main/exams'
+      path: '/exams'
+      fullPath: '/exams'
+      preLoaderRoute: typeof MainExamsRouteImport
       parentRoute: typeof MainRouteRoute
     }
     '/_main/hierarchy': {
@@ -409,6 +428,7 @@ interface MainRouteRouteChildren {
   MainAuditLogsRoute: typeof MainAuditLogsRoute
   MainCoursesRoute: typeof MainCoursesRoute
   MainDashboardRoute: typeof MainDashboardRoute
+  MainExamsRoute: typeof MainExamsRoute
   MainHierarchyRoute: typeof MainHierarchyRoute
   MainNotificationsRoute: typeof MainNotificationsRoute
   MainReportsRoute: typeof MainReportsRoute
@@ -425,6 +445,7 @@ const MainRouteRouteChildren: MainRouteRouteChildren = {
   MainAuditLogsRoute: MainAuditLogsRoute,
   MainCoursesRoute: MainCoursesRoute,
   MainDashboardRoute: MainDashboardRoute,
+  MainExamsRoute: MainExamsRoute,
   MainHierarchyRoute: MainHierarchyRoute,
   MainNotificationsRoute: MainNotificationsRoute,
   MainReportsRoute: MainReportsRoute,

@@ -63,6 +63,7 @@ interface RawTimetableEntry {
   course?: number | string;
   course_code?: string;
   course_title?: string;
+  course_level?: number;
   lecturer?: number | string;
   lecturer_name?: string;
   venue?: number | string;
@@ -77,6 +78,7 @@ interface RawTimetableEntry {
   session_label?: string;
   program_scope?: "general" | "program";
   target_program?: number | string | null;
+  target_program_id?: number | string | null;
   target_program_name?: string;
   recurrence_rule?: string;
   recurrence_start_date?: string;
@@ -89,9 +91,12 @@ interface RawLectureSession {
   id: number | string;
   timetable_entry?: number | string;
   timetable_entry_title?: string;
+  entry_type?: "lecture" | "exam" | "event";
   course_code?: string;
   course_title?: string;
+  course_level?: number;
   lecturer_name?: string;
+  target_program_id?: number | string;
   program_name?: string;
   program_code?: string;
   program_scope?: "general" | "program";
@@ -132,6 +137,7 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     courseId: raw.course ? String(raw.course) : undefined,
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.title || "Course",
+    courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
     lecturerName: raw.lecturer_name || "Assigned Lecturer",
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
@@ -142,7 +148,7 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     semesterName: raw.semester_name,
     sessionLabel: raw.session_label,
     programScope: raw.program_scope || "general",
-    targetProgramId: raw.target_program ? String(raw.target_program) : undefined,
+    targetProgramId: raw.target_program_id ? String(raw.target_program_id) : raw.target_program ? String(raw.target_program) : undefined,
     targetProgramName: raw.target_program_name,
     academicSession: raw.academic_session || "2025/2026",
     recurrenceRule: raw.recurrence_rule,
@@ -157,9 +163,12 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
   return {
     id: String(raw.id),
     entryId: String(raw.timetable_entry || ""),
+    entryType: raw.entry_type || "lecture",
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
+    courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
     lecturerName: raw.lecturer_name || "Lecturer",
+    targetProgramId: raw.target_program_id ? String(raw.target_program_id) : undefined,
     programName: raw.program_name,
     programCode: raw.program_code,
     programScope: raw.program_scope || "general",
@@ -202,6 +211,8 @@ function mapRawExamSittingToExamSitting(raw: RawExamSitting): ExamSitting {
 export async function getTimetableEntries(params?: {
   semester?: string | number;
   program?: string | number;
+  level?: string | number;
+  entry_type?: string;
 }): Promise<TimetableEntry[]> {
   const response = await apiClient.get<RawTimetableEntry[] | { results: RawTimetableEntry[] }>(
     "/scheduling/entries/",
@@ -287,6 +298,8 @@ export async function getLectureSessions(params?: {
   status?: string;
   semester?: string | number;
   program?: string | number;
+  level?: string | number;
+  entry_type?: string;
 }): Promise<LectureSession[]> {
   const response = await apiClient.get<RawLectureSession[] | { results: RawLectureSession[] }>(
     "/scheduling/sessions/",

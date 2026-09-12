@@ -2,6 +2,7 @@ import {
 	LayoutDashboard,
 	Calendar,
 	CalendarRange,
+	GraduationCap,
 	MapPin,
 	AlertTriangle,
 	ClipboardList,
@@ -51,6 +52,11 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Timetables",
 				icon: <Calendar size={18} />,
 				to: "/schedules",
+			},
+			{
+				label: "Exam Timetable",
+				icon: <GraduationCap size={18} />,
+				to: "/exams",
 			},
 			{
 				label: "Sessions & Semesters",

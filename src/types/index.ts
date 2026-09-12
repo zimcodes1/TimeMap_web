@@ -187,6 +187,7 @@ export interface TimetableEntry {
   courseId?: string;
   courseCode: string;
   courseTitle: string;
+  courseLevel?: number;
   lecturerId?: string;
   lecturerName: string;
   venueId: string;
@@ -216,8 +217,10 @@ export interface LectureSession {
   id: string;
   entryId: string;
   timetableEntryId?: string;
+  entryType?: SessionType;
   courseCode: string;
   courseTitle: string;
+  courseLevel?: number;
   lecturerName: string;
   venueId: string;
   venueName: string;
@@ -225,6 +228,7 @@ export interface LectureSession {
   startTime: string;
   endTime: string;
   status: SessionStatus;
+  targetProgramId?: string;
   programName?: string;
   programCode?: string;
   programScope?: 'general' | 'program';

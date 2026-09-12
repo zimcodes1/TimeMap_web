@@ -1,16 +1,17 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Plus, AlertTriangle, MapPin, User, Layers } from "lucide-react";
-import type { TimetableEntry, Program } from "@/types";
+import { Plus, AlertTriangle, MapPin, User } from "lucide-react";
+import type { TimetableEntry } from "@/types";
+import type { WeekDayInfo } from "@/utils/semesterWeeks";
 
-interface TimeSlot {
+export interface TimeSlot {
 	id: string;
 	label: string;
 	start: string;
 	end: string;
 }
 
-const TIME_SLOTS: TimeSlot[] = [
+export const TIME_SLOTS: TimeSlot[] = [
 	{ id: "slot-1", label: "08:00 - 10:00", start: "08:00:00", end: "10:00:00" },
 	{ id: "slot-2", label: "10:00 - 12:00", start: "10:00:00", end: "12:00:00" },
 	{ id: "slot-3", label: "12:00 - 14:00", start: "12:00:00", end: "14:00:00" },
@@ -18,48 +19,45 @@ const TIME_SLOTS: TimeSlot[] = [
 	{ id: "slot-5", label: "16:00 - 18:00", start: "16:00:00", end: "18:00:00" },
 ];
 
-const DAYS: Array<
+const DEFAULT_DAYS: Array<
 	"Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday"
 > = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface TimetableAcademicGridProps {
 	entries: TimetableEntry[];
-	programs?: Program[];
 	selectedProgramId?: string;
-	onSelectProgram?: (programId: string) => void;
+	selectedLevel?: number;
+	weekDayDates?: WeekDayInfo[];
 	onOpenCreateEntry?: (defaultDay?: string, defaultSlot?: TimeSlot) => void;
 }
 
 export function TimetableAcademicGrid({
 	entries,
-	programs = [],
-	selectedProgramId = "",
-	onSelectProgram,
+	selectedProgramId,
+	selectedLevel,
+	weekDayDates,
 	onOpenCreateEntry,
 }: TimetableAcademicGridProps) {
-	const [selectedLevel, setSelectedLevel] = useState<string>("");
-	const [internalProgramId, setInternalProgramId] =
-		useState<string>(selectedProgramId);
-
-	const activeProgramId = onSelectProgram
-		? selectedProgramId
-		: internalProgramId;
-	const handleProgramChange = (id: string) => {
-		if (onSelectProgram) onSelectProgram(id);
-		else setInternalProgramId(id);
-	};
-
-	// Filter entries by program and level
+	// Filter entries strictly by selectedProgramId and selectedLevel
 	const displayedEntries = useMemo(() => {
 		return entries.filter((entry) => {
-			const matchesProgram =
-				!activeProgramId ||
-				!entry.targetProgramId ||
-				entry.targetProgramId === activeProgramId;
-
-			return matchesProgram;
+			if (
+				selectedProgramId &&
+				entry.targetProgramId &&
+				entry.targetProgramId !== selectedProgramId
+			) {
+				return false;
+			}
+			if (
+				selectedLevel &&
+				entry.courseLevel &&
+				entry.courseLevel !== selectedLevel
+			) {
+				return false;
+			}
+			return true;
 		});
-	}, [entries, activeProgramId]);
+	}, [entries, selectedProgramId, selectedLevel]);
 
 	// Helper to test if entry overlaps a 2-hour slot
 	const isOverlapping = (
@@ -72,81 +70,36 @@ export function TimetableAcademicGrid({
 		return norm(entryStart) < norm(slotEnd) && norm(entryEnd) > norm(slotStart);
 	};
 
+	// Build rows using weekDayDates if provided
+	const rowDays = useMemo(() => {
+		if (weekDayDates && weekDayDates.length > 0) {
+			return weekDayDates.map((item) => ({
+				dayName: item.day,
+				label: item.dayWithDate,
+				dateStr: item.dateStr,
+			}));
+		}
+		return DEFAULT_DAYS.map((d) => ({
+			dayName: d,
+			label: d,
+			dateStr: "",
+		}));
+	}, [weekDayDates]);
+
 	return (
 		<div className="space-y-4">
-			{/* Program & Level Filter Tabs */}
-			<div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-surface border border-border rounded-2xl">
-				{programs.length > 0 ? (
-					<div className="flex flex-wrap items-center gap-1.5">
-						<span className="text-xs font-semibold text-text-muted mr-1">
-							Program:
-						</span>
-						<button
-							type="button"
-							onClick={() => handleProgramChange("")}
-							className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-								!activeProgramId
-									? "bg-primary text-white shadow-xs"
-									: "bg-surface-raised hover:bg-surface-raised/80 text-text-main border border-border"
-							}`}
-						>
-							All Programs
-						</button>
-						{programs.map((prog) => (
-							<button
-								key={prog.id}
-								type="button"
-								onClick={() => handleProgramChange(prog.id)}
-								className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-									activeProgramId === prog.id
-										? "bg-primary text-white shadow-xs"
-										: "bg-surface-raised hover:bg-surface-raised/80 text-text-main border border-border"
-								}`}
-							>
-								{prog.name} ({prog.code})
-							</button>
-						))}
-					</div>
-				) : (
-					<div className="flex items-center gap-2 text-xs text-text-muted">
-						<Layers size={14} />
-						<span>Standard Department Schedule</span>
-					</div>
-				)}
-
-				<div className="flex items-center gap-1.5">
-					<span className="text-xs font-semibold text-text-muted mr-1">
-						Level:
-					</span>
-					{["", "100", "200", "300", "400", "500"].map((lvl) => (
-						<button
-							key={lvl || "all"}
-							type="button"
-							onClick={() => setSelectedLevel(lvl)}
-							className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-								selectedLevel === lvl
-									? "bg-primary/20 text-primary border border-primary/30"
-									: "bg-surface-raised hover:bg-surface-raised/80 text-text-muted border border-border"
-							}`}
-						>
-							{lvl ? `${lvl}L` : "All"}
-						</button>
-					))}
-				</div>
-			</div>
-
 			{/* Timetable Academic Matrix Table */}
 			<div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-xs scrollbar-thin">
-				<table className="w-full border-collapse text-left min-w-[900px]">
+				<table className="w-full border-collapse text-left min-w-[960px]">
 					<thead>
 						<tr className="border-b border-border bg-surface-raised/60">
-							<th className="p-3.5 text-xs font-bold uppercase tracking-wider text-text-muted w-32 border-r border-border">
-								Day \ Time
+							<th className="p-3.5 text-xs font-bold uppercase tracking-wider text-text-muted w-44 border-r border-border">
+								Day & Date
 							</th>
 							{TIME_SLOTS.map((slot) => (
 								<th
 									key={slot.id}
-									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-[150px]"
+									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-[155px]"
 								>
 									{slot.label}
 								</th>
@@ -154,18 +107,20 @@ export function TimetableAcademicGrid({
 						</tr>
 					</thead>
 					<tbody>
-						{DAYS.map((day) => (
+						{rowDays.map(({ dayName, label }) => (
 							<tr
-								key={day}
+								key={dayName}
 								className="border-b border-border last:border-b-0 hover:bg-surface-raised/30 transition-colors"
 							>
-								<td className="p-3.5 font-semibold text-xs text-text-main border-r border-border bg-surface-raised/40 align-top">
-									{day}
+								<td className="p-3.5 font-bold text-xs text-text-main border-r border-border bg-surface-raised/40 align-top">
+									<div className="text-text-main font-bold whitespace-nowrap">
+										{label}
+									</div>
 								</td>
 								{TIME_SLOTS.map((slot) => {
 									const matchingEntries = displayedEntries.filter(
 										(e) =>
-											e.dayOfWeek === day &&
+											e.dayOfWeek === dayName &&
 											isOverlapping(
 												e.startTime,
 												e.endTime,
@@ -187,7 +142,7 @@ export function TimetableAcademicGrid({
 															className={`p-2 rounded-xl text-xs space-y-1 border transition-all ${
 																entry.hasConflict
 																	? "bg-red-500/10 border-red-500/30 text-red-400"
-																	: "bg-primary/10 border-primary/20 text-text-main"
+																	: "bg-primary/10 border-primary/20 text-text-main shadow-2xs"
 															}`}
 														>
 															<div className="flex items-center justify-between gap-1">
@@ -227,27 +182,36 @@ export function TimetableAcademicGrid({
 																	</span>
 																</div>
 															)}
-															{entry.targetProgramName && (
-																<Badge
-																	variant="primary"
-																	className="text-[9px] py-0 px-1 mt-0.5 max-w-full truncate"
-																>
-																	{entry.targetProgramName}
-																</Badge>
-															)}
+															<div className="flex items-center gap-1 pt-0.5">
+																{entry.courseLevel && (
+																	<span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-surface-raised border border-border text-text-muted">
+																		{entry.courseLevel}L
+																	</span>
+																)}
+																{entry.targetProgramName && (
+																	<Badge
+																		variant="primary"
+																		className="text-[9px] py-0 px-1 truncate max-w-[110px]"
+																	>
+																		{entry.targetProgramName}
+																	</Badge>
+																)}
+															</div>
 														</div>
 													))}
 												</div>
 											) : (
-												<div
-													onClick={() => onOpenCreateEntry?.(day, slot)}
-													className="h-full min-h-[5rem] rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
+												<button
+													type="button"
+													onClick={() => onOpenCreateEntry?.(dayName, slot)}
+													className="w-full h-full min-h-[5rem] rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
+													title={`Schedule entry for ${dayName} ${slot.label}`}
 												>
 													<Plus
-														size={14}
+														size={15}
 														className="text-text-subtle group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
 													/>
-												</div>
+												</button>
 											)}
 										</td>
 									);
