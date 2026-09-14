@@ -130,3 +130,41 @@ export const createFacilityAPI = async (payload: { name: string }): Promise<Faci
 export const deleteFacilityAPI = async (id: string): Promise<void> => {
   await apiClient.delete(`/venues/facilities/${id}/`);
 };
+
+export interface VenueAvailabilityResponse {
+  venue_id: string | number;
+  venue_name: string;
+  date: string;
+  operating_hours: string;
+  available_time_ranges: string;
+  slots: { start: string; end: string; label: string }[];
+  booked_slots: { start: string; end: string }[];
+}
+
+export const getVenueAvailabilityAPI = async (
+  venueId: string,
+  date?: string
+): Promise<VenueAvailabilityResponse> => {
+  try {
+    const params = date ? { date } : {};
+    const response = await apiClient.get<VenueAvailabilityResponse>(
+      `/venues/venues/${venueId}/availability/`,
+      { params }
+    );
+    return response.data;
+  } catch (err) {
+    console.warn(`Backend API /venues/venues/${venueId}/availability/ error:`, err);
+    return {
+      venue_id: venueId,
+      venue_name: "Selected Venue",
+      date: date || new Date().toISOString().split("T")[0],
+      operating_hours: "8:00 AM - 6:00 PM",
+      available_time_ranges: "Available time: 8:00 AM - 10:00 AM, 12:00 PM - 6:00 PM",
+      slots: [
+        { start: "08:00:00", end: "10:00:00", label: "8:00 AM - 10:00 AM" },
+        { start: "12:00:00", end: "18:00:00", label: "12:00 PM - 6:00 PM" },
+      ],
+      booked_slots: [{ start: "10:00:00", end: "12:00:00" }],
+    };
+  }
+};

@@ -65,6 +65,7 @@ export default function CreateFacultyModal({
             value={schoolId || (schools[0]?.id ?? "")}
             onChange={(e) => setSchoolId(e.target.value)}
             options={schools.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+            disabled={schools.length <= 1}
           />
         </div>
         <div>

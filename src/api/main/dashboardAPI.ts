@@ -22,18 +22,24 @@ export interface DashboardSummaryCounts {
 
 interface RawHoldRateResponse {
   summary?: {
+    total_sessions?: number;
     total_reports?: number;
     held_count?: number;
     not_held_count?: number;
+    unreported_count?: number;
     hold_rate_percentage?: number;
   };
   breakdown?: Array<{
+    key?: string;
+    label?: string;
     course_id?: number | string;
     course_code?: string;
     course_title?: string;
+    total_sessions?: number;
     total_reports?: number;
     held_count?: number;
     not_held_count?: number;
+    unreported_count?: number;
     hold_rate_percentage?: number;
   }>;
 }
@@ -58,6 +64,7 @@ interface RawDiscrepancyAnalyticsResponse {
       approved?: number;
       rejected?: number;
       pending?: number;
+      withdrawn?: number;
       [key: string]: number | undefined;
     };
     by_request_type?: Record<string, number>;
@@ -85,17 +92,24 @@ export async function getLectureHoldRateAnalytics(
   return {
     summary: {
       totalReports: data.summary?.total_reports ?? 0,
+      totalSessions: data.summary?.total_sessions ?? 0,
       heldCount: data.summary?.held_count ?? 0,
       notHeldCount: data.summary?.not_held_count ?? 0,
+      unreportedCount: data.summary?.unreported_count ?? 0,
       holdRatePercentage: data.summary?.hold_rate_percentage ?? 0,
     },
     breakdown: (data.breakdown || []).map((item) => ({
+      key: item.key,
+      label: item.label,
       courseId: item.course_id ? String(item.course_id) : undefined,
       courseCode: item.course_code || "",
       courseTitle: item.course_title,
       heldCount: item.held_count ?? 0,
       notHeldCount: item.not_held_count ?? 0,
+      unreportedCount: item.unreported_count ?? 0,
       totalReports: item.total_reports ?? 0,
+      totalSessions: item.total_sessions ?? 0,
+      totalCount: item.total_sessions ?? item.total_reports ?? 0,
       holdRatePercentage: item.hold_rate_percentage ?? 0,
     })),
   };
@@ -154,6 +168,7 @@ export async function getDiscrepancyAnalytics(
         approved: data.summary?.by_status?.approved ?? 0,
         rejected: data.summary?.by_status?.rejected ?? 0,
         pending: data.summary?.by_status?.pending ?? 0,
+        withdrawn: data.summary?.by_status?.withdrawn ?? 0,
       },
       byRequestType: data.summary?.by_request_type || {},
     },

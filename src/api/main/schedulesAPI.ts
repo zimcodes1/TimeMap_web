@@ -20,6 +20,8 @@ export interface CreateScheduleEntryPayload {
   recurrence_start_date?: string;
   recurrence_end_date?: string;
   academic_session?: string;
+  semester?: string | number;
+  program?: string | number;
 }
 
 export interface CreateEntrySuccessResponse {
@@ -61,6 +63,7 @@ interface RawTimetableEntry {
   course?: number | string;
   course_code?: string;
   course_title?: string;
+  course_level?: number;
   lecturer?: number | string;
   lecturer_name?: string;
   venue?: number | string;
@@ -70,6 +73,13 @@ interface RawTimetableEntry {
   end_time: string;
   type?: "lecture" | "exam" | "event";
   academic_session?: string;
+  semester?: number | string | null;
+  semester_name?: string;
+  session_label?: string;
+  program_scope?: "general" | "program";
+  target_program?: number | string | null;
+  target_program_id?: number | string | null;
+  target_program_name?: string;
   recurrence_rule?: string;
   recurrence_start_date?: string;
   recurrence_end_date?: string;
@@ -81,15 +91,23 @@ interface RawLectureSession {
   id: number | string;
   timetable_entry?: number | string;
   timetable_entry_title?: string;
+  entry_type?: "lecture" | "exam" | "event";
   course_code?: string;
   course_title?: string;
+  course_level?: number;
   lecturer_name?: string;
+  target_program_id?: number | string;
+  program_name?: string;
+  program_code?: string;
+  program_scope?: "general" | "program";
   session_date: string;
   session_start_time: string;
   session_end_time: string;
   venue?: number | string;
   venue_name?: string;
   status: "scheduled" | "shifted" | "postponed" | "cancelled" | "held" | "not_held";
+  can_shift?: boolean;
+  report_status?: "held" | "not_held" | "unreported";
 }
 
 interface RawExamSitting {
@@ -119,12 +137,19 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     courseId: raw.course ? String(raw.course) : undefined,
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.title || "Course",
+    courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
     lecturerName: raw.lecturer_name || "Assigned Lecturer",
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
     dayOfWeek: (raw.day_of_week as TimetableEntry["dayOfWeek"]) || "Monday",
     startTime: raw.start_time,
     endTime: raw.end_time,
+    semesterId: raw.semester ? String(raw.semester) : undefined,
+    semesterName: raw.semester_name,
+    sessionLabel: raw.session_label,
+    programScope: raw.program_scope || "general",
+    targetProgramId: raw.target_program_id ? String(raw.target_program_id) : raw.target_program ? String(raw.target_program) : undefined,
+    targetProgramName: raw.target_program_name,
     academicSession: raw.academic_session || "2025/2026",
     recurrenceRule: raw.recurrence_rule,
     recurrenceStartDate: raw.recurrence_start_date,
@@ -138,15 +163,23 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
   return {
     id: String(raw.id),
     entryId: String(raw.timetable_entry || ""),
+    entryType: raw.entry_type || "lecture",
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
+    courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
     lecturerName: raw.lecturer_name || "Lecturer",
+    targetProgramId: raw.target_program_id ? String(raw.target_program_id) : undefined,
+    programName: raw.program_name,
+    programCode: raw.program_code,
+    programScope: raw.program_scope || "general",
     date: raw.session_date,
     startTime: raw.session_start_time,
     endTime: raw.session_end_time,
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
     status: raw.status || "scheduled",
+    canShift: Boolean(raw.can_shift),
+    reportStatus: raw.report_status || "unreported",
   };
 }
 
@@ -175,9 +208,15 @@ function mapRawExamSittingToExamSitting(raw: RawExamSitting): ExamSitting {
 /**
  * GET /api/scheduling/entries/
  */
-export async function getTimetableEntries(): Promise<TimetableEntry[]> {
+export async function getTimetableEntries(params?: {
+  semester?: string | number;
+  program?: string | number;
+  level?: string | number;
+  entry_type?: string;
+}): Promise<TimetableEntry[]> {
   const response = await apiClient.get<RawTimetableEntry[] | { results: RawTimetableEntry[] }>(
-    "/scheduling/entries/"
+    "/scheduling/entries/",
+    { params }
   );
   const data = response.data;
   const list = Array.isArray(data) ? data : data?.results || [];
@@ -252,9 +291,19 @@ export async function materializeSessionAPI(entryId: string): Promise<LectureSes
 /**
  * GET /api/scheduling/sessions/
  */
-export async function getLectureSessions(): Promise<LectureSession[]> {
+export async function getLectureSessions(params?: {
+  date?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  semester?: string | number;
+  program?: string | number;
+  level?: string | number;
+  entry_type?: string;
+}): Promise<LectureSession[]> {
   const response = await apiClient.get<RawLectureSession[] | { results: RawLectureSession[] }>(
-    "/scheduling/sessions/"
+    "/scheduling/sessions/",
+    { params }
   );
   const data = response.data;
   const list = Array.isArray(data) ? data : data?.results || [];

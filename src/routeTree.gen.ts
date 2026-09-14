@@ -18,12 +18,15 @@ import { Route as AuthResetPasswordRouteImport } from './routes/_auth/reset-pass
 import { Route as MainAuditLogsRouteImport } from './routes/_main/audit-logs'
 import { Route as MainCoursesRouteImport } from './routes/_main/courses'
 import { Route as MainDashboardRouteImport } from './routes/_main/dashboard'
+import { Route as MainExamsRouteImport } from './routes/_main/exams'
 import { Route as MainHierarchyRouteImport } from './routes/_main/hierarchy'
 import { Route as MainNotificationsRouteImport } from './routes/_main/notifications'
 import { Route as MainReportsRouteImport } from './routes/_main/reports'
 import { Route as MainRequestsRouteImport } from './routes/_main/requests'
 import { Route as MainSchedulesRouteImport } from './routes/_main/schedules'
+import { Route as MainSemestersRouteImport } from './routes/_main/semesters'
 import { Route as MainSettingsRouteImport } from './routes/_main/settings'
+import { Route as MainStudentsRouteImport } from './routes/_main/students'
 import { Route as MainUsersRouteImport } from './routes/_main/users'
 import { Route as MainVenuesRouteImport } from './routes/_main/venues'
 
@@ -70,6 +73,11 @@ const MainDashboardRoute = MainDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainExamsRoute = MainExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const MainHierarchyRoute = MainHierarchyRouteImport.update({
   id: '/hierarchy',
   path: '/hierarchy',
@@ -95,9 +103,19 @@ const MainSchedulesRoute = MainSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainSemestersRoute = MainSemestersRouteImport.update({
+  id: '/semesters',
+  path: '/semesters',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const MainSettingsRoute = MainSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainStudentsRoute = MainStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
   getParentRoute: () => MainRouteRoute,
 } as any)
 const MainUsersRoute = MainUsersRouteImport.update({
@@ -119,12 +137,15 @@ export interface FileRoutesByFullPath {
   '/audit-logs': typeof MainAuditLogsRoute
   '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/exams': typeof MainExamsRoute
   '/hierarchy': typeof MainHierarchyRoute
   '/notifications': typeof MainNotificationsRoute
   '/reports': typeof MainReportsRoute
   '/requests': typeof MainRequestsRoute
   '/schedules': typeof MainSchedulesRoute
+  '/semesters': typeof MainSemestersRoute
   '/settings': typeof MainSettingsRoute
+  '/students': typeof MainStudentsRoute
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
 }
@@ -136,12 +157,15 @@ export interface FileRoutesByTo {
   '/audit-logs': typeof MainAuditLogsRoute
   '/courses': typeof MainCoursesRoute
   '/dashboard': typeof MainDashboardRoute
+  '/exams': typeof MainExamsRoute
   '/hierarchy': typeof MainHierarchyRoute
   '/notifications': typeof MainNotificationsRoute
   '/reports': typeof MainReportsRoute
   '/requests': typeof MainRequestsRoute
   '/schedules': typeof MainSchedulesRoute
+  '/semesters': typeof MainSemestersRoute
   '/settings': typeof MainSettingsRoute
+  '/students': typeof MainStudentsRoute
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
 }
@@ -156,12 +180,15 @@ export interface FileRoutesById {
   '/_main/audit-logs': typeof MainAuditLogsRoute
   '/_main/courses': typeof MainCoursesRoute
   '/_main/dashboard': typeof MainDashboardRoute
+  '/_main/exams': typeof MainExamsRoute
   '/_main/hierarchy': typeof MainHierarchyRoute
   '/_main/notifications': typeof MainNotificationsRoute
   '/_main/reports': typeof MainReportsRoute
   '/_main/requests': typeof MainRequestsRoute
   '/_main/schedules': typeof MainSchedulesRoute
+  '/_main/semesters': typeof MainSemestersRoute
   '/_main/settings': typeof MainSettingsRoute
+  '/_main/students': typeof MainStudentsRoute
   '/_main/users': typeof MainUsersRoute
   '/_main/venues': typeof MainVenuesRoute
 }
@@ -175,12 +202,15 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/courses'
     | '/dashboard'
+    | '/exams'
     | '/hierarchy'
     | '/notifications'
     | '/reports'
     | '/requests'
     | '/schedules'
+    | '/semesters'
     | '/settings'
+    | '/students'
     | '/users'
     | '/venues'
   fileRoutesByTo: FileRoutesByTo
@@ -192,12 +222,15 @@ export interface FileRouteTypes {
     | '/audit-logs'
     | '/courses'
     | '/dashboard'
+    | '/exams'
     | '/hierarchy'
     | '/notifications'
     | '/reports'
     | '/requests'
     | '/schedules'
+    | '/semesters'
     | '/settings'
+    | '/students'
     | '/users'
     | '/venues'
   id:
@@ -211,12 +244,15 @@ export interface FileRouteTypes {
     | '/_main/audit-logs'
     | '/_main/courses'
     | '/_main/dashboard'
+    | '/_main/exams'
     | '/_main/hierarchy'
     | '/_main/notifications'
     | '/_main/reports'
     | '/_main/requests'
     | '/_main/schedules'
+    | '/_main/semesters'
     | '/_main/settings'
+    | '/_main/students'
     | '/_main/users'
     | '/_main/venues'
   fileRoutesById: FileRoutesById
@@ -292,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainDashboardRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/exams': {
+      id: '/_main/exams'
+      path: '/exams'
+      fullPath: '/exams'
+      preLoaderRoute: typeof MainExamsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/_main/hierarchy': {
       id: '/_main/hierarchy'
       path: '/hierarchy'
@@ -327,11 +370,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainSchedulesRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/semesters': {
+      id: '/_main/semesters'
+      path: '/semesters'
+      fullPath: '/semesters'
+      preLoaderRoute: typeof MainSemestersRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/_main/settings': {
       id: '/_main/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof MainSettingsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/students': {
+      id: '/_main/students'
+      path: '/students'
+      fullPath: '/students'
+      preLoaderRoute: typeof MainStudentsRouteImport
       parentRoute: typeof MainRouteRoute
     }
     '/_main/users': {
@@ -371,12 +428,15 @@ interface MainRouteRouteChildren {
   MainAuditLogsRoute: typeof MainAuditLogsRoute
   MainCoursesRoute: typeof MainCoursesRoute
   MainDashboardRoute: typeof MainDashboardRoute
+  MainExamsRoute: typeof MainExamsRoute
   MainHierarchyRoute: typeof MainHierarchyRoute
   MainNotificationsRoute: typeof MainNotificationsRoute
   MainReportsRoute: typeof MainReportsRoute
   MainRequestsRoute: typeof MainRequestsRoute
   MainSchedulesRoute: typeof MainSchedulesRoute
+  MainSemestersRoute: typeof MainSemestersRoute
   MainSettingsRoute: typeof MainSettingsRoute
+  MainStudentsRoute: typeof MainStudentsRoute
   MainUsersRoute: typeof MainUsersRoute
   MainVenuesRoute: typeof MainVenuesRoute
 }
@@ -385,12 +445,15 @@ const MainRouteRouteChildren: MainRouteRouteChildren = {
   MainAuditLogsRoute: MainAuditLogsRoute,
   MainCoursesRoute: MainCoursesRoute,
   MainDashboardRoute: MainDashboardRoute,
+  MainExamsRoute: MainExamsRoute,
   MainHierarchyRoute: MainHierarchyRoute,
   MainNotificationsRoute: MainNotificationsRoute,
   MainReportsRoute: MainReportsRoute,
   MainRequestsRoute: MainRequestsRoute,
   MainSchedulesRoute: MainSchedulesRoute,
+  MainSemestersRoute: MainSemestersRoute,
   MainSettingsRoute: MainSettingsRoute,
+  MainStudentsRoute: MainStudentsRoute,
   MainUsersRoute: MainUsersRoute,
   MainVenuesRoute: MainVenuesRoute,
 }

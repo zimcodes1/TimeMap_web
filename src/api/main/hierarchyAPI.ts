@@ -24,6 +24,22 @@ interface RawDepartment {
   school_name?: string;
   name: string;
   code: string;
+  max_level?: number;
+  programs?: Array<{
+    id: number | string;
+    department: number | string;
+    department_name?: string;
+    department_code?: string;
+    faculty_id?: number | string;
+    faculty_name?: string;
+    school_id?: number | string;
+    school_name?: string;
+    name: string;
+    code: string;
+    max_level: number;
+    is_default: boolean;
+    created_at?: string;
+  }>;
   created_at?: string;
 }
 
@@ -52,6 +68,22 @@ export function mapRawDepartment(raw: RawDepartment): Department {
     code: raw.code,
     facultyId: String(raw.faculty),
     facultyName: raw.faculty_name,
+    maxLevel: raw.max_level,
+    programs: raw.programs?.map((p) => ({
+      id: String(p.id),
+      departmentId: String(p.department),
+      departmentName: p.department_name,
+      departmentCode: p.department_code,
+      facultyId: p.faculty_id ? String(p.faculty_id) : undefined,
+      facultyName: p.faculty_name,
+      schoolId: p.school_id ? String(p.school_id) : undefined,
+      schoolName: p.school_name,
+      name: p.name,
+      code: p.code,
+      maxLevel: p.max_level,
+      isDefault: p.is_default,
+      createdAt: p.created_at,
+    })),
   };
 }
 
