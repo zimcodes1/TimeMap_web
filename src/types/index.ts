@@ -154,6 +154,8 @@ export interface Course {
   targetProgramCode?: string;
   lecturers: User[];
   registrationCount?: number;
+  courseType?: 'lecture' | 'practical';
+  requiredOccurrencesPerWeek?: number;
 }
 
 export interface CourseAccessGrant {
@@ -410,4 +412,118 @@ export interface DiscrepancyAnalytics {
     byRequestType?: Record<string, number>;
   };
   byType?: Record<string, number>;
+}
+
+// Timetable Generation Types
+export type GenerationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type GenerationResultStatus = 'optimal' | 'feasible' | 'best_available' | 'failed';
+
+export interface GenerationConflictReport {
+  total_hard_conflicts?: number;
+  total_soft_penalties?: number;
+  student_conflicts?: Array<{
+    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
+    cohort: { program_id: string | number; level: number };
+    occurrences: string[];
+    courses: string[];
+    description: string;
+  }>;
+  lecturer_conflicts?: Array<{
+    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
+    lecturer_id: string | number;
+    occurrences: string[];
+    courses: string[];
+    description: string;
+  }>;
+  venue_conflicts?: Array<{
+    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
+    venue_id: string | number;
+    occurrences: string[];
+    courses: string[];
+    description: string;
+  }>;
+  daily_limit_violations?: Array<{
+    day: string;
+    cohort: { program_id: string | number; level: number };
+    count: number;
+    occurrences: string[];
+    courses: string[];
+    description: string;
+  }>;
+  occurrence_day_violations?: Array<{
+    course_id: string | number;
+    course_code: string;
+    day: string;
+    occurrences: string[];
+    description: string;
+  }>;
+  capacity_violations?: Array<{
+    occurrence_id: string;
+    course_code: string;
+    venue_id: string | number;
+    deficit: number;
+    description: string;
+  }>;
+}
+
+export interface GenerationMetrics {
+  generations_run?: number;
+  best_fitness?: number;
+  elapsed_seconds?: number;
+  population_size?: number;
+  termination_reason?: string;
+  [key: string]: unknown;
+}
+
+export interface TimetableGenerationRun {
+  id: string;
+  semesterId: string;
+  semesterName?: string;
+  scopeType: 'school' | 'faculty' | 'department';
+  scopeId: string;
+  scopeName?: string;
+  status: GenerationStatus;
+  resultStatus: GenerationResultStatus;
+  hardConflictsCount: number;
+  studentConflictsCount: number;
+  lecturerConflictsCount: number;
+  venueConflictsCount: number;
+  dailyLimitViolationsCount: number;
+  occurrenceDayViolationsCount: number;
+  capacityPenalty: number;
+  fitnessScore: number;
+  conflictReport: GenerationConflictReport;
+  generationMetrics: GenerationMetrics;
+  assignmentsPayload?: Array<Record<string, unknown>>;
+  isPublished: boolean;
+  initiatedByName?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface GenerationScopePermission {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  allowFacultyGeneration: boolean;
+  allowDepartmentGeneration: boolean;
+  updatedAt?: string;
+}
+
+export interface GenerateTimetablePayload {
+  semester: string | number;
+  scope_type: 'school' | 'faculty' | 'department';
+  scope_id: string | number;
+  population_size?: number;
+  max_generations?: number;
+  mutation_rate?: number;
+  stagnation_limit?: number;
+  publish_immediately?: boolean;
+}
+
+export interface PublishRunResult {
+  status: string;
+  entries_created: number;
+  sessions_materialized: number;
+  entries_deleted: number;
 }

@@ -22,6 +22,8 @@ interface RawCourse {
   target_program_code?: string;
   lecturers?: (number | string)[];
   registration_count?: number;
+  course_type?: "lecture" | "practical";
+  required_occurrences_per_week?: number;
 }
 
 interface RawGrant {
@@ -86,6 +88,8 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     targetProgramCode: raw.target_program_code,
     lecturers: assignedLecturers,
     registrationCount: raw.registration_count || 0,
+    courseType: raw.course_type || "lecture",
+    requiredOccurrencesPerWeek: raw.required_occurrences_per_week ?? 1,
   };
 }
 
@@ -133,6 +137,8 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
     program_scope: data.programScope || "general",
     target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
     lecturers: lecturerIds,
+    course_type: data.courseType || "lecture",
+    required_occurrences_per_week: data.requiredOccurrencesPerWeek ? Number(data.requiredOccurrencesPerWeek) : 1,
   };
 }
 

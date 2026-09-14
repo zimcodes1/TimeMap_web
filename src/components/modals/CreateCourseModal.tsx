@@ -77,6 +77,11 @@ export default function CreateCourseModal({
 	const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>(
 		initialData?.lecturers?.map((l) => l.id) || [],
 	);
+	const [courseType, setCourseType] = useState<"lecture" | "practical">(
+		initialData?.courseType || "lecture",
+	);
+	const [requiredOccurrencesPerWeek, setRequiredOccurrencesPerWeek] =
+		useState<number>(initialData?.requiredOccurrencesPerWeek || 1);
 
 	useEffect(() => {
 		if (!semesterId && semesters.length > 0) {
@@ -191,6 +196,8 @@ export default function CreateCourseModal({
 			scopeId: activeScopeId,
 			lecturers: assignedLecturers,
 			lecturerIds: selectedLecturerIds,
+			courseType,
+			requiredOccurrencesPerWeek,
 		});
 		onClose();
 	};
@@ -262,6 +269,43 @@ export default function CreateCourseModal({
 								value: s.id,
 								label: `${s.displayName || (s.name === "first" ? "First Semester" : "Second Semester")}${s.isActive ? " (Active)" : ""}`,
 							}))}
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div className="space-y-1">
+						<Text variant="caption" className="font-semibold mb-1 block">
+							Course Type
+						</Text>
+						<Select
+							value={courseType}
+							onChange={(e) =>
+								setCourseType(e.target.value as "lecture" | "practical")
+							}
+							options={[
+								{ value: "lecture", label: "Lecture (Lecture Halls / Multi)" },
+								{
+									value: "practical",
+									label: "Practical / Lab (Strictly Labs)",
+								},
+							]}
+						/>
+					</div>
+					<div className="space-y-1">
+						<Text variant="caption" className="font-semibold mb-1 block">
+							Weekly Frequency
+						</Text>
+						<Select
+							value={requiredOccurrencesPerWeek}
+							onChange={(e) =>
+								setRequiredOccurrencesPerWeek(Number(e.target.value))
+							}
+							options={[
+								{ value: 1, label: "1 Session / Week (2 hrs)" },
+								{ value: 2, label: "2 Sessions / Week (4 hrs)" },
+								{ value: 3, label: "3 Sessions / Week (6 hrs)" },
+							]}
 						/>
 					</div>
 				</div>

@@ -37,6 +37,11 @@ export default function EditCourseModal({
 	const [targetProgramId, setTargetProgramId] = useState("");
 	const [departmentId, setDepartmentId] = useState("");
 	const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>([]);
+	const [courseType, setCourseType] = useState<"lecture" | "practical">(
+		"lecture",
+	);
+	const [requiredOccurrencesPerWeek, setRequiredOccurrencesPerWeek] =
+		useState<number>(1);
 
 	useEffect(() => {
 		if (course) {
@@ -48,6 +53,8 @@ export default function EditCourseModal({
 			setTargetProgramId(course.targetProgramId || "");
 			setDepartmentId(course.departmentId || "");
 			setSelectedLecturerIds((course.lecturers || []).map((l) => l.id));
+			setCourseType(course.courseType || "lecture");
+			setRequiredOccurrencesPerWeek(course.requiredOccurrencesPerWeek || 1);
 		}
 	}, [course]);
 
@@ -90,6 +97,8 @@ export default function EditCourseModal({
 				departmentId,
 				departmentName: targetDept?.name,
 				lecturers: assignedLecturers,
+				courseType,
+				requiredOccurrencesPerWeek,
 			});
 			onClose();
 		}
@@ -166,6 +175,43 @@ export default function EditCourseModal({
 									value: s.id,
 									label: `${s.displayName || (s.name === "first" ? "First Semester" : "Second Semester")}${s.isActive ? " (Active)" : ""}`,
 								})),
+							]}
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div className="space-y-1">
+						<label className="text-xs font-semibold text-text-main">
+							Course Type
+						</label>
+						<Select
+							value={courseType}
+							onChange={(e) =>
+								setCourseType(e.target.value as "lecture" | "practical")
+							}
+							options={[
+								{ value: "lecture", label: "Lecture (Lecture Halls / Multi)" },
+								{
+									value: "practical",
+									label: "Practical / Lab (Strictly Labs)",
+								},
+							]}
+						/>
+					</div>
+					<div className="space-y-1">
+						<label className="text-xs font-semibold text-text-main">
+							Weekly Frequency
+						</label>
+						<Select
+							value={requiredOccurrencesPerWeek}
+							onChange={(e) =>
+								setRequiredOccurrencesPerWeek(Number(e.target.value))
+							}
+							options={[
+								{ value: 1, label: "1 Session / Week (2 hrs)" },
+								{ value: 2, label: "2 Sessions / Week (4 hrs)" },
+								{ value: 3, label: "3 Sessions / Week (6 hrs)" },
 							]}
 						/>
 					</div>

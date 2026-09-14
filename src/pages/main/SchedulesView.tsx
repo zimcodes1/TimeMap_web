@@ -2,7 +2,16 @@ import { useState, useMemo } from "react";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { TabSwitcher } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, RefreshCw, CalendarOff } from "lucide-react";
+import {
+	Plus,
+	LayoutGrid,
+	List,
+	RefreshCw,
+	CalendarOff,
+	Sparkles,
+	History,
+	ShieldCheck,
+} from "lucide-react";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -42,6 +51,11 @@ interface SchedulesViewProps {
 		defaultSlot?: { start: string; end: string },
 	) => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
+	onOpenGenerator?: () => void;
+	onOpenHistory?: () => void;
+	onOpenPermissions?: () => void;
+	canGenerate?: boolean;
+	canConfigurePermissions?: boolean;
 }
 
 export default function SchedulesView({
@@ -67,6 +81,11 @@ export default function SchedulesView({
 	onManualRefresh,
 	onOpenScheduleEntry,
 	onShiftSessionTrigger,
+	onOpenGenerator,
+	onOpenHistory,
+	onOpenPermissions,
+	canGenerate = false,
+	canConfigurePermissions = false,
 }: SchedulesViewProps) {
 	// Main view modes: List and Grid are the primary tabs
 	const [activeTab, setActiveTab] = useState<"list" | "grid">("grid");
@@ -91,11 +110,11 @@ export default function SchedulesView({
 					</Text>
 					<Text variant="body-sm" color="muted">
 						Weekly academic schedule per program and level with Conflict
-						Detection integration.
+						Detection & automated scheduling integration.
 					</Text>
 				</div>
 
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					<Button
 						variant="outline"
 						size="sm"
@@ -110,8 +129,44 @@ export default function SchedulesView({
 						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
 					</Button>
 
+					{onOpenHistory && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onOpenHistory}
+							className="h-9 gap-1.5 text-xs cursor-pointer"
+						>
+							<History size={14} />
+							<span>Run History</span>
+						</Button>
+					)}
+
+					{canConfigurePermissions && onOpenPermissions && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onOpenPermissions}
+							className="h-9 gap-1.5 text-xs cursor-pointer"
+						>
+							<ShieldCheck size={14} />
+							<span>Scope Policy</span>
+						</Button>
+					)}
+
+					{canGenerate && onOpenGenerator && (
+						<Button
+							variant="primary"
+							size="sm"
+							onClick={onOpenGenerator}
+							className="h-9 gap-1.5 text-xs cursor-pointer shadow-sm"
+						>
+							<Sparkles size={14} />
+							<span>Generate Timetable</span>
+						</Button>
+					)}
+
 					<Button
-						variant="primary"
+						variant={canGenerate ? "outline" : "primary"}
 						size="sm"
 						onClick={() => onOpenScheduleEntry()}
 						className="h-9 gap-1.5 text-xs cursor-pointer"

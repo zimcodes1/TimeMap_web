@@ -12,6 +12,12 @@ import {
 } from "@/api/main/schedulesAPI";
 import { getPrograms } from "@/api/main/programsAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
+import {
+	getSchoolsList,
+	getFacultiesList,
+	getDepartmentsList,
+} from "@/api/main/hierarchyAPI";
+import { getGenerationPermissions } from "@/api/main/generationAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -19,7 +25,12 @@ import type {
 	Venue,
 	Program,
 	Semester,
+	School,
+	Faculty,
+	Department,
+	TimetableGenerationRun,
 } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 import {
 	getCurrentWeekNumber,
 	getTotalWeeks,
@@ -30,14 +41,36 @@ import SchedulesView from "@/pages/main/SchedulesView";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
+import { GenerateTimetableModal } from "@/components/schedules/GenerateTimetableModal";
+import { GenerationReportModal } from "@/components/schedules/GenerationReportModal";
+import { GenerationHistoryModal } from "@/components/schedules/GenerationHistoryModal";
+import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
 
 export default function SchedulesContainer() {
 	const queryClient = useQueryClient();
+	const { user } = useAuth();
+
+	const isSuperuser =
+		user?.role === "admin" && user?.adminLevel === "university";
+	const isSchoolAdmin = user?.role === "admin" && user?.adminLevel === "school";
+	const isFacultyAdmin =
+		user?.role === "admin" && user?.adminLevel === "faculty";
+	const isDeptAdmin =
+		user?.role === "admin" && user?.adminLevel === "department";
+	const userSchoolId = user?.adminScopeId || user?.schoolId;
 
 	// Modals state
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
+
+	// Timetable generation modal states
+	const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+	const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+	const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+	const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+	const [activeGenerationRun, setActiveGenerationRun] =
+		useState<TimetableGenerationRun | null>(null);
 
 	// Defaults when clicking a slot in the grid
 	const [scheduleEntryDefaults, setScheduleEntryDefaults] = useState<{
@@ -83,6 +116,43 @@ export default function SchedulesContainer() {
 		queryKey: ["venues", "list"],
 		queryFn: getVenuesOptions,
 	});
+
+	// Hierarchy queries for generator scoping
+	const { data: schoolsData = [] } = useQuery<School[]>({
+		queryKey: ["schools", "list"],
+		queryFn: getSchoolsList,
+		enabled: isSuperuser || isSchoolAdmin,
+	});
+
+	const { data: facultiesData = [] } = useQuery<Faculty[]>({
+		queryKey: ["faculties", "list"],
+		queryFn: getFacultiesList,
+		enabled: isSuperuser || isSchoolAdmin || isFacultyAdmin,
+	});
+
+	const { data: departmentsData = [] } = useQuery<Department[]>({
+		queryKey: ["departments", "list"],
+		queryFn: getDepartmentsList,
+		enabled: isSuperuser || isSchoolAdmin || isFacultyAdmin || isDeptAdmin,
+	});
+
+	// Generation Scope Permissions Query
+	const { data: scopePermission } = useQuery({
+		queryKey: ["scheduling", "generationPermissions", userSchoolId],
+		queryFn: () => getGenerationPermissions(userSchoolId),
+		enabled: Boolean(userSchoolId),
+	});
+
+	const allowFacultyGen = scopePermission?.allowFacultyGeneration ?? false;
+	const allowDeptGen = scopePermission?.allowDepartmentGeneration ?? false;
+
+	const canGenerate =
+		isSuperuser ||
+		isSchoolAdmin ||
+		(isFacultyAdmin && allowFacultyGen) ||
+		(isDeptAdmin && allowDeptGen);
+
+	const canConfigurePermissions = isSuperuser || isSchoolAdmin;
 
 	// Identify active semester
 	const activeSemester = useMemo(() => {
@@ -321,6 +391,23 @@ export default function SchedulesContainer() {
 		});
 	};
 
+	const handleGenerationCompleted = (run: TimetableGenerationRun) => {
+		setActiveGenerationRun(run);
+		setIsReportModalOpen(true);
+	};
+
+	const handlePublishSuccess = () => {
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		refetchEntries();
+		refetchSessions();
+	};
+
+	const handleSelectHistoryRun = (run: TimetableGenerationRun) => {
+		setActiveGenerationRun(run);
+		setIsReportModalOpen(true);
+	};
+
 	return (
 		<>
 			<SchedulesView
@@ -346,6 +433,44 @@ export default function SchedulesContainer() {
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
+				onOpenGenerator={() => setIsGenerateModalOpen(true)}
+				onOpenHistory={() => setIsHistoryModalOpen(true)}
+				onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+				canGenerate={canGenerate}
+				canConfigurePermissions={canConfigurePermissions}
+			/>
+
+			<GenerateTimetableModal
+				isOpen={isGenerateModalOpen}
+				onClose={() => setIsGenerateModalOpen(false)}
+				onGenerationComplete={handleGenerationCompleted}
+				semesters={semestersData}
+				activeSemester={activeSemester}
+				schools={schoolsData}
+				faculties={facultiesData}
+				departments={departmentsData}
+				allowFacultyGeneration={allowFacultyGen}
+				allowDepartmentGeneration={allowDeptGen}
+			/>
+
+			<GenerationReportModal
+				isOpen={isReportModalOpen}
+				onClose={() => setIsReportModalOpen(false)}
+				run={activeGenerationRun}
+				onPublishSuccess={handlePublishSuccess}
+			/>
+
+			<GenerationHistoryModal
+				isOpen={isHistoryModalOpen}
+				onClose={() => setIsHistoryModalOpen(false)}
+				semesterId={activeSemester?.id}
+				onSelectRun={handleSelectHistoryRun}
+			/>
+
+			<GenerationPermissionsModal
+				isOpen={isPermissionsModalOpen}
+				onClose={() => setIsPermissionsModalOpen(false)}
+				schoolId={userSchoolId}
 			/>
 
 			<ScheduleEntryModal
