@@ -141,19 +141,32 @@ export function GenerateTimetableModal({
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!semesterId) {
+		const effectiveSemesterId =
+			semesterId || activeSemester?.id || semesters[0]?.id || "";
+		if (!effectiveSemesterId) {
 			toast.error("Please select an academic semester.");
 			return;
 		}
-		if (!scopeId) {
+
+		const effectiveScopeId =
+			scopeId ||
+			(scopeType === "school"
+				? activeSemester?.schoolId || user?.schoolId || schools[0]?.id
+				: scopeType === "faculty"
+					? faculties[0]?.id
+					: departments[0]?.id) ||
+			"";
+
+		if (!effectiveScopeId) {
 			toast.error("Please select a target scope.");
 			return;
 		}
 
 		const payload: GenerateTimetablePayload = {
-			semester: semesterId,
+			semester: effectiveSemesterId,
+			semester_id: effectiveSemesterId,
 			scope_type: scopeType,
-			scope_id: scopeId,
+			scope_id: effectiveScopeId,
 			population_size: Number(populationSize) || 100,
 			max_generations: Number(maxGenerations) || 300,
 			mutation_rate: Number(mutationRate) || 0.15,

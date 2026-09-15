@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
 import { ShieldCheck, Lock } from "lucide-react";
 import type { GenerationScopePermission } from "@/types";
 import {

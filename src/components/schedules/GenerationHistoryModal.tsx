@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Text } from "@/components/ui/text";
 import {
 	History,
 	CheckCircle2,
@@ -27,11 +26,7 @@ export function GenerationHistoryModal({
 	semesterId,
 	onSelectRun,
 }: GenerationHistoryModalProps) {
-	const {
-		data: runs = [],
-		isLoading,
-		refetch,
-	} = useQuery<TimetableGenerationRun[]>({
+	const { data: runs = [], isLoading } = useQuery<TimetableGenerationRun[]>({
 		queryKey: ["scheduling", "generationRuns", semesterId],
 		queryFn: () => getGenerationRuns({ semester: semesterId }),
 		enabled: isOpen,

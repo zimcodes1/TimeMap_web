@@ -511,7 +511,8 @@ export interface GenerationScopePermission {
 }
 
 export interface GenerateTimetablePayload {
-  semester: string | number;
+  semester?: string | number;
+  semester_id?: string | number;
   scope_type: 'school' | 'faculty' | 'department';
   scope_id: string | number;
   population_size?: number;

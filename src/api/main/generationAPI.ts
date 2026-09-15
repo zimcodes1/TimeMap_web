@@ -92,12 +92,23 @@ export function mapRawPermissionToPermission(
 export async function generateTimetable(
   payload: GenerateTimetablePayload
 ): Promise<TimetableGenerationRun> {
+  const semesterId = Number(payload.semester_id || payload.semester);
+  const scopeId = Number(payload.scope_id);
+
+  if (!semesterId || isNaN(semesterId)) {
+    throw new Error("Invalid semester ID. Please select an active semester.");
+  }
+  if (!scopeId || isNaN(scopeId)) {
+    throw new Error("Invalid scope ID. Please select a valid target scope.");
+  }
+
   const response = await apiClient.post<RawGenerationRun>(
     "/scheduling/generate/",
     {
-      semester: Number(payload.semester),
+      semester_id: semesterId,
+      semester: semesterId,
       scope_type: payload.scope_type,
-      scope_id: Number(payload.scope_id),
+      scope_id: scopeId,
       population_size: payload.population_size,
       max_generations: payload.max_generations,
       mutation_rate: payload.mutation_rate,
