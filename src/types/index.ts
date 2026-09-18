@@ -419,58 +419,82 @@ export interface DiscrepancyAnalytics {
 export type GenerationStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type GenerationResultStatus = 'optimal' | 'feasible' | 'best_available' | 'failed';
 
+export interface GeneratedAssignment {
+  occurrence_id: string;
+  course_id: number | string;
+  course_code: string;
+  course_title: string;
+  occurrence_index: number;
+  course_type: string;
+  day: string;
+  day_name: string;
+  period_index: number;
+  start_time: string;
+  end_time: string;
+  venue_id: number | string;
+  venue_name: string;
+  expected_students: number;
+}
+
+export interface ConflictItem {
+  slot?: {
+    day?: string;
+    start_time?: string;
+    end_time?: string;
+    [key: string]: unknown;
+  };
+  day?: string;
+  description?: string;
+  deficit?: number | string;
+  overflow?: number | string;
+  course_code?: string;
+  student_group?: string;
+  [key: string]: unknown;
+}
+
 export interface GenerationConflictReport {
-  total_hard_conflicts?: number;
-  total_soft_penalties?: number;
-  student_conflicts?: Array<{
-    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
-    cohort: { program_id: string | number; level: number };
-    occurrences: string[];
-    courses: string[];
-    description: string;
-  }>;
-  lecturer_conflicts?: Array<{
-    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
-    lecturer_id: string | number;
-    occurrences: string[];
-    courses: string[];
-    description: string;
-  }>;
-  venue_conflicts?: Array<{
-    slot: { day: string; period_idx?: number; start_time: string; end_time: string };
-    venue_id: string | number;
-    occurrences: string[];
-    courses: string[];
-    description: string;
-  }>;
-  daily_limit_violations?: Array<{
-    day: string;
-    cohort: { program_id: string | number; level: number };
-    count: number;
-    occurrences: string[];
-    courses: string[];
-    description: string;
-  }>;
-  occurrence_day_violations?: Array<{
-    course_id: string | number;
-    course_code: string;
-    day: string;
-    occurrences: string[];
-    description: string;
-  }>;
-  capacity_violations?: Array<{
-    occurrence_id: string;
-    course_code: string;
-    venue_id: string | number;
-    deficit: number;
-    description: string;
-  }>;
+  status?: string;
+  is_feasible?: boolean;
+  occurrences_scheduled?: number;
+  hard_conflicts_total?: number;
+  summary?: {
+    student_conflicts?: number;
+    lecturer_conflicts?: number;
+    venue_conflicts?: number;
+    daily_limit_violations?: number;
+    occurrence_day_violations?: number;
+    capacity_penalty?: number;
+    fitness_score?: number;
+    quality_percentage?: number;
+    raw_fitness?: number;
+    [key: string]: unknown;
+  };
+  details?: {
+    student_conflicts?: ConflictItem[];
+    lecturer_conflicts?: ConflictItem[];
+    venue_conflicts?: ConflictItem[];
+    daily_limit_violations?: ConflictItem[];
+    occurrence_day_violations?: ConflictItem[];
+    capacity_overflows?: ConflictItem[];
+    capacity_violations?: ConflictItem[];
+    [key: string]: unknown;
+  };
+  student_conflicts?: ConflictItem[];
+  lecturer_conflicts?: ConflictItem[];
+  venue_conflicts?: ConflictItem[];
+  daily_limit_violations?: ConflictItem[];
+  occurrence_day_violations?: ConflictItem[];
+  capacity_violations?: ConflictItem[];
+  capacity_overflows?: ConflictItem[];
+  [key: string]: unknown;
 }
 
 export interface GenerationMetrics {
   generations_run?: number;
   best_fitness?: number;
   elapsed_seconds?: number;
+  runtime_seconds?: number;
+  occurrences_total?: number;
   population_size?: number;
   termination_reason?: string;
   [key: string]: unknown;
@@ -495,7 +519,7 @@ export interface TimetableGenerationRun {
   fitnessScore: number;
   conflictReport: GenerationConflictReport;
   generationMetrics: GenerationMetrics;
-  assignmentsPayload?: Array<Record<string, unknown>>;
+  assignmentsPayload?: GeneratedAssignment[];
   isPublished: boolean;
   initiatedByName?: string;
   createdAt: string;

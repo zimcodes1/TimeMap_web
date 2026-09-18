@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { TabSwitcher } from "@/components/ui/tabs";
@@ -9,7 +10,6 @@ import {
 	RefreshCw,
 	CalendarOff,
 	Sparkles,
-	History,
 	ShieldCheck,
 } from "lucide-react";
 import type {
@@ -81,8 +81,6 @@ export default function SchedulesView({
 	onManualRefresh,
 	onOpenScheduleEntry,
 	onShiftSessionTrigger,
-	onOpenGenerator,
-	onOpenHistory,
 	onOpenPermissions,
 	canGenerate = false,
 	canConfigurePermissions = false,
@@ -129,18 +127,6 @@ export default function SchedulesView({
 						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
 					</Button>
 
-					{onOpenHistory && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onOpenHistory}
-							className="h-9 gap-1.5 text-xs cursor-pointer"
-						>
-							<History size={14} />
-							<span>Run History</span>
-						</Button>
-					)}
-
 					{canConfigurePermissions && onOpenPermissions && (
 						<Button
 							variant="outline"
@@ -153,16 +139,17 @@ export default function SchedulesView({
 						</Button>
 					)}
 
-					{canGenerate && onOpenGenerator && (
-						<Button
-							variant="primary"
-							size="sm"
-							onClick={onOpenGenerator}
-							className="h-9 gap-1.5 text-xs cursor-pointer shadow-sm"
-						>
-							<Sparkles size={14} />
-							<span>Generate Timetable</span>
-						</Button>
+					{canGenerate && (
+						<Link to="/schedules/generator">
+							<Button
+								variant="primary"
+								size="sm"
+								className="h-9 gap-1.5 text-xs cursor-pointer shadow-sm"
+							>
+								<Sparkles size={14} />
+								<span>Generate Timetable</span>
+							</Button>
+						</Link>
 					)}
 
 					<Button

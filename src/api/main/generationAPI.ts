@@ -62,8 +62,46 @@ export function mapRawRunToRun(raw: RawGenerationRun): TimetableGenerationRun {
     occurrenceDayViolationsCount: raw.occurrence_day_violations_count ?? 0,
     capacityPenalty: raw.capacity_penalty ?? 0,
     fitnessScore: raw.fitness_score ?? 0,
-    conflictReport: raw.conflict_report || {},
-    generationMetrics: raw.generation_metrics || {},
+    conflictReport: {
+      ...raw.conflict_report,
+      student_conflicts:
+        raw.conflict_report?.details?.student_conflicts ??
+        raw.conflict_report?.student_conflicts ??
+        [],
+      lecturer_conflicts:
+        raw.conflict_report?.details?.lecturer_conflicts ??
+        raw.conflict_report?.lecturer_conflicts ??
+        [],
+      venue_conflicts:
+        raw.conflict_report?.details?.venue_conflicts ??
+        raw.conflict_report?.venue_conflicts ??
+        [],
+      daily_limit_violations:
+        raw.conflict_report?.details?.daily_limit_violations ??
+        raw.conflict_report?.daily_limit_violations ??
+        [],
+      occurrence_day_violations:
+        raw.conflict_report?.details?.occurrence_day_violations ??
+        raw.conflict_report?.occurrence_day_violations ??
+        [],
+      capacity_violations:
+        raw.conflict_report?.details?.capacity_overflows ??
+        raw.conflict_report?.details?.capacity_violations ??
+        raw.conflict_report?.capacity_violations ??
+        raw.conflict_report?.capacity_overflows ??
+        [],
+    },
+    generationMetrics: {
+      ...raw.generation_metrics,
+      runtime_seconds:
+        raw.generation_metrics?.runtime_seconds ??
+        raw.generation_metrics?.elapsed_seconds ??
+        0,
+      elapsed_seconds:
+        raw.generation_metrics?.elapsed_seconds ??
+        raw.generation_metrics?.runtime_seconds ??
+        0,
+    },
     assignmentsPayload: raw.assignments_payload || [],
     isPublished: Boolean(raw.is_published),
     initiatedByName: raw.initiated_by_name ?? undefined,
