@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import CoursesView from "@/pages/main/CoursesView";
 import CreateCourseModal from "@/components/modals/CreateCourseModal";
 import EditCourseModal from "@/components/modals/EditCourseModal";
+import DeleteConfirmModal from "@/components/modals/DeleteConfirmModal";
 import OfferAccessGrantModal from "@/components/modals/OfferAccessGrantModal";
 import RequestAccessGrantModal from "@/components/modals/RequestAccessGrantModal";
 import CourseRegistrationModal from "@/components/modals/CourseRegistrationModal";
@@ -38,6 +39,7 @@ export default function CoursesContainer() {
 	const [isRequestGrantOpen, setIsRequestGrantOpen] = useState(false);
 	const [isRegisterStudentOpen, setIsRegisterStudentOpen] = useState(false);
 	const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+	const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
 
 	// React Query Options Data
 	const { data: lecturers = [] } = useQuery({
@@ -96,7 +98,48 @@ export default function CoursesContainer() {
 		queryFn: getCourseGrantsList,
 	});
 
-	const courses = coursesData ?? [];
+	const courses = useMemo(() => {
+		if (!coursesData) return [];
+		return coursesData.map((c) => {
+			const assignedIds =
+				c.lecturerIds && c.lecturerIds.length > 0
+					? c.lecturerIds.map(String)
+					: (c.lecturers || []).map((l) => String(l.id));
+
+			if (assignedIds.length === 0) return c;
+
+			const hasRealLecturers =
+				c.lecturers &&
+				c.lecturers.length > 0 &&
+				!c.lecturers.every((l) => l.name?.startsWith("Lecturer #"));
+
+			if (hasRealLecturers && lecturers.length === 0) {
+				return c;
+			}
+
+			const matched = assignedIds.map((id) => {
+				const found = lecturers.find((l) => String(l.id) === String(id));
+				if (found) return found;
+				const existing = c.lecturers?.find((l) => String(l.id) === String(id));
+				return (
+					existing || {
+						id: String(id),
+						identifier: String(id),
+						name: `Lecturer #${id}`,
+						email: "",
+						role: "lecturer" as const,
+						isActive: true,
+						requiresPasswordReset: false,
+					}
+				);
+			});
+
+			return {
+				...c,
+				lecturers: matched,
+			};
+		});
+	}, [coursesData, lecturers]);
 	const grants = grantsData ?? [];
 	const isLoading = isCoursesLoading || isGrantsLoading;
 	const isRefetching = isCoursesRefetching || isGrantsRefetching;
@@ -198,6 +241,7 @@ export default function CoursesContainer() {
 		mutationFn: (id: string) => rejectCourseGrantAPI(id),
 		onSuccess: (updatedGrant) => {
 			queryClient.invalidateQueries({ queryKey: ["courses", "grants"] });
+			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
 			toast.success(`Access grant #${updatedGrant.id} rejected.`);
 		},
 		onError: () => toast.error("Failed to reject access grant."),
@@ -237,8 +281,9 @@ export default function CoursesContainer() {
 	};
 
 	const handleDeleteCourse = (id: string) => {
-		if (confirm("Are you sure you want to delete this course?")) {
-			deleteCourseMutation.mutate(id);
+		const target = courses.find((c) => c.id === id);
+		if (target) {
+			setDeletingCourse(target);
 		}
 	};
 
@@ -339,6 +384,23 @@ export default function CoursesContainer() {
 				onSubmit={handleRegisterStudent}
 				courses={courses}
 				students={students}
+			/>
+
+			<DeleteConfirmModal
+				isOpen={Boolean(deletingCourse)}
+				onClose={() => setDeletingCourse(null)}
+				onConfirm={() => {
+					if (deletingCourse) {
+						deleteCourseMutation.mutate(deletingCourse.id);
+					}
+				}}
+				title="Delete Course Confirmation"
+				itemName={
+					deletingCourse
+						? `${deletingCourse.code} — ${deletingCourse.title}`
+						: ""
+				}
+				itemType="course"
 			/>
 		</>
 	);

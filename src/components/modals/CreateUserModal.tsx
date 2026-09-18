@@ -89,7 +89,9 @@ export default function CreateUserModal({
 	const [name, setName] = useState(initialData?.name || "");
 	const [email, setEmail] = useState(initialData?.email || "");
 	const [identifier, setIdentifier] = useState(initialData?.identifier || "");
-	const [role, setRole] = useState<UserRole | "">(initialData?.role || "");
+	const [role, setRole] = useState<UserRole | "">(
+		initialData?.role || "lecturer",
+	);
 
 	// Admin Scope Level & Selected Scope ID
 	const [adminLevel, setAdminLevel] = useState<AdminLevel | "">(

@@ -575,7 +575,7 @@ export default function CoursesView({
 									header: "Students Registered",
 									accessor: (c: Course) => (
 										<span className="font-bold text-primary text-xs">
-											{c.registrationCount || 0} Students
+											{(c.registrationCount || 0).toLocaleString()} Students
 										</span>
 									),
 								},

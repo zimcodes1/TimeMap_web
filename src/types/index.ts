@@ -153,6 +153,7 @@ export interface Course {
   targetProgramName?: string;
   targetProgramCode?: string;
   lecturers: User[];
+  lecturerIds?: string[];
   registrationCount?: number;
   courseType?: 'lecture' | 'practical';
   requiredOccurrencesPerWeek?: number;

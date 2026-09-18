@@ -121,6 +121,7 @@ export default function OfferAccessGrantModal({
 
 	return (
 		<Modal
+			size="xl"
 			isOpen={isOpen}
 			onClose={onClose}
 			title="Offer Course Access Grant"

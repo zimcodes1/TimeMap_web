@@ -21,6 +21,14 @@ interface RawCourse {
   target_program_name?: string;
   target_program_code?: string;
   lecturers?: (number | string)[];
+  lecturers_details?: {
+    id: number | string;
+    staff_id: string;
+    name: string;
+    email?: string;
+    department_id?: number | string;
+    department_name?: string;
+  }[];
   registration_count?: number;
   course_type?: "lecture" | "practical";
   required_occurrences_per_week?: number;
@@ -64,7 +72,36 @@ interface RawRegistration {
 
 export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = []): Course {
   const assignedLecturerIds = Array.isArray(raw.lecturers) ? raw.lecturers.map(String) : [];
-  const assignedLecturers = lecturersList.filter((l) => assignedLecturerIds.includes(l.id));
+
+  let assignedLecturers: User[] = [];
+  if (Array.isArray(raw.lecturers_details) && raw.lecturers_details.length > 0) {
+    assignedLecturers = raw.lecturers_details.map((l) => ({
+      id: String(l.id),
+      identifier: l.staff_id || "",
+      name: l.name || "",
+      email: l.email || "",
+      role: "lecturer" as const,
+      departmentId: l.department_id ? String(l.department_id) : undefined,
+      departmentName: l.department_name,
+      staffId: l.staff_id,
+      isActive: true,
+      requiresPasswordReset: false,
+    }));
+  } else if (assignedLecturerIds.length > 0) {
+    assignedLecturers = assignedLecturerIds.map((id) => {
+      const found = lecturersList.find((l) => String(l.id) === String(id));
+      if (found) return found;
+      return {
+        id: String(id),
+        identifier: String(id),
+        name: `Lecturer #${id}`,
+        email: "",
+        role: "lecturer" as const,
+        isActive: true,
+        requiresPasswordReset: false,
+      };
+    });
+  }
 
   return {
     id: String(raw.id),
@@ -87,6 +124,7 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     targetProgramName: raw.target_program_name,
     targetProgramCode: raw.target_program_code,
     lecturers: assignedLecturers,
+    lecturerIds: assignedLecturerIds,
     registrationCount: raw.registration_count || 0,
     courseType: raw.course_type || "lecture",
     requiredOccurrencesPerWeek: raw.required_occurrences_per_week ?? 1,
@@ -118,28 +156,33 @@ export function mapRawGrantToGrant(raw: RawGrant): CourseAccessGrant {
 
 export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string; lecturerIds?: string[] }) {
   const owningLevel = data.owningLevel || "department";
-  const targetScopeId = data.scopeId || data.departmentId;
-  const lecturerIds = Array.isArray(data.lecturers)
-    ? data.lecturers.map((l) => Number(l.id)).filter(Boolean)
-    : Array.isArray(data.lecturerIds)
-      ? data.lecturerIds.map(Number).filter(Boolean)
-      : [];
+  const targetScopeId = data.scopeId || data.owningDepartment || data.departmentId;
+  const lecturerIds = Array.isArray(data.lecturerIds)
+    ? data.lecturerIds.map(Number).filter(Boolean)
+    : Array.isArray(data.lecturers)
+      ? data.lecturers.map((l) => Number(l.id)).filter(Boolean)
+      : undefined;
 
-  return {
+  const payload: Record<string, any> = {
     code: data.code?.trim().toUpperCase(),
     title: data.title?.trim(),
     level: Number(data.level || 100),
     owning_level: owningLevel,
-    owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : undefined,
-    owning_faculty: owningLevel === "faculty" && targetScopeId ? Number(targetScopeId) : undefined,
-    owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : undefined,
+    owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : (data.owningDepartment ? Number(data.owningDepartment) : undefined),
+    owning_faculty: owningLevel === "faculty" && targetScopeId ? Number(targetScopeId) : (data.owningFaculty ? Number(data.owningFaculty) : undefined),
+    owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : (data.owningSchool ? Number(data.owningSchool) : undefined),
     semester: data.semesterId ? Number(data.semesterId) : undefined,
     program_scope: data.programScope || "general",
     target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
-    lecturers: lecturerIds,
     course_type: data.courseType || "lecture",
     required_occurrences_per_week: data.requiredOccurrencesPerWeek ? Number(data.requiredOccurrencesPerWeek) : 1,
   };
+
+  if (lecturerIds !== undefined) {
+    payload.lecturers = lecturerIds;
+  }
+
+  return payload;
 }
 
 /**
