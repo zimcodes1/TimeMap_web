@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -47,6 +48,7 @@ import { GenerationHistoryModal } from "@/components/schedules/GenerationHistory
 import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
 
 export default function SchedulesContainer() {
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { user } = useAuth();
 
@@ -404,8 +406,11 @@ export default function SchedulesContainer() {
 	};
 
 	const handleSelectHistoryRun = (run: TimetableGenerationRun) => {
-		setActiveGenerationRun(run);
-		setIsReportModalOpen(true);
+		setIsHistoryModalOpen(false);
+		navigate({
+			to: "/schedules/generator/$runId",
+			params: { runId: run.id },
+		});
 	};
 
 	return (

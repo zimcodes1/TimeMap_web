@@ -112,7 +112,7 @@ export default function SchedulesView({
 					</Text>
 				</div>
 
-				<div className="flex flex-wrap items-center gap-2">
+				<div className="flex flex-wrap justify-end items-center gap-2">
 					<Button
 						variant="outline"
 						size="sm"

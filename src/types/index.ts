@@ -434,6 +434,14 @@ export interface GeneratedAssignment {
   venue_id: number | string;
   venue_name: string;
   expected_students: number;
+  department_id?: number | string;
+  department_name?: string;
+  level?: number;
+  programs?: Array<{ id: number | string; code: string; name: string; level?: number }>;
+  program_ids?: Array<number | string>;
+  program_names?: string[];
+  lecturers?: string[];
+  lecturer_ids?: Array<number | string>;
 }
 
 export interface ConflictItem {

@@ -193,6 +193,8 @@ export async function getGenerationRunDetail(
   return mapRawRunToRun(response.data);
 }
 
+export const getGenerationRun = getGenerationRunDetail;
+
 /**
  * Publish a generated run into live TimetableEntry & LectureSession records
  * POST /api/scheduling/generate/runs/{run_id}/publish/

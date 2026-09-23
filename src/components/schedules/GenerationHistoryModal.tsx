@@ -139,7 +139,7 @@ export function GenerationHistoryModal({
 									}}
 									className="h-8 px-2.5 text-xs gap-1 cursor-pointer shrink-0"
 								>
-									<span>Diagnostics</span>
+									<span>Inspect</span>
 									<ArrowRight size={13} />
 								</Button>
 							</div>

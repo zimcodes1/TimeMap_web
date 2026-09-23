@@ -181,7 +181,7 @@ export default function ScheduleGeneratorView({
 			{/* Main Grid: Left Config, Right Results */}
 			<div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 				{/* Left Column: Generator Configuration Card */}
-				<div className="lg:col-span-4 xl:col-span-4 sticky top-6">
+				<div className="lg:col-span-4 xl:col-span-4 lg:sticky top-6">
 					<GeneratorConfigCard
 						semesters={semesters}
 						semesterId={semesterId}
@@ -277,15 +277,19 @@ export default function ScheduleGeneratorView({
 								</div>
 
 								<div className="flex items-center gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => setIsInspectionOpen(true)}
-										className="cursor-pointer gap-1.5 text-xs h-9 font-semibold hover:border-primary/50"
+									<Link
+										to="/schedules/generator/$runId"
+										params={{ runId: activeRun.id }}
 									>
-										<Eye size={14} />
-										<span>Inspect Full Timetable</span>
-									</Button>
+										<Button
+											variant="primary"
+											size="sm"
+											className="cursor-pointer gap-1.5 text-xs h-9 font-semibold shadow-xs"
+										>
+											<Eye size={14} />
+											<span>Inspect Weekly Grid & Conflicts</span>
+										</Button>
+									</Link>
 
 									{!activeRun.isPublished && (
 										<Button

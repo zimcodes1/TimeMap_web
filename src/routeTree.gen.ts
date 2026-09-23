@@ -30,6 +30,7 @@ import { Route as MainStudentsRouteImport } from './routes/_main/students'
 import { Route as MainUsersRouteImport } from './routes/_main/users'
 import { Route as MainVenuesRouteImport } from './routes/_main/venues'
 import { Route as MainSchedulesGeneratorRouteImport } from './routes/_main/schedules_.generator'
+import { Route as MainSchedulesGeneratorRunIdRouteImport } from './routes/_main/schedules_.generator_.$runId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -134,6 +135,12 @@ const MainSchedulesGeneratorRoute = MainSchedulesGeneratorRouteImport.update({
   path: '/schedules/generator',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainSchedulesGeneratorRunIdRoute =
+  MainSchedulesGeneratorRunIdRouteImport.update({
+    id: '/schedules_/generator_/$runId',
+    path: '/schedules/generator/$runId',
+    getParentRoute: () => MainRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
+  '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -176,6 +184,7 @@ export interface FileRoutesByTo {
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
+  '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -200,6 +209,7 @@ export interface FileRoutesById {
   '/_main/users': typeof MainUsersRoute
   '/_main/venues': typeof MainVenuesRoute
   '/_main/schedules_/generator': typeof MainSchedulesGeneratorRoute
+  '/_main/schedules_/generator_/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/venues'
     | '/schedules/generator'
+    | '/schedules/generator/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/venues'
     | '/schedules/generator'
+    | '/schedules/generator/$runId'
   id:
     | '__root__'
     | '/'
@@ -267,6 +279,7 @@ export interface FileRouteTypes {
     | '/_main/users'
     | '/_main/venues'
     | '/_main/schedules_/generator'
+    | '/_main/schedules_/generator_/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainSchedulesGeneratorRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/schedules_/generator_/$runId': {
+      id: '/_main/schedules_/generator_/$runId'
+      path: '/schedules/generator/$runId'
+      fullPath: '/schedules/generator/$runId'
+      preLoaderRoute: typeof MainSchedulesGeneratorRunIdRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
   }
 }
 
@@ -459,6 +479,7 @@ interface MainRouteRouteChildren {
   MainUsersRoute: typeof MainUsersRoute
   MainVenuesRoute: typeof MainVenuesRoute
   MainSchedulesGeneratorRoute: typeof MainSchedulesGeneratorRoute
+  MainSchedulesGeneratorRunIdRoute: typeof MainSchedulesGeneratorRunIdRoute
 }
 
 const MainRouteRouteChildren: MainRouteRouteChildren = {
@@ -477,6 +498,7 @@ const MainRouteRouteChildren: MainRouteRouteChildren = {
   MainUsersRoute: MainUsersRoute,
   MainVenuesRoute: MainVenuesRoute,
   MainSchedulesGeneratorRoute: MainSchedulesGeneratorRoute,
+  MainSchedulesGeneratorRunIdRoute: MainSchedulesGeneratorRunIdRoute,
 }
 
 const MainRouteRouteWithChildren = MainRouteRoute._addFileChildren(

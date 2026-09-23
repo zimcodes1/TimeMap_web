@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getSemesters } from "@/api/main/semestersAPI";
@@ -28,6 +29,7 @@ import { GenerationHistoryModal } from "@/components/schedules/GenerationHistory
 import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
 
 export default function ScheduleGeneratorContainer() {
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { user } = useAuth();
 
@@ -68,7 +70,9 @@ export default function ScheduleGeneratorContainer() {
 	});
 
 	const activeSemester = useMemo(
-		() => (semesters as Semester[]).find((s) => s.isActive) || (semesters as Semester[])[0],
+		() =>
+			(semesters as Semester[]).find((s) => s.isActive) ||
+			(semesters as Semester[])[0],
 		[semesters],
 	);
 
@@ -214,10 +218,16 @@ export default function ScheduleGeneratorContainer() {
 		mutationFn: (payload: GenerateTimetablePayload) =>
 			generateTimetable(payload),
 		onSuccess: (run) => {
-			toast.success("Weekly timetable generated successfully!");
+			toast.success(
+				"Weekly timetable generated successfully! Opening inspection...",
+			);
 			setActiveRun(run);
 			queryClient.invalidateQueries({
 				queryKey: ["scheduling", "generationRuns"],
+			});
+			navigate({
+				to: "/schedules/generator/$runId",
+				params: { runId: run.id },
 			});
 		},
 		onError: (err: any) => {
@@ -233,7 +243,10 @@ export default function ScheduleGeneratorContainer() {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		const effectiveSemesterId =
-			semesterId || activeSemester?.id || (semesters as Semester[])[0]?.id || "";
+			semesterId ||
+			activeSemester?.id ||
+			(semesters as Semester[])[0]?.id ||
+			"";
 		if (!effectiveSemesterId) {
 			toast.error("Please select an academic semester.");
 			return;
@@ -337,8 +350,11 @@ export default function ScheduleGeneratorContainer() {
 				onClose={() => setIsHistoryOpen(false)}
 				semesterId={semesterId || activeSemester?.id}
 				onSelectRun={(run) => {
-					setActiveRun(run);
 					setIsHistoryOpen(false);
+					navigate({
+						to: "/schedules/generator/$runId",
+						params: { runId: run.id },
+					});
 				}}
 			/>
 

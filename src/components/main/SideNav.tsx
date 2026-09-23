@@ -42,7 +42,7 @@ export default function SideNav({
 	return (
 		<aside
 			className={cn(
-				"flex flex-col h-full bg-primary text-white transition-all duration-300 shrink-0 select-none shadow-md",
+				"flex flex-col h-full bg-linear-to-b from-primary to-[#13863d] text-white transition-all duration-300 shrink-0 select-none shadow-md",
 				collapsed ? "w-20" : "w-64",
 			)}
 		>
@@ -229,7 +229,7 @@ export default function SideNav({
 														: "px-3 py-3 hover:pl-5",
 													active
 														? "bg-white/20 text-white font-bold border-r-5 rounded-r-xs"
-														: "text-white/80 hover:bg-white/15 hover:text-white",
+														: "text-white/80 hover:bg-primary-hover hover:text-white",
 												)}
 											>
 												<span className="shrink-0">{item.icon}</span>
@@ -252,7 +252,7 @@ export default function SideNav({
 			</div>
 
 			{/* User Info + Collapse Footer */}
-			<div className="p-3 border-t border-white/15 bg-black/10 shrink-0 space-y-2">
+			<div className="p-3 bg-black/10 shrink-0 space-y-2">
 				{/* User Card */}
 				<div
 					className={cn(
