@@ -163,6 +163,15 @@ export default function DetailedAnalyticsView({
 							</span>
 						</div>
 					)}
+					{currentWeekLabel && (
+						<Badge
+							variant="success"
+							className="text-xs flex items-center gap-1 py-0.5 px-2.5 font-medium ml-1"
+						>
+							<Calendar size={12} className="inline mb-1 mr-1" />
+							<span>{currentWeekLabel}</span>
+						</Badge>
+					)}
 				</div>
 			</div>
 

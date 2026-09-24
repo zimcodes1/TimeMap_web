@@ -10,6 +10,7 @@ import {
 	YAxis,
 	CartesianGrid,
 	Tooltip,
+	Legend,
 } from "recharts";
 import type { HoldRateAnalytics } from "@/types";
 
@@ -22,6 +23,9 @@ interface CustomTooltipProps {
 	active?: boolean;
 	payload?: Array<{
 		value: number;
+		dataKey: string;
+		name: string;
+		color: string;
 		payload: {
 			displayLabel: string;
 			dateRange?: string;
@@ -38,35 +42,44 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 	if (active && payload && payload.length) {
 		const data = payload[0].payload;
 		return (
-			<div className="bg-surface border border-border p-3 rounded-xl shadow-xl text-xs space-y-2 min-w-44 z-50">
+			<div className="bg-surface border border-border p-3 rounded-xl shadow-xl text-xs space-y-2 min-w-48 z-50">
 				<div className="border-b border-border/50 pb-1.5">
 					<p className="font-bold text-text-main">{data.displayLabel}</p>
 					{data.dateRange && (
 						<p className="text-[11px] text-text-muted">{data.dateRange}</p>
 					)}
 				</div>
-				<div className="space-y-1">
-					<div className="flex justify-between items-center text-emerald-400">
-						<span>Held:</span>
-						<span className="font-semibold">{data.heldCount}</span>
+				<div className="space-y-1.5">
+					<div className="flex justify-between items-center text-primary font-bold">
+						<span>Hold Rate:</span>
+						<span>{data.holdRatePercentage}%</span>
+					</div>
+					<div className="flex justify-between items-center text-amber-400 font-semibold">
+						<span className="flex items-center gap-1.5">
+							<span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+							Unreported:
+						</span>
+						<span>{data.unreportedCount}</span>
+					</div>
+					<div className="flex justify-between items-center text-blue-400">
+						<span className="flex items-center gap-1.5">
+							<span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+							Held:
+						</span>
+						<span>{data.heldCount}</span>
 					</div>
 					<div className="flex justify-between items-center text-rose-400">
-						<span>Not Held:</span>
-						<span className="font-semibold">{data.notHeldCount}</span>
-					</div>
-					<div className="flex justify-between items-center text-amber-400">
-						<span>Unreported:</span>
-						<span className="font-semibold">{data.unreportedCount}</span>
+						<span className="flex items-center gap-1.5">
+							<span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+							Not Held:
+						</span>
+						<span>{data.notHeldCount}</span>
 					</div>
 					<div className="flex justify-between items-center text-text-muted pt-1 border-t border-border/40">
-						<span>Total Sessions:</span>
+						<span>Evaluated Past Sessions:</span>
 						<span className="font-semibold text-text-main">
 							{data.totalSessions}
 						</span>
-					</div>
-					<div className="flex justify-between items-center text-primary pt-0.5 font-bold">
-						<span>Hold Rate:</span>
-						<span>{data.holdRatePercentage}%</span>
 					</div>
 				</div>
 			</div>
@@ -84,15 +97,18 @@ export default function HoldRateLineChart({
 	const chartData = rawBreakdown.map((item, idx) => {
 		const weekNum = item.weekNumber ?? idx + 1;
 		const label = item.label || `Week ${weekNum}`;
+		const held = item.heldCount ?? 0;
+		const notHeld = item.notHeldCount ?? 0;
+		const unreported = item.unreportedCount ?? 0;
+		const total = item.totalSessions || held + notHeld + unreported;
 		return {
 			...item,
 			displayLabel: label,
+			heldCount: held,
+			notHeldCount: notHeld,
+			unreportedCount: unreported,
 			holdRatePercentage: Number(item.holdRatePercentage ?? 0),
-			totalSessions:
-				item.totalSessions ||
-				(item.heldCount ?? 0) +
-					(item.notHeldCount ?? 0) +
-					(item.unreportedCount ?? 0),
+			totalSessions: total,
 		};
 	});
 
@@ -100,7 +116,9 @@ export default function HoldRateLineChart({
 	const heldCount = holdRate?.summary?.heldCount ?? 0;
 	const notHeldCount = holdRate?.summary?.notHeldCount ?? 0;
 	const unreportedCount = holdRate?.summary?.unreportedCount ?? 0;
-	const totalSessions = holdRate?.summary?.totalSessions ?? 0;
+	const totalSessions =
+		holdRate?.summary?.totalSessions ??
+		heldCount + notHeldCount + unreportedCount;
 
 	return (
 		<Card className="p-5 space-y-4">
@@ -127,19 +145,22 @@ export default function HoldRateLineChart({
 									}
 									className="text-xs px-2 py-0.5 font-bold"
 								>
-									{overallRate}% Overall
+									{overallRate}% Hold Rate
 								</Badge>
 							</div>
 							<Text variant="caption" color="muted">
-								Held: {heldCount} • Not Held: {notHeldCount} • Unreported:{" "}
-								{unreportedCount} (Total: {totalSessions})
+								Held: {heldCount} • Not Held: {notHeldCount} •{" "}
+								<span className="text-amber-400 font-semibold">
+									Unreported: {unreportedCount}
+								</span>{" "}
+								(Past Sessions: {totalSessions})
 							</Text>
 						</>
 					)}
 				</div>
 			</div>
 
-			<div className="h-64 w-full">
+			<div className="h-72 w-full">
 				{isLoading ? (
 					<div className="h-full flex items-center justify-center">
 						<Skeleton className="w-full h-4/5 rounded-xl" />
@@ -148,7 +169,7 @@ export default function HoldRateLineChart({
 					<ResponsiveContainer width="100%" height="100%">
 						<LineChart
 							data={chartData}
-							margin={{ top: 10, right: 15, left: -15, bottom: 5 }}
+							margin={{ top: 10, right: 15, left: -10, bottom: 5 }}
 						>
 							<CartesianGrid strokeDasharray="3 3" opacity={0.15} />
 							<XAxis
@@ -156,17 +177,35 @@ export default function HoldRateLineChart({
 								tick={{ fontSize: 11, fill: "#94a3b8" }}
 								tickLine={false}
 							/>
+							{/* Left YAxis: Counts (Unreported, Held, Not Held) */}
 							<YAxis
+								yAxisId="count"
+								orientation="left"
+								allowDecimals={false}
+								tick={{ fontSize: 11, fill: "#94a3b8" }}
+								tickLine={false}
+							/>
+							{/* Right YAxis: Percentage (0 - 100%) */}
+							<YAxis
+								yAxisId="rate"
+								orientation="right"
 								domain={[0, 100]}
 								tick={{ fontSize: 11, fill: "#94a3b8" }}
 								tickLine={false}
 								unit="%"
 							/>
 							<Tooltip content={<CustomTooltip />} />
+							<Legend
+								verticalAlign="top"
+								align="right"
+								wrapperStyle={{ fontSize: "11px", paddingBottom: "8px" }}
+							/>
+							{/* Hold Rate % Line */}
 							<Line
+								yAxisId="rate"
 								type="monotone"
 								dataKey="holdRatePercentage"
-								name="Hold Rate"
+								name="Hold Rate (%)"
 								stroke="#10b981"
 								strokeWidth={3}
 								dot={{
@@ -176,6 +215,56 @@ export default function HoldRateLineChart({
 									stroke: "#0f172a",
 								}}
 								activeDot={{ r: 6, fill: "#34d399" }}
+							/>
+							{/* Unreported Schedules Line (prominently plotted in amber) */}
+							<Line
+								yAxisId="count"
+								type="monotone"
+								dataKey="unreportedCount"
+								name="Unreported"
+								stroke="#f59e0b"
+								strokeWidth={2.5}
+								dot={{
+									r: 4,
+									fill: "#f59e0b",
+									strokeWidth: 2,
+									stroke: "#0f172a",
+								}}
+								activeDot={{ r: 6, fill: "#fbbf24" }}
+							/>
+							{/* Held Schedules Line */}
+							<Line
+								yAxisId="count"
+								type="monotone"
+								dataKey="heldCount"
+								name="Held"
+								stroke="#3b82f6"
+								strokeWidth={1.5}
+								strokeDasharray="4 4"
+								dot={{
+									r: 3,
+									fill: "#3b82f6",
+									strokeWidth: 1,
+									stroke: "#0f172a",
+								}}
+								activeDot={{ r: 5, fill: "#60a5fa" }}
+							/>
+							{/* Not Held Schedules Line */}
+							<Line
+								yAxisId="count"
+								type="monotone"
+								dataKey="notHeldCount"
+								name="Not Held"
+								stroke="#ef4444"
+								strokeWidth={1.5}
+								strokeDasharray="4 4"
+								dot={{
+									r: 3,
+									fill: "#ef4444",
+									strokeWidth: 1,
+									stroke: "#0f172a",
+								}}
+								activeDot={{ r: 5, fill: "#f87171" }}
 							/>
 						</LineChart>
 					</ResponsiveContainer>

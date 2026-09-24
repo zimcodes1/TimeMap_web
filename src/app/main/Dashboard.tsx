@@ -15,7 +15,7 @@ import {
 	filterFacultiesByScope,
 	filterDepartmentsByScope,
 } from "@/lib/scopeUtils";
-import { getSemesterWeekTimeline, getWeekRange } from "@/utils/semesterWeeks";
+import { getSemesterWeekTimeline } from "@/utils/semesterWeeks";
 import type { Faculty, Department, Program, Semester } from "@/types";
 
 export default function DashboardContainer() {
@@ -51,11 +51,7 @@ export default function DashboardContainer() {
 
 	const currentWeekLabel = useMemo(() => {
 		if (!activeSemester) return undefined;
-		const range = getWeekRange(
-			semesterTimeline.referenceStartDate,
-			semesterTimeline.currentWeek,
-		);
-		return `Week ${semesterTimeline.currentWeek} (${range.rangeLabel})`;
+		return `Week ${semesterTimeline.currentWeek}`;
 	}, [activeSemester, semesterTimeline]);
 
 	// Scoped faculties
