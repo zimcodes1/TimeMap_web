@@ -1,12 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import DashboardView from "@/pages/main/DashboardView";
-import {
-	getLectureHoldRateAnalytics,
-	getVenueUtilizationAnalytics,
-	getDiscrepancyAnalytics,
-	getDashboardSummaryCounts,
-} from "@/api/main/dashboardAPI";
+import DetailedAnalyticsView from "@/pages/main/DetailedAnalyticsView";
+import { getLectureHoldRateAnalytics } from "@/api/main/dashboardAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
 import { getPrograms } from "@/api/main/programsAPI";
@@ -18,7 +13,7 @@ import {
 import { getSemesterWeekTimeline, getWeekRange } from "@/utils/semesterWeeks";
 import type { Faculty, Department, Program, Semester } from "@/types";
 
-export default function DashboardContainer() {
+export default function DetailedAnalyticsContainer() {
 	const { user: currentUser } = useAuth();
 	const adminLevel = currentUser?.adminLevel;
 	const isDeptAdmin = adminLevel === "department";
@@ -72,7 +67,7 @@ export default function DashboardContainer() {
 		);
 	}, [departmentsData, currentUser, facultiesData]);
 
-	// State for filters
+	// Filter state
 	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
 	const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
 	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
@@ -85,15 +80,11 @@ export default function DashboardContainer() {
 		}
 	}, [scopedFaculties, selectedFacultyId]);
 
-	// Filter departments visible under the selected faculty (for School Admins)
+	// Filter departments visible under the selected faculty
 	const displayedDepartments = useMemo(() => {
-		if (isDeptAdmin) {
+		if (isDeptAdmin || isFacultyAdmin) {
 			return scopedDepartments;
 		}
-		if (isFacultyAdmin) {
-			return scopedDepartments;
-		}
-		// School admin or superuser: filter scoped departments by selected faculty
 		if (selectedFacultyId) {
 			return scopedDepartments.filter(
 				(d) => String(d.facultyId) === String(selectedFacultyId),
@@ -126,7 +117,7 @@ export default function DashboardContainer() {
 		enabled: Boolean(selectedDepartmentId),
 	});
 
-	// Reset program if department changes and program doesn't belong
+	// Reset program if department changes
 	useEffect(() => {
 		if (selectedProgramId && programsData.length > 0) {
 			const progExists = programsData.some(
@@ -138,9 +129,8 @@ export default function DashboardContainer() {
 		}
 	}, [selectedDepartmentId, programsData, selectedProgramId]);
 
-	// 2. Analytics Queries
-	// Hold Rate: scoped to department (or faculty), program, level, semester, grouped by week
-	const holdRateParams = useMemo(() => {
+	// Base params common to queries
+	const baseFilterParams = useMemo(() => {
 		return {
 			facultyId: isFacultyAdmin
 				? currentUser?.adminScopeId || undefined
@@ -149,7 +139,6 @@ export default function DashboardContainer() {
 			programId: selectedProgramId || undefined,
 			level: selectedLevel || undefined,
 			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
-			groupBy: "week",
 		};
 	}, [
 		isFacultyAdmin,
@@ -161,42 +150,59 @@ export default function DashboardContainer() {
 		activeSemester,
 	]);
 
-	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
-		queryKey: ["analytics", "hold-rate", holdRateParams],
-		queryFn: () => getLectureHoldRateAnalytics(holdRateParams),
+	// 1. Overall Summary
+	const { data: summaryHoldRate } = useQuery({
+		queryKey: ["analytics", "detailed", "summary", baseFilterParams],
+		queryFn: () => getLectureHoldRateAnalytics(baseFilterParams),
 	});
 
-	// Venue Utilization: strictly scoped per department!
-	const utilizationParams = useMemo(() => {
-		return {
-			departmentId: selectedDepartmentId || undefined,
-			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
-		};
-	}, [selectedDepartmentId, activeSemester]);
-
-	const { data: utilization, isLoading: utilizationLoading } = useQuery({
-		queryKey: ["analytics", "utilization", utilizationParams],
-		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
+	// 2. Lecturer Breakdown
+	const { data: lecturersData, isLoading: lecturersLoading } = useQuery({
+		queryKey: ["analytics", "detailed", "lecturers", baseFilterParams],
+		queryFn: () =>
+			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "lecturer" }),
 		enabled: Boolean(selectedDepartmentId),
 	});
 
-	// Discrepancy Analytics
-	const discrepancyParams = useMemo(() => {
-		return {
-			departmentId: selectedDepartmentId || undefined,
-			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
-		};
-	}, [selectedDepartmentId, activeSemester]);
-
-	const { data: discrepancies, isLoading: discrepanciesLoading } = useQuery({
-		queryKey: ["analytics", "discrepancies", discrepancyParams],
-		queryFn: () => getDiscrepancyAnalytics(discrepancyParams),
+	// 3. Courses Breakdown
+	const { data: coursesData, isLoading: coursesLoading } = useQuery({
+		queryKey: ["analytics", "detailed", "courses", baseFilterParams],
+		queryFn: () =>
+			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "course" }),
+		enabled: Boolean(selectedDepartmentId),
 	});
 
-	// Dashboard Summary Counts
-	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
-		queryKey: ["analytics", "summary-counts"],
-		queryFn: getDashboardSummaryCounts,
+	// 4. Programs Breakdown
+	const { data: programsBreakdownData, isLoading: programsLoading } = useQuery({
+		queryKey: ["analytics", "detailed", "programs", baseFilterParams],
+		queryFn: () =>
+			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "program" }),
+		enabled: Boolean(selectedDepartmentId),
+	});
+
+	// 5. Department Totals Breakdown (for Faculty & School Admins)
+	const deptTotalsParams = useMemo(() => {
+		return {
+			facultyId: isFacultyAdmin
+				? currentUser?.adminScopeId || undefined
+				: selectedFacultyId || undefined,
+			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			groupBy: "department",
+		};
+	}, [isFacultyAdmin, currentUser, selectedFacultyId, activeSemester]);
+
+	const { data: departmentsDataResponse, isLoading: departmentsLoading } =
+		useQuery({
+			queryKey: ["analytics", "detailed", "departments", deptTotalsParams],
+			queryFn: () => getLectureHoldRateAnalytics(deptTotalsParams),
+			enabled: !isDeptAdmin,
+		});
+
+	// 6. Weekly Progression
+	const { data: weeklyBreakdown, isLoading: weeklyLoading } = useQuery({
+		queryKey: ["analytics", "detailed", "weekly", baseFilterParams],
+		queryFn: () =>
+			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "week" }),
 	});
 
 	const handleResetFilters = () => {
@@ -208,29 +214,32 @@ export default function DashboardContainer() {
 	};
 
 	return (
-		<DashboardView
-			holdRate={holdRate}
-			holdRateLoading={holdRateLoading}
-			utilization={utilization}
-			utilizationLoading={utilizationLoading}
-			discrepancies={discrepancies}
-			discrepanciesLoading={discrepanciesLoading}
-			summaryCounts={summaryCounts}
-			countsLoading={countsLoading}
-			departments={displayedDepartments}
-			faculties={scopedFaculties}
-			programs={programsData}
+		<DetailedAnalyticsView
 			adminLevel={adminLevel}
 			activeSemester={activeSemester}
+			currentWeekLabel={currentWeekLabel}
+			faculties={scopedFaculties}
 			selectedFacultyId={selectedFacultyId}
 			onFacultyChange={setSelectedFacultyId}
+			departments={displayedDepartments}
 			selectedDepartmentId={selectedDepartmentId}
 			onDepartmentChange={setSelectedDepartmentId}
+			programs={programsData}
 			selectedProgramId={selectedProgramId}
 			onProgramChange={setSelectedProgramId}
 			selectedLevel={selectedLevel}
 			onLevelChange={setSelectedLevel}
-			currentWeekLabel={currentWeekLabel}
+			summaryHoldRate={summaryHoldRate}
+			lecturersBreakdown={lecturersData?.breakdown || []}
+			lecturersLoading={lecturersLoading}
+			coursesBreakdown={coursesData?.breakdown || []}
+			coursesLoading={coursesLoading}
+			programsBreakdown={programsBreakdownData?.breakdown || []}
+			programsLoading={programsLoading}
+			departmentsBreakdown={departmentsDataResponse?.breakdown || []}
+			departmentsLoading={departmentsLoading}
+			weeklyBreakdown={weeklyBreakdown}
+			weeklyLoading={weeklyLoading}
 			onResetFilters={handleResetFilters}
 		/>
 	);

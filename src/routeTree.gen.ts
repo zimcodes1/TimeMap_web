@@ -29,6 +29,7 @@ import { Route as MainSettingsRouteImport } from './routes/_main/settings'
 import { Route as MainStudentsRouteImport } from './routes/_main/students'
 import { Route as MainUsersRouteImport } from './routes/_main/users'
 import { Route as MainVenuesRouteImport } from './routes/_main/venues'
+import { Route as MainDashboardAnalyticsRouteImport } from './routes/_main/dashboard_.analytics'
 import { Route as MainSchedulesGeneratorRouteImport } from './routes/_main/schedules_.generator'
 import { Route as MainSchedulesGeneratorRunIdRouteImport } from './routes/_main/schedules_.generator_.$runId'
 
@@ -130,6 +131,11 @@ const MainVenuesRoute = MainVenuesRouteImport.update({
   path: '/venues',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainDashboardAnalyticsRoute = MainDashboardAnalyticsRouteImport.update({
+  id: '/dashboard_/analytics',
+  path: '/dashboard/analytics',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const MainSchedulesGeneratorRoute = MainSchedulesGeneratorRouteImport.update({
   id: '/schedules_/generator',
   path: '/schedules/generator',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/students': typeof MainStudentsRoute
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
+  '/dashboard/analytics': typeof MainDashboardAnalyticsRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
   '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
@@ -183,6 +190,7 @@ export interface FileRoutesByTo {
   '/students': typeof MainStudentsRoute
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
+  '/dashboard/analytics': typeof MainDashboardAnalyticsRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
   '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/_main/students': typeof MainStudentsRoute
   '/_main/users': typeof MainUsersRoute
   '/_main/venues': typeof MainVenuesRoute
+  '/_main/dashboard_/analytics': typeof MainDashboardAnalyticsRoute
   '/_main/schedules_/generator': typeof MainSchedulesGeneratorRoute
   '/_main/schedules_/generator_/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
@@ -232,6 +241,7 @@ export interface FileRouteTypes {
     | '/students'
     | '/users'
     | '/venues'
+    | '/dashboard/analytics'
     | '/schedules/generator'
     | '/schedules/generator/$runId'
   fileRoutesByTo: FileRoutesByTo
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/students'
     | '/users'
     | '/venues'
+    | '/dashboard/analytics'
     | '/schedules/generator'
     | '/schedules/generator/$runId'
   id:
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/_main/students'
     | '/_main/users'
     | '/_main/venues'
+    | '/_main/dashboard_/analytics'
     | '/_main/schedules_/generator'
     | '/_main/schedules_/generator_/$runId'
   fileRoutesById: FileRoutesById
@@ -430,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainVenuesRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/dashboard_/analytics': {
+      id: '/_main/dashboard_/analytics'
+      path: '/dashboard/analytics'
+      fullPath: '/dashboard/analytics'
+      preLoaderRoute: typeof MainDashboardAnalyticsRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/_main/schedules_/generator': {
       id: '/_main/schedules_/generator'
       path: '/schedules/generator'
@@ -478,6 +497,7 @@ interface MainRouteRouteChildren {
   MainStudentsRoute: typeof MainStudentsRoute
   MainUsersRoute: typeof MainUsersRoute
   MainVenuesRoute: typeof MainVenuesRoute
+  MainDashboardAnalyticsRoute: typeof MainDashboardAnalyticsRoute
   MainSchedulesGeneratorRoute: typeof MainSchedulesGeneratorRoute
   MainSchedulesGeneratorRunIdRoute: typeof MainSchedulesGeneratorRunIdRoute
 }
@@ -497,6 +517,7 @@ const MainRouteRouteChildren: MainRouteRouteChildren = {
   MainStudentsRoute: MainStudentsRoute,
   MainUsersRoute: MainUsersRoute,
   MainVenuesRoute: MainVenuesRoute,
+  MainDashboardAnalyticsRoute: MainDashboardAnalyticsRoute,
   MainSchedulesGeneratorRoute: MainSchedulesGeneratorRoute,
   MainSchedulesGeneratorRunIdRoute: MainSchedulesGeneratorRunIdRoute,
 }

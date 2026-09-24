@@ -380,6 +380,33 @@ export interface AnalyticsSummary {
   unreportedFlags: number;
 }
 
+export interface HoldRateBreakdownItem {
+  key?: string;
+  label?: string;
+  courseId?: string;
+  courseCode?: string;
+  courseTitle?: string;
+  lecturerId?: string;
+  lecturerName?: string;
+  staffId?: string;
+  programId?: string;
+  programName?: string;
+  programCode?: string;
+  departmentId?: string;
+  departmentName?: string;
+  departmentCode?: string;
+  level?: number;
+  weekNumber?: number;
+  dateRange?: string;
+  heldCount: number;
+  notHeldCount?: number;
+  unreportedCount?: number;
+  totalCount?: number;
+  totalReports?: number;
+  totalSessions?: number;
+  holdRatePercentage?: number;
+}
+
 export interface HoldRateAnalytics {
   summary: {
     totalReports: number;
@@ -389,20 +416,7 @@ export interface HoldRateAnalytics {
     unreportedCount?: number;
     holdRatePercentage: number;
   };
-  breakdown: Array<{
-    key?: string;
-    label?: string;
-    courseId?: string;
-    courseCode?: string;
-    courseTitle?: string;
-    heldCount: number;
-    notHeldCount?: number;
-    unreportedCount?: number;
-    totalCount?: number;
-    totalReports?: number;
-    totalSessions?: number;
-    holdRatePercentage?: number;
-  }>;
+  breakdown: HoldRateBreakdownItem[];
 }
 
 export interface VenueUtilizationAnalytics {

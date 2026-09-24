@@ -10,6 +10,11 @@ export interface AnalyticsFilterParams {
   startDate?: string;
   endDate?: string;
   departmentId?: string;
+  facultyId?: string;
+  level?: number | string;
+  programId?: string;
+  lecturerId?: string;
+  semesterId?: string;
   groupBy?: string;
 }
 
@@ -35,6 +40,18 @@ interface RawHoldRateResponse {
     course_id?: number | string;
     course_code?: string;
     course_title?: string;
+    lecturer_id?: number | string;
+    lecturer_name?: string;
+    staff_id?: string;
+    program_id?: number | string;
+    program_name?: string;
+    program_code?: string;
+    department_id?: number | string;
+    department_name?: string;
+    department_code?: string;
+    level?: number;
+    week_number?: number;
+    date_range?: string;
     total_sessions?: number;
     total_reports?: number;
     held_count?: number;
@@ -81,6 +98,11 @@ export async function getLectureHoldRateAnalytics(
   if (params.startDate) queryParams.start_date = params.startDate;
   if (params.endDate) queryParams.end_date = params.endDate;
   if (params.departmentId) queryParams.department_id = params.departmentId;
+  if (params.facultyId) queryParams.faculty_id = params.facultyId;
+  if (params.level) queryParams.level = String(params.level);
+  if (params.programId) queryParams.program_id = params.programId;
+  if (params.lecturerId) queryParams.lecturer_id = params.lecturerId;
+  if (params.semesterId) queryParams.semester_id = params.semesterId;
   if (params.groupBy) queryParams.group_by = params.groupBy;
 
   const response = await apiClient.get<RawHoldRateResponse>(
@@ -104,6 +126,18 @@ export async function getLectureHoldRateAnalytics(
       courseId: item.course_id ? String(item.course_id) : undefined,
       courseCode: item.course_code || "",
       courseTitle: item.course_title,
+      lecturerId: item.lecturer_id ? String(item.lecturer_id) : undefined,
+      lecturerName: item.lecturer_name,
+      staffId: item.staff_id,
+      programId: item.program_id ? String(item.program_id) : undefined,
+      programName: item.program_name,
+      programCode: item.program_code,
+      departmentId: item.department_id ? String(item.department_id) : undefined,
+      departmentName: item.department_name,
+      departmentCode: item.department_code,
+      level: item.level,
+      weekNumber: item.week_number,
+      dateRange: item.date_range,
       heldCount: item.held_count ?? 0,
       notHeldCount: item.not_held_count ?? 0,
       unreportedCount: item.unreported_count ?? 0,
@@ -124,6 +158,7 @@ export async function getVenueUtilizationAnalytics(
   const queryParams: Record<string, string> = {};
   if (params.startDate) queryParams.start_date = params.startDate;
   if (params.endDate) queryParams.end_date = params.endDate;
+  if (params.departmentId) queryParams.department_id = params.departmentId;
 
   const response = await apiClient.get<RawVenueUtilizationResponse>(
     "/reporting/analytics/venue-utilization/",
