@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import {
 	Zap,
 	AlertTriangle,
@@ -74,9 +73,6 @@ export function GenerationMetricsCards({ run }: GenerationMetricsCardsProps) {
 					<span className={isFeasible ? "text-emerald-400" : "text-danger"}>
 						{run.hardConflictsCount}
 					</span>
-					<Badge variant={isFeasible ? "success" : "warning"} size="sm">
-						{isFeasible ? "Zero Clashes" : "Attention"}
-					</Badge>
 				</div>
 				<p className="text-[10px] text-text-muted truncate">
 					Double-booking & limit violations

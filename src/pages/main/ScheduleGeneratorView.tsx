@@ -25,6 +25,7 @@ import { GeneratorConfigCard } from "@/components/schedules/generator/GeneratorC
 import { GenerationMetricsCards } from "@/components/schedules/generator/GenerationMetricsCards";
 import { ConflictDiagnosticsPanel } from "@/components/schedules/generator/ConflictDiagnosticsPanel";
 import { TimetableInspectionModal } from "@/components/schedules/generator/TimetableInspectionModal";
+import { PublishConfirmModal } from "@/components/schedules/generator/PublishConfirmModal";
 
 interface ScheduleGeneratorViewProps {
 	semesters: Semester[];
@@ -92,17 +93,7 @@ export default function ScheduleGeneratorView({
 	scopeLabel,
 }: ScheduleGeneratorViewProps) {
 	const [isInspectionOpen, setIsInspectionOpen] = useState(false);
-	const [publishConfirm, setPublishConfirm] = useState(false);
-
-	const handlePublish = () => {
-		if (!activeRun) return;
-		if (!publishConfirm) {
-			setPublishConfirm(true);
-			return;
-		}
-		onPublishRun(activeRun.id);
-		setPublishConfirm(false);
-	};
+	const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
 	const getStatusBadge = (run: TimetableGenerationRun) => {
 		if (run.resultStatus === "optimal") {
@@ -293,20 +284,14 @@ export default function ScheduleGeneratorView({
 
 									{!activeRun.isPublished && (
 										<Button
-											variant={publishConfirm ? "danger" : "primary"}
+											variant="primary"
 											size="sm"
-											onClick={handlePublish}
+											onClick={() => setIsPublishModalOpen(true)}
 											disabled={isPublishing}
 											className="cursor-pointer gap-1.5 text-xs h-9 font-semibold"
 										>
 											<UploadCloud size={14} />
-											<span>
-												{isPublishing
-													? "Publishing..."
-													: publishConfirm
-														? "Confirm Publish to Live?"
-														: "Publish Timetable"}
-											</span>
+											<span>Publish Timetable</span>
 										</Button>
 									)}
 								</div>
@@ -350,6 +335,21 @@ export default function ScheduleGeneratorView({
 				isOpen={isInspectionOpen}
 				onClose={() => setIsInspectionOpen(false)}
 				run={activeRun}
+			/>
+
+			{/* Publish Confirmation Informer Modal */}
+			<PublishConfirmModal
+				isOpen={isPublishModalOpen}
+				onClose={() => setIsPublishModalOpen(false)}
+				onConfirm={() => {
+					if (activeRun) {
+						onPublishRun(activeRun.id);
+					}
+					setIsPublishModalOpen(false);
+				}}
+				run={activeRun}
+				isPublishing={isPublishing}
+				scopeLabel={scopeLabel}
 			/>
 		</div>
 	);

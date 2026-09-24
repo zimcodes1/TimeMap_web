@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,22 +10,34 @@ import {
 	AlertTriangle,
 	LayoutGrid,
 	List as ListIcon,
-	FileText,
 	RotateCw,
+	Lock,
 } from "lucide-react";
-import type { Program, TimetableGenerationRun } from "@/types";
+import type {
+	Department,
+	Faculty,
+	GeneratedAssignment,
+	Program,
+	TimetableGenerationRun,
+} from "@/types";
 import { GenerationMetricsCards } from "@/components/schedules/generator/GenerationMetricsCards";
 import { ConflictDiagnosticsPanel } from "@/components/schedules/generator/ConflictDiagnosticsPanel";
 import {
 	DepartmentLoopBar,
 	type DepartmentOption,
 } from "@/components/schedules/generator/DepartmentLoopBar";
+import { FacultySubFilterBar } from "@/components/schedules/generator/FacultySubFilterBar";
 import { RunProgramLevelFilterBar } from "@/components/schedules/generator/RunProgramLevelFilterBar";
 import { RunTimetableAcademicGrid } from "@/components/schedules/generator/RunTimetableAcademicGrid";
+import { RunAllOccurrencesTable } from "@/components/schedules/generator/RunAllOccurrencesTable";
+import { PublishConfirmModal } from "@/components/schedules/generator/PublishConfirmModal";
 
 interface ScheduleRunInspectionViewProps {
 	run: TimetableGenerationRun | null;
 	isLoading: boolean;
+	faculties: Faculty[];
+	selectedFacultyId: string;
+	onSelectFaculty: (facId: string) => void;
 	departments: DepartmentOption[];
 	selectedDepartmentId: string | number;
 	onSelectDepartment: (deptId: string | number) => void;
@@ -40,11 +53,25 @@ interface ScheduleRunInspectionViewProps {
 	isPublishing: boolean;
 	onPublish: () => void;
 	onRefetch?: () => void;
+	// Scope & Admin Permissions
+	isDeptAdmin?: boolean;
+	isFacultyAdmin?: boolean;
+	isSchoolAdmin?: boolean;
+	isSuperuser?: boolean;
+	scopedDepartmentIds?: string[];
+	scopedAssignments?: GeneratedAssignment[];
+	scopeLabel?: { title: string; subtitle?: string; level: string };
+	allDepartments?: Department[];
+	allFaculties?: Faculty[];
+	allPrograms?: Program[];
 }
 
 export default function ScheduleRunInspectionView({
 	run,
 	isLoading,
+	faculties,
+	selectedFacultyId,
+	onSelectFaculty,
 	departments,
 	selectedDepartmentId,
 	onSelectDepartment,
@@ -60,6 +87,16 @@ export default function ScheduleRunInspectionView({
 	isPublishing,
 	onPublish,
 	onRefetch,
+	isDeptAdmin = false,
+	isFacultyAdmin = false,
+	isSchoolAdmin = false,
+	isSuperuser = false,
+	scopedDepartmentIds,
+	scopedAssignments,
+	scopeLabel,
+	allDepartments = [],
+	allFaculties = [],
+	allPrograms = [],
 }: ScheduleRunInspectionViewProps) {
 	if (isLoading) {
 		return (
@@ -96,10 +133,9 @@ export default function ScheduleRunInspectionView({
 		);
 	}
 
-	const isOptimal = run.resultStatus === "optimal";
-	const isFeasible = run.resultStatus === "feasible";
 	const hardConflicts = run.hardConflictsCount;
-	const assignments = run.assignmentsPayload || [];
+	const activeAssignments = scopedAssignments || run.assignmentsPayload || [];
+	const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
 	return (
 		<div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -132,17 +168,6 @@ export default function ScheduleRunInspectionView({
 							{run.scopeName || "Timetable Inspection"}
 						</h1>
 
-						<Badge
-							variant={isOptimal || isFeasible ? "success" : "warning"}
-							className="text-[11px] font-bold uppercase tracking-wider"
-						>
-							{isOptimal
-								? "Optimal Solution"
-								: isFeasible
-									? "Feasible Schedule"
-									: "Best Available"}
-						</Badge>
-
 						{run.isPublished ? (
 							<Badge
 								variant="primary"
@@ -159,7 +184,6 @@ export default function ScheduleRunInspectionView({
 								Draft Solution
 							</Badge>
 						)}
-
 						{run.semesterName && (
 							<Badge
 								variant="outline"
@@ -200,9 +224,14 @@ export default function ScheduleRunInspectionView({
 					<Button
 						variant="primary"
 						size="sm"
-						onClick={onPublish}
-						disabled={run.isPublished || isPublishing}
+						onClick={() => setIsPublishModalOpen(true)}
+						disabled={run.isPublished || isPublishing || isDeptAdmin}
 						className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-sm disabled:opacity-50"
+						title={
+							isDeptAdmin
+								? "Department admins cannot publish university-wide schedules."
+								: ""
+						}
 					>
 						{run.isPublished ? (
 							<>
@@ -235,7 +264,7 @@ export default function ScheduleRunInspectionView({
 							id: "grid",
 							label: "Weekly Timetable Grid",
 							icon: LayoutGrid,
-							count: assignments.length,
+							count: activeAssignments.length,
 						},
 						{
 							id: "diagnostics",
@@ -247,7 +276,7 @@ export default function ScheduleRunInspectionView({
 							id: "table",
 							label: "All Scheduled Occurrences",
 							icon: ListIcon,
-							count: assignments.length,
+							count: activeAssignments.length,
 						},
 					]}
 					activeTab={activeTab}
@@ -258,119 +287,105 @@ export default function ScheduleRunInspectionView({
 			{/* TAB 1: WEEKLY TIMETABLE GRID */}
 			{activeTab === "grid" && (
 				<div className="space-y-4">
+					{/* School Admin Faculty Sub-Filter */}
+					{(isSchoolAdmin || isSuperuser) && faculties.length > 1 && (
+						<FacultySubFilterBar
+							faculties={faculties}
+							selectedFacultyId={selectedFacultyId}
+							onSelectFaculty={onSelectFaculty}
+							schoolName={scopeLabel?.title}
+						/>
+					)}
+
 					{/* Department Loop Navigation Bar */}
-					{departments.length > 0 && (
+					{departments.length > 0 ? (
 						<DepartmentLoopBar
 							departments={departments}
 							selectedDepartmentId={selectedDepartmentId}
 							onSelectDepartment={onSelectDepartment}
+							isDeptAdmin={isDeptAdmin}
+							adminLevel={isDeptAdmin ? "department" : undefined}
 						/>
+					) : (
+						<div className="p-6 text-center border border-dashed border-border rounded-2xl bg-surface-raised/30 space-y-2">
+							<Lock size={22} className="mx-auto text-text-muted" />
+							<div className="text-xs font-bold text-text-main">
+								No Accessible Departments in Scope
+							</div>
+							<p className="text-[11px] text-text-muted max-w-md mx-auto">
+								{isDeptAdmin
+									? "You only have permission to view your assigned department. No course assignments for your department are scheduled in this run."
+									: "No departments matching your active scope filter are scheduled in this run."}
+							</p>
+						</div>
 					)}
 
 					{/* Program and Level Filter Bar */}
-					<RunProgramLevelFilterBar
-						programs={departmentPrograms}
-						selectedProgramId={selectedProgramId}
-						onSelectProgram={onSelectProgram}
-						selectedLevel={selectedLevel}
-						onSelectLevel={onSelectLevel}
-						searchQuery={searchQuery}
-						onSearchChange={onSearchChange}
-					/>
+					{departments.length > 0 && (
+						<RunProgramLevelFilterBar
+							programs={departmentPrograms}
+							selectedProgramId={selectedProgramId}
+							onSelectProgram={onSelectProgram}
+							selectedLevel={selectedLevel}
+							onSelectLevel={onSelectLevel}
+							searchQuery={searchQuery}
+							onSearchChange={onSearchChange}
+						/>
+					)}
 
 					{/* Academic Weekly Grid */}
-					<RunTimetableAcademicGrid
-						assignments={assignments}
-						selectedDepartmentId={selectedDepartmentId}
-						selectedProgramId={selectedProgramId}
-						selectedLevel={selectedLevel}
-						searchQuery={searchQuery}
-					/>
+					{departments.length > 0 && (
+						<RunTimetableAcademicGrid
+							assignments={activeAssignments}
+							conflictReport={run.conflictReport}
+							selectedDepartmentId={selectedDepartmentId}
+							selectedProgramId={selectedProgramId}
+							selectedLevel={selectedLevel}
+							searchQuery={searchQuery}
+						/>
+					)}
 				</div>
 			)}
 
 			{/* TAB 2: CONSTRAINT DIAGNOSTICS */}
 			{activeTab === "diagnostics" && (
 				<div className="space-y-4">
-					<ConflictDiagnosticsPanel run={run} />
+					<ConflictDiagnosticsPanel
+						run={run}
+						scopedDepartmentIds={scopedDepartmentIds}
+						scopeLabel={scopeLabel}
+					/>
 				</div>
 			)}
 
 			{/* TAB 3: ALL SCHEDULED OCCURRENCES TABLE */}
 			{activeTab === "table" && (
-				<div className="border border-border rounded-2xl bg-surface overflow-hidden shadow-xs">
-					<div className="p-4 border-b border-border flex items-center justify-between">
-						<div>
-							<h3 className="text-sm font-bold text-text-main flex items-center gap-2">
-								<FileText size={16} className="text-primary" />
-								<span>All Generated Timetable Occurrences</span>
-							</h3>
-							<p className="text-xs text-text-muted">
-								Full master list of all {assignments.length} scheduled lecture
-								assignments in this run.
-							</p>
-						</div>
-					</div>
-
-					<div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-						<table className="w-full text-xs text-left border-collapse">
-							<thead className="sticky top-0 bg-surface-raised border-b border-border z-10 text-text-muted font-bold uppercase tracking-wider">
-								<tr>
-									<th className="p-3">Course</th>
-									<th className="p-3">Department</th>
-									<th className="p-3">Level</th>
-									<th className="p-3">Day & Time</th>
-									<th className="p-3">Venue</th>
-									<th className="p-3">Lecturers</th>
-									<th className="p-3">Students</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-border">
-								{assignments.map((a, idx) => (
-									<tr
-										key={`${a.occurrence_id || a.course_code}-${idx}`}
-										className="hover:bg-surface-raised/40 transition-colors"
-									>
-										<td className="p-3">
-											<div className="font-extrabold text-primary">
-												{a.course_code}
-											</div>
-											<div className="text-[11px] text-text-muted truncate max-w-xs">
-												{a.course_title}
-											</div>
-										</td>
-										<td className="p-3 text-text-muted">
-											{a.department_name || `Dept #${a.department_id || "—"}`}
-										</td>
-										<td className="p-3 font-semibold text-text-main">
-											{a.level ? `${a.level}L` : "—"}
-										</td>
-										<td className="p-3">
-											<div className="font-semibold text-text-main">
-												{a.day_name || a.day}
-											</div>
-											<div className="text-[11px] font-mono text-text-muted">
-												{a.start_time?.slice(0, 5)} - {a.end_time?.slice(0, 5)}
-											</div>
-										</td>
-										<td className="p-3 font-medium text-text-main">
-											{a.venue_name}
-										</td>
-										<td className="p-3 text-text-muted">
-											{a.lecturers && a.lecturers.length > 0
-												? a.lecturers.join(", ")
-												: "—"}
-										</td>
-										<td className="p-3 font-mono text-text-main">
-											{a.expected_students || 50}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-				</div>
+				<RunAllOccurrencesTable
+					assignments={activeAssignments}
+					allDepartments={allDepartments}
+					allFaculties={allFaculties}
+					allPrograms={allPrograms}
+					conflictReport={run.conflictReport}
+					isDeptAdmin={isDeptAdmin}
+					isFacultyAdmin={isFacultyAdmin}
+					isSchoolAdmin={isSchoolAdmin}
+					isSuperuser={isSuperuser}
+					scopeLabel={scopeLabel}
+				/>
 			)}
+
+			{/* Publish Confirmation Informer Modal */}
+			<PublishConfirmModal
+				isOpen={isPublishModalOpen}
+				onClose={() => setIsPublishModalOpen(false)}
+				onConfirm={() => {
+					onPublish();
+					setIsPublishModalOpen(false);
+				}}
+				run={run}
+				isPublishing={isPublishing}
+				scopeLabel={scopeLabel?.title}
+			/>
 		</div>
 	);
 }

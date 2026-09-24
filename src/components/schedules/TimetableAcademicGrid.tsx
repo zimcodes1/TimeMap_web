@@ -1,8 +1,18 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Plus, AlertTriangle, MapPin, User } from "lucide-react";
-import type { TimetableEntry } from "@/types";
+import {
+	Plus,
+	AlertTriangle,
+	ShieldAlert,
+	MapPin,
+	User,
+	Clock,
+} from "lucide-react";
+import type { TimetableEntry, GenerationConflictReport } from "@/types";
 import type { WeekDayInfo } from "@/utils/semesterWeeks";
+import { resolveLiveEntryConflicts } from "./liveConflictResolver";
+import { LiveEntryDetailModal } from "./LiveEntryDetailModal";
+import type { AssociatedConflict } from "@/components/schedules/generator/ScheduleConflictDetailModal";
 
 export interface TimeSlot {
 	id: string;
@@ -25,29 +35,42 @@ const DEFAULT_DAYS: Array<
 
 interface TimetableAcademicGridProps {
 	entries: TimetableEntry[];
-	selectedProgramId?: string;
+	selectedDepartmentId?: string | number;
+	selectedProgramId?: string | number;
 	selectedLevel?: number;
+	searchQuery?: string;
+	conflictReport?: GenerationConflictReport;
 	weekDayDates?: WeekDayInfo[];
 	onOpenCreateEntry?: (defaultDay?: string, defaultSlot?: TimeSlot) => void;
+	onSelectEntry?: (
+		entry: TimetableEntry,
+		conflicts: AssociatedConflict[],
+	) => void;
 }
 
 export function TimetableAcademicGrid({
 	entries,
+	selectedDepartmentId,
 	selectedProgramId,
 	selectedLevel,
+	searchQuery = "",
+	conflictReport,
 	weekDayDates,
 	onOpenCreateEntry,
+	onSelectEntry,
 }: TimetableAcademicGridProps) {
-	// Filter entries strictly by selectedProgramId and selectedLevel
+	// Selected entry for modal view
+	const [activeModalEntry, setActiveModalEntry] =
+		useState<TimetableEntry | null>(null);
+	const [activeModalConflicts, setActiveModalConflicts] = useState<
+		AssociatedConflict[]
+	>([]);
+	const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+	// Filter entries by department, program, level, and search query
 	const displayedEntries = useMemo(() => {
 		return entries.filter((entry) => {
-			if (
-				selectedProgramId &&
-				entry.targetProgramId &&
-				entry.targetProgramId !== selectedProgramId
-			) {
-				return false;
-			}
+			// Level filter
 			if (
 				selectedLevel &&
 				entry.courseLevel &&
@@ -55,9 +78,65 @@ export function TimetableAcademicGrid({
 			) {
 				return false;
 			}
+
+			// Program filter
+			if (selectedProgramId && selectedProgramId !== "ALL") {
+				if (
+					entry.targetProgramId &&
+					String(entry.targetProgramId) !== String(selectedProgramId)
+				) {
+					// Allow general courses that apply university-wide
+					if (entry.programScope !== "general") {
+						return false;
+					}
+				}
+			} else if (selectedDepartmentId) {
+				// No specific program; check department if present
+				if (
+					entry.departmentId &&
+					String(entry.departmentId) !== String(selectedDepartmentId)
+				) {
+					if (entry.programScope !== "general") {
+						return false;
+					}
+				}
+			}
+
+			// Search query filter
+			if (searchQuery.trim()) {
+				const q = searchQuery.toLowerCase();
+				const matchCode = entry.courseCode?.toLowerCase().includes(q);
+				const matchTitle = entry.courseTitle?.toLowerCase().includes(q);
+				const matchVenue = entry.venueName?.toLowerCase().includes(q);
+				const matchLecturer = entry.lecturerName?.toLowerCase().includes(q);
+				if (!matchCode && !matchTitle && !matchVenue && !matchLecturer) {
+					return false;
+				}
+			}
+
 			return true;
 		});
-	}, [entries, selectedProgramId, selectedLevel]);
+	}, [
+		entries,
+		selectedDepartmentId,
+		selectedProgramId,
+		selectedLevel,
+		searchQuery,
+	]);
+
+	// Precompute conflicts for each entry
+	const entryConflictsMap = useMemo(() => {
+		const map = new Map<string, AssociatedConflict[]>();
+		for (const entry of entries) {
+			const conflicts = resolveLiveEntryConflicts(
+				entry,
+				entries,
+				conflictReport,
+			);
+			map.set(String(entry.id), conflicts);
+		}
+		return map;
+	}, [entries, conflictReport]);
 
 	// Helper to test if entry overlaps a 2-hour slot
 	const isOverlapping = (
@@ -66,7 +145,12 @@ export function TimetableAcademicGrid({
 		slotStart: string,
 		slotEnd: string,
 	) => {
-		const norm = (t: string) => (t.length === 5 ? `${t}:00` : t);
+		const norm = (t: string) => {
+			if (!t) return "00:00:00";
+			const parts = t.split(":");
+			if (parts.length === 2) return `${t}:00`;
+			return t;
+		};
 		return norm(entryStart) < norm(slotEnd) && norm(entryEnd) > norm(slotStart);
 	};
 
@@ -86,6 +170,14 @@ export function TimetableAcademicGrid({
 		}));
 	}, [weekDayDates]);
 
+	const handleCardClick = (entry: TimetableEntry) => {
+		const conflicts = entryConflictsMap.get(String(entry.id)) || [];
+		setActiveModalEntry(entry);
+		setActiveModalConflicts(conflicts);
+		setIsDetailModalOpen(true);
+		onSelectEntry?.(entry, conflicts);
+	};
+
 	return (
 		<div className="space-y-4">
 			{/* Timetable Academic Matrix Table */}
@@ -99,128 +191,205 @@ export function TimetableAcademicGrid({
 							{TIME_SLOTS.map((slot) => (
 								<th
 									key={slot.id}
-									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-[155px]"
+									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-[165px]"
 								>
-									{slot.label}
+									<div className="font-extrabold text-xs">{slot.label}</div>
 								</th>
 							))}
 						</tr>
 					</thead>
 					<tbody>
-						{rowDays.map(({ dayName, label }) => (
-							<tr
-								key={dayName}
-								className="border-b border-border last:border-b-0 hover:bg-surface-raised/30 transition-colors"
-							>
-								<td className="p-3.5 font-bold text-xs text-text-main border-r border-border bg-surface-raised/40 align-top">
-									<div className="text-text-main font-bold whitespace-nowrap">
-										{label}
-									</div>
-								</td>
-								{TIME_SLOTS.map((slot) => {
-									const matchingEntries = displayedEntries.filter(
-										(e) =>
-											e.dayOfWeek === dayName &&
-											isOverlapping(
-												e.startTime,
-												e.endTime,
-												slot.start,
-												slot.end,
-											),
-									);
+						{rowDays.map(({ dayName, label }) => {
+							const isFriday = dayName.toLowerCase() === "friday";
 
-									return (
-										<td
-											key={slot.id}
-											className="p-2 border-r border-border last:border-r-0 align-top h-28"
-										>
-											{matchingEntries.length > 0 ? (
-												<div className="space-y-1.5 h-full">
-													{matchingEntries.map((entry) => (
-														<div
-															key={entry.id}
-															className={`p-2 rounded-xl text-xs space-y-1 border transition-all ${
-																entry.hasConflict
-																	? "bg-red-500/10 border-red-500/30 text-red-400"
-																	: "bg-primary/10 border-primary/20 text-text-main shadow-2xs"
-															}`}
-														>
-															<div className="flex items-center justify-between gap-1">
-																<span className="font-extrabold text-primary">
-																	{entry.courseCode}
-																</span>
-																{entry.hasConflict && (
-																	<AlertTriangle
-																		size={13}
-																		className="text-red-400 shrink-0"
-																	/>
-																)}
-															</div>
-															<div
-																className="text-[11px] font-medium text-text-main truncate"
-																title={entry.courseTitle}
-															>
-																{entry.courseTitle}
-															</div>
-															<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
-																<MapPin
-																	size={10}
-																	className="shrink-0 text-text-subtle"
-																/>
-																<span className="truncate">
-																	{entry.venueName}
-																</span>
-															</div>
-															{entry.lecturerName && (
-																<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
-																	<User
-																		size={10}
-																		className="shrink-0 text-text-subtle"
-																	/>
-																	<span className="truncate">
-																		{entry.lecturerName}
-																	</span>
-																</div>
-															)}
-															<div className="flex items-center gap-1 pt-0.5">
-																{entry.courseLevel && (
-																	<span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-surface-raised border border-border text-text-muted">
-																		{entry.courseLevel}L
-																	</span>
-																)}
-																{entry.targetProgramName && (
-																	<Badge
-																		variant="primary"
-																		className="text-[9px] py-0 px-1 truncate max-w-[110px]"
+							return (
+								<tr
+									key={dayName}
+									className="border-b border-border last:border-b-0 hover:bg-surface-raised/30 transition-colors"
+								>
+									<td className="p-3.5 font-bold text-xs text-text-main border-r border-border bg-surface-raised/40 align-top">
+										<div className="text-text-main font-bold whitespace-nowrap">
+											{label}
+										</div>
+									</td>
+									{TIME_SLOTS.map((slot) => {
+										// Case-insensitive day match + time overlap
+										const matchingEntries = displayedEntries.filter(
+											(e) =>
+												e.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
+												isOverlapping(
+													e.startTime,
+													e.endTime,
+													slot.start,
+													slot.end,
+												),
+										);
+
+										const isFridayJummat = isFriday && slot.id === "slot-3";
+
+										return (
+											<td
+												key={slot.id}
+												className="p-2 border-r border-border last:border-r-0 align-top min-h-[7rem] h-28"
+											>
+												{matchingEntries.length > 0 ? (
+													<div className="space-y-1.5 h-full">
+														{matchingEntries.map((entry) => {
+															const conflicts =
+																entryConflictsMap.get(String(entry.id)) || [];
+															const hasHard = conflicts.some(
+																(c) => c.severity === "hard",
+															);
+															const hasSoft = conflicts.some(
+																(c) => c.severity === "soft",
+															);
+															const isPractical =
+																(entry.courseType || "").toLowerCase() ===
+																"practical";
+
+															return (
+																<div
+																	key={entry.id}
+																	onClick={() => handleCardClick(entry)}
+																	className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
+																		hasHard
+																			? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 ring-1 ring-red-500/30 text-text-main"
+																			: hasSoft
+																				? "bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/15 text-text-main"
+																				: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																	}`}
+																	title={
+																		hasHard
+																			? "Hard timetable conflict! Click to inspect diagnostics."
+																			: hasSoft
+																				? "Capacity or soft notice. Click to inspect details."
+																				: "Optimal schedule. Click to inspect details."
+																	}
+																>
+																	<div className="flex items-center justify-between gap-1">
+																		<span
+																			className={`font-extrabold tracking-tight ${
+																				hasHard
+																					? "text-red-400"
+																					: hasSoft
+																						? "text-amber-400"
+																						: "text-primary"
+																			}`}
+																		>
+																			{entry.courseCode}
+																		</span>
+																		{hasHard ? (
+																			<ShieldAlert
+																				size={13}
+																				className="text-red-400 shrink-0"
+																			/>
+																		) : hasSoft ? (
+																			<AlertTriangle
+																				size={13}
+																				className="text-amber-400 shrink-0"
+																			/>
+																		) : null}
+																	</div>
+
+																	<div
+																		className="text-[11px] font-medium text-text-main truncate"
+																		title={entry.courseTitle}
 																	>
-																		{entry.targetProgramName}
-																	</Badge>
-																)}
-															</div>
-														</div>
-													))}
-												</div>
-											) : (
-												<button
-													type="button"
-													onClick={() => onOpenCreateEntry?.(dayName, slot)}
-													className="w-full h-full min-h-[5rem] rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
-													title={`Schedule entry for ${dayName} ${slot.label}`}
-												>
-													<Plus
-														size={15}
-														className="text-text-subtle group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-													/>
-												</button>
-											)}
-										</td>
-									);
-								})}
-							</tr>
-						))}
+																		{entry.courseTitle}
+																	</div>
+
+																	<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																		<MapPin
+																			size={10}
+																			className="shrink-0 text-text-subtle"
+																		/>
+																		<span className="truncate">
+																			{entry.venueName}
+																		</span>
+																	</div>
+
+																	{entry.lecturerName && (
+																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																			<User
+																				size={10}
+																				className="shrink-0 text-text-subtle"
+																			/>
+																			<span className="truncate">
+																				{entry.lecturerName}
+																			</span>
+																		</div>
+																	)}
+
+																	<div className="flex items-center gap-1 pt-0.5">
+																		{entry.courseLevel && (
+																			<span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-surface-raised border border-border text-text-muted">
+																				{entry.courseLevel}L
+																			</span>
+																		)}
+																		{isPractical && (
+																			<Badge
+																				variant="secondary"
+																				className="text-[9px] py-0 px-1 bg-amber-500/5 text-amber-300 border-amber-500/30"
+																			>
+																				Lab
+																			</Badge>
+																		)}
+																		{entry.targetProgramName && (
+																			<Badge
+																				variant="primary"
+																				className="text-[9px] py-0 px-1 truncate max-w-[110px]"
+																			>
+																				{entry.targetProgramName}
+																			</Badge>
+																		)}
+																	</div>
+																</div>
+															);
+														})}
+													</div>
+												) : isFridayJummat ? (
+													<div className="h-full min-h-[5rem] rounded-xl border border-dashed border-border/60 bg-surface-raised/20 flex flex-col items-center justify-center p-2 text-center">
+														<Clock
+															size={13}
+															className="text-text-muted mb-0.5"
+														/>
+														<span className="text-[10px] font-semibold text-text-muted">
+															Jummat Break
+														</span>
+														<span className="text-[9px] text-text-subtle">
+															12:00 - 14:00
+														</span>
+													</div>
+												) : (
+													<button
+														type="button"
+														onClick={() => onOpenCreateEntry?.(dayName, slot)}
+														className="w-full h-full min-h-[5rem] rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
+														title={`Schedule entry for ${dayName} ${slot.label}`}
+													>
+														<Plus
+															size={15}
+															className="text-text-subtle group-hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+														/>
+													</button>
+												)}
+											</td>
+										);
+									})}
+								</tr>
+							);
+						})}
 					</tbody>
 				</table>
 			</div>
+
+			{/* Entry Details & Conflict Modal */}
+			<LiveEntryDetailModal
+				isOpen={isDetailModalOpen}
+				onClose={() => setIsDetailModalOpen(false)}
+				entry={activeModalEntry}
+				conflicts={activeModalConflicts}
+			/>
 		</div>
 	);
 }

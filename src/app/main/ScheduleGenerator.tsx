@@ -11,6 +11,7 @@ import {
 import {
 	getGenerationPermissions,
 	getGenerationRuns,
+	getGenerationRunDetail,
 	generateTimetable,
 	publishGenerationRun,
 } from "@/api/main/generationAPI";
@@ -27,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import ScheduleGeneratorView from "@/pages/main/ScheduleGeneratorView";
 import { GenerationHistoryModal } from "@/components/schedules/GenerationHistoryModal";
 import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
+import { OverwriteWarningModal } from "@/components/schedules/generator/OverwriteWarningModal";
 
 export default function ScheduleGeneratorContainer() {
 	const navigate = useNavigate();
@@ -62,6 +64,19 @@ export default function ScheduleGeneratorContainer() {
 	);
 	const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 	const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+	const [pendingGeneratePayload, setPendingGeneratePayload] =
+		useState<GenerateTimetablePayload | null>(null);
+	const [isOverwriteModalOpen, setIsOverwriteModalOpen] = useState(false);
+
+	// Fetch detailed run data (conflict_report, assignments_payload) for the active run
+	const activeRunId = activeRun?.id;
+	const { data: detailedActiveRun } = useQuery<TimetableGenerationRun>({
+		queryKey: ["scheduling", "generationRunDetail", activeRunId],
+		queryFn: () => getGenerationRunDetail(activeRunId!),
+		enabled: Boolean(activeRunId),
+	});
+
+	const currentRun = detailedActiveRun || activeRun;
 
 	// Base Data Queries
 	const { data: semesters = [] } = useQuery<Semester[]>({
@@ -240,14 +255,33 @@ export default function ScheduleGeneratorContainer() {
 		},
 	});
 
+	// Check if an active published timetable already exists in the selected scope
+	const effectiveSemesterId = semesterId || activeSemester?.id;
+	const existingPublishedRun = useMemo(() => {
+		return pastRuns.find(
+			(r) =>
+				r.isPublished &&
+				String(r.semesterId) === String(effectiveSemesterId) &&
+				r.scopeType === scopeType &&
+				String(r.scopeId) === String(scopeId),
+		);
+	}, [pastRuns, effectiveSemesterId, scopeType, scopeId]);
+
+	const handleConfirmOverwriteGenerate = () => {
+		if (pendingGeneratePayload) {
+			generateMutation.mutate(pendingGeneratePayload);
+		}
+		setIsOverwriteModalOpen(false);
+	};
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		const effectiveSemesterId =
+		const currentSemesterId =
 			semesterId ||
 			activeSemester?.id ||
 			(semesters as Semester[])[0]?.id ||
 			"";
-		if (!effectiveSemesterId) {
+		if (!currentSemesterId) {
 			toast.error("Please select an academic semester.");
 			return;
 		}
@@ -267,8 +301,8 @@ export default function ScheduleGeneratorContainer() {
 		}
 
 		const payload: GenerateTimetablePayload = {
-			semester: effectiveSemesterId,
-			semester_id: effectiveSemesterId,
+			semester: currentSemesterId,
+			semester_id: currentSemesterId,
 			scope_type: scopeType,
 			scope_id: effectiveScopeId,
 			population_size: Number(populationSize) || 60,
@@ -277,6 +311,12 @@ export default function ScheduleGeneratorContainer() {
 			stagnation_limit: Number(stagnationLimit) || 40,
 			publish_immediately: false,
 		};
+
+		if (existingPublishedRun) {
+			setPendingGeneratePayload(payload);
+			setIsOverwriteModalOpen(true);
+			return;
+		}
 
 		generateMutation.mutate(payload);
 	};
@@ -332,7 +372,7 @@ export default function ScheduleGeneratorContainer() {
 				onStagnationLimitChange={setStagnationLimit}
 				isGenerating={generateMutation.isPending}
 				onSubmit={handleSubmit}
-				activeRun={activeRun}
+				activeRun={currentRun}
 				onPublishRun={(id) => publishMutation.mutate(id)}
 				isPublishing={publishMutation.isPending}
 				onOpenHistory={() => setIsHistoryOpen(true)}
@@ -342,6 +382,16 @@ export default function ScheduleGeneratorContainer() {
 				hasPermission={hasPermission()}
 				permissionNotice={getPermissionNotice()}
 				scopeLabel={scopeLabel}
+			/>
+
+			{/* Overwrite Warning Modal */}
+			<OverwriteWarningModal
+				isOpen={isOverwriteModalOpen}
+				onClose={() => setIsOverwriteModalOpen(false)}
+				onConfirm={handleConfirmOverwriteGenerate}
+				semesterName={activeSemester?.name}
+				scopeLabel={scopeLabel}
+				isGenerating={generateMutation.isPending}
 			/>
 
 			{/* Generation History Modal */}

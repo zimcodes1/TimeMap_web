@@ -1,7 +1,12 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Building2, User, Users, BookOpen, Clock } from "lucide-react";
-import type { GeneratedAssignment } from "@/types";
+import type { GeneratedAssignment, GenerationConflictReport } from "@/types";
+import {
+	ScheduleConflictDetailModal,
+	type AssociatedConflict,
+} from "./ScheduleConflictDetailModal";
+import { resolveAssignmentConflicts } from "./conflictResolver";
 
 export interface TimeSlot {
 	id: string;
@@ -57,8 +62,31 @@ const DAYS = [
 	{ code: "FR", name: "Friday" },
 ];
 
+/**
+ * Normalizes period indexing to 1-based (1..5) so 08:00-10:00 maps to Period 1,
+ * avoiding the 0 || 1 collision bug when backend uses 0-based indexing.
+ */
+function getSlotPeriodIndex(a: GeneratedAssignment): number {
+	if (a.start_time) {
+		const time = a.start_time.slice(0, 5);
+		if (time === "08:00") return 1;
+		if (time === "10:00") return 2;
+		if (time === "12:00") return 3;
+		if (time === "14:00") return 4;
+		if (time === "16:00") return 5;
+	}
+	if (typeof a.period_index === "number") {
+		if (a.period_index >= 0 && a.period_index <= 4) {
+			return a.period_index + 1;
+		}
+		return a.period_index;
+	}
+	return 1;
+}
+
 interface RunTimetableAcademicGridProps {
 	assignments: GeneratedAssignment[];
+	conflictReport?: GenerationConflictReport;
 	selectedDepartmentId?: string | number;
 	selectedProgramId?: string | number;
 	selectedLevel?: number;
@@ -67,35 +95,22 @@ interface RunTimetableAcademicGridProps {
 
 export function RunTimetableAcademicGrid({
 	assignments,
+	conflictReport,
 	selectedDepartmentId,
 	selectedProgramId,
 	selectedLevel = 100,
 	searchQuery = "",
 }: RunTimetableAcademicGridProps) {
-	// Filter assignments strictly for the active department, program, level, and query
+	// Selected assignment for conflict inspection modal
+	const [selectedAssignment, setSelectedAssignment] =
+		useState<GeneratedAssignment | null>(null);
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
+	// 1. Strict cohort filtering: Filter assignments for the active department, program, and level
 	const filteredAssignments = useMemo(() => {
 		return assignments.filter((a) => {
-			// 1. Department filter
-			if (selectedDepartmentId) {
-				const aDept = String(a.department_id || "");
-				if (aDept && aDept !== String(selectedDepartmentId)) {
-					return false;
-				}
-			}
-
-			// 2. Program filter (if specified)
-			if (selectedProgramId && selectedProgramId !== "ALL") {
-				const hasProg = a.program_ids?.some(
-					(pid) => String(pid) === String(selectedProgramId),
-				);
-				if (a.program_ids && a.program_ids.length > 0 && !hasProg) {
-					return false;
-				}
-			}
-
-			// 3. Level filter
+			// Level filter
 			if (selectedLevel) {
-				// Match against assignment level, or derive from course code (e.g. COS101 -> 100)
 				let aLevel = a.level;
 				if (!aLevel) {
 					const match = a.course_code.match(/\d{3}/);
@@ -108,7 +123,30 @@ export function RunTimetableAcademicGrid({
 				}
 			}
 
-			// 4. Search query
+			// Program filter: check if this assignment's student groups include selectedProgramId
+			if (selectedProgramId && selectedProgramId !== "ALL") {
+				if (a.program_ids && a.program_ids.length > 0) {
+					const hasProg = a.program_ids.some(
+						(pid) => String(pid) === String(selectedProgramId),
+					);
+					if (!hasProg) return false;
+				} else if (
+					selectedDepartmentId &&
+					a.department_id &&
+					String(a.department_id) !== String(selectedDepartmentId)
+				) {
+					// Fallback to department matching if program_ids not present
+					return false;
+				}
+			} else if (selectedDepartmentId) {
+				// No specific program selected; filter by department
+				const aDept = String(a.department_id || "");
+				if (aDept && aDept !== String(selectedDepartmentId)) {
+					return false;
+				}
+			}
+
+			// Search query filter
 			if (searchQuery.trim()) {
 				const q = searchQuery.toLowerCase();
 				const matchCode = a.course_code.toLowerCase().includes(q);
@@ -129,13 +167,13 @@ export function RunTimetableAcademicGrid({
 		searchQuery,
 	]);
 
-	// Group filtered assignments by (dayCode, periodIndex)
+	// 2. Group filtered assignments by (dayCode, periodIndex)
 	const slotMap = useMemo(() => {
 		const map: Record<string, GeneratedAssignment[]> = {};
 		for (const a of filteredAssignments) {
 			const dayKey = (a.day || "").toUpperCase();
-			const periodKey = Number(a.period_index || 1);
-			const key = `${dayKey}_${periodKey}`;
+			const periodIndex = getSlotPeriodIndex(a);
+			const key = `${dayKey}_${periodIndex}`;
 			if (!map[key]) {
 				map[key] = [];
 			}
@@ -143,6 +181,28 @@ export function RunTimetableAcademicGrid({
 		}
 		return map;
 	}, [filteredAssignments]);
+
+	// 3. Resolve all conflicts associated with a given assignment
+	const getConflictsForAssignment = (
+		a: GeneratedAssignment,
+		cellAssignments: GeneratedAssignment[],
+	): AssociatedConflict[] => {
+		return resolveAssignmentConflicts(a, conflictReport, cellAssignments);
+	};
+
+	// Active conflicts for the modal
+	const activeModalConflicts = useMemo(() => {
+		if (!selectedAssignment) return [];
+		const dayKey = (selectedAssignment.day || "").toUpperCase();
+		const periodIdx = getSlotPeriodIndex(selectedAssignment);
+		const cellList = slotMap[`${dayKey}_${periodIdx}`] || [];
+		return getConflictsForAssignment(selectedAssignment, cellList);
+	}, [selectedAssignment, slotMap, conflictReport]);
+
+	const handleCardClick = (a: GeneratedAssignment) => {
+		setSelectedAssignment(a);
+		setIsModalOpen(true);
+	};
 
 	return (
 		<div className="space-y-3">
@@ -220,25 +280,56 @@ export function RunTimetableAcademicGrid({
 														const isPractical =
 															(a.course_type || "").toLowerCase() ===
 															"practical";
+														const conflicts = getConflictsForAssignment(
+															a,
+															cellAssignments,
+														);
+														const hasHardConflict = conflicts.some(
+															(c) => c.severity === "hard",
+														);
+														const hasSoftConflict = conflicts.some(
+															(c) => c.severity === "soft",
+														);
+
 														return (
 															<div
 																key={`${a.occurrence_id || a.course_code}-${idx}`}
-																className="p-2 rounded-xl text-xs space-y-1 border bg-primary/10 border-primary/20 hover:border-primary/40 text-text-main shadow-2xs transition-all"
+																onClick={() => handleCardClick(a)}
+																className={`p-2 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
+																	hasHardConflict
+																		? "bg-red-500/5 border-red-500/10 hover:border-red-500/20 hover:bg-red-500/15 ring-1 ring-red-500/30 text-text-main"
+																		: hasSoftConflict
+																			? "bg-amber-500/30 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 text-text-main"
+																			: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																}`}
+																title={
+																	hasHardConflict
+																		? "Click to view conflict diagnostics"
+																		: "Click to view lecture details"
+																}
 															>
 																{/* Code & Badges */}
 																<div className="flex items-center justify-between gap-1">
-																	<span className="font-extrabold text-primary tracking-tight">
+																	<span
+																		className={`font-extrabold tracking-tight ${
+																			hasHardConflict
+																				? "text-red-400"
+																				: "text-primary"
+																		}`}
+																	>
 																		{a.course_code}
 																	</span>
+
 																	<div className="flex items-center gap-1">
 																		{isPractical && (
 																			<Badge
 																				variant="secondary"
-																				className="text-[9px] py-0 px-1 bg-amber-500/20 text-amber-300 border-amber-500/30"
+																				className="text-[9px] py-0 px-1 bg-black text-white border-amber-500/30"
 																			>
 																				Lab
 																			</Badge>
 																		)}
+
 																		<Badge
 																			variant="primary"
 																			className="text-[9px] py-0 px-1 font-mono"
@@ -319,6 +410,17 @@ export function RunTimetableAcademicGrid({
 					</div>
 				</div>
 			)}
+
+			{/* Conflict Diagnostics & Schedule Detail Modal */}
+			<ScheduleConflictDetailModal
+				isOpen={isModalOpen}
+				onClose={() => {
+					setIsModalOpen(false);
+					setSelectedAssignment(null);
+				}}
+				assignment={selectedAssignment}
+				conflicts={activeModalConflicts}
+			/>
 		</div>
 	);
 }

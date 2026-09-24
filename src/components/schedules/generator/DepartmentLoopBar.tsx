@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Building2, Layers } from "lucide-react";
 
 export interface DepartmentOption {
@@ -14,12 +15,16 @@ interface DepartmentLoopBarProps {
 	departments: DepartmentOption[];
 	selectedDepartmentId: string | number;
 	onSelectDepartment: (deptId: string | number) => void;
+	isDeptAdmin?: boolean;
+	adminLevel?: string;
 }
 
 export function DepartmentLoopBar({
 	departments,
 	selectedDepartmentId,
 	onSelectDepartment,
+	isDeptAdmin = false,
+	adminLevel,
 }: DepartmentLoopBarProps) {
 	const count = departments.length;
 
@@ -56,6 +61,35 @@ export function DepartmentLoopBar({
 		return null;
 	}
 
+	// 1. Department Admin View: Locked to their assigned department
+	if (isDeptAdmin || adminLevel === "department") {
+		return (
+			<div className="p-3 rounded-2xl bg-surface shadow-xs flex flex-col sm:flex-row items-center justify-center gap-3">
+				<div className="flex items-center gap-2.5">
+					<div className="w-8 h-8 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+						<Building2 size={16} />
+					</div>
+					<div>
+						<div className="flex items-center gap-2">
+							<span className="text-lg font-bold text-text-main">
+								Department of {currentDept?.name || "Your Department"}
+							</span>
+							{currentDept?.code && (
+								<Badge
+									variant="outline"
+									className="text-[10px] py-0 px-1 font-mono"
+								>
+									{currentDept.code}
+								</Badge>
+							)}
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// 2. Multi-Department View (Faculty, School, University Admin)
 	return (
 		<div className="p-3 rounded-2xl bg-surface border border-border shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
 			{/* Left Loop Button */}
@@ -65,7 +99,7 @@ export function DepartmentLoopBar({
 					size="sm"
 					onClick={handlePrev}
 					disabled={count <= 1}
-					className="h-10 px-3 text-xs gap-1.5 cursor-pointer max-w-[220px] justify-start group"
+					className="h-10 px-3 text-xs gap-1.5 cursor-pointer max-w-[220px] justify-start group disabled:opacity-40"
 					title={prevDept ? `Switch to ${prevDept.name}` : ""}
 				>
 					<ChevronLeft
@@ -89,7 +123,7 @@ export function DepartmentLoopBar({
 					<div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
 						<Building2 size={15} />
 					</div>
-					<span>Department:</span>
+					<span>Department of</span>
 				</div>
 
 				<div className="w-full sm:w-64">
@@ -98,7 +132,7 @@ export function DepartmentLoopBar({
 						onChange={(e) => onSelectDepartment(e.target.value)}
 						options={departments.map((d) => ({
 							value: String(d.id),
-							label: `${d.code ? `[${d.code}] ` : ""}${d.name}${d.courseCount ? ` (${d.courseCount} courses)` : ""}`,
+							label: `${d.code ? `[${d.code}] ` : ""}${d.name}${d.courseCount !== undefined ? ` (${d.courseCount} courses)` : ""}`,
 						}))}
 					/>
 				</div>
@@ -118,7 +152,7 @@ export function DepartmentLoopBar({
 					size="sm"
 					onClick={handleNext}
 					disabled={count <= 1}
-					className="h-10 px-3 text-xs gap-1.5 cursor-pointer max-w-[220px] justify-end group text-right"
+					className="h-10 px-3 text-xs gap-1.5 cursor-pointer max-w-[220px] justify-end group text-right disabled:opacity-40"
 					title={nextDept ? `Switch to ${nextDept.name}` : ""}
 				>
 					<div className="flex flex-col text-right truncate">

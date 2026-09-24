@@ -10,6 +10,7 @@ interface RunProgramLevelFilterBarProps {
 	onSelectLevel: (level: number) => void;
 	searchQuery: string;
 	onSearchChange: (query: string) => void;
+	allowAllPrograms?: boolean;
 }
 
 export function RunProgramLevelFilterBar({
@@ -20,6 +21,7 @@ export function RunProgramLevelFilterBar({
 	onSelectLevel,
 	searchQuery,
 	onSearchChange,
+	allowAllPrograms = false,
 }: RunProgramLevelFilterBarProps) {
 	// Active program
 	const activeProgram = useMemo(() => {
@@ -41,14 +43,14 @@ export function RunProgramLevelFilterBar({
 
 	return (
 		<div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3 bg-surface border border-border rounded-2xl shadow-xs">
-			{/* Left: Program Switcher (if multiple programs exist) */}
+			{/* Left: Program Switcher (strictly individual degree programs or all) */}
 			<div className="flex flex-wrap items-center gap-2">
 				<div className="flex items-center gap-1.5 text-xs font-bold text-text-muted mr-1">
 					<BookOpen size={14} className="text-primary shrink-0" />
 					<span>Degree Program:</span>
 				</div>
 
-				{programs.length > 1 && (
+				{allowAllPrograms && programs.length > 0 && (
 					<button
 						type="button"
 						onClick={() => onSelectProgram("ALL")}
@@ -62,35 +64,43 @@ export function RunProgramLevelFilterBar({
 					</button>
 				)}
 
-				{programs.map((prog) => {
-					const isSelected =
-						selectedProgramId !== "ALL" &&
-						(String(selectedProgramId) === String(prog.id) ||
-							(!selectedProgramId && prog.id === programs[0]?.id));
-					return (
-						<button
-							key={prog.id}
-							type="button"
-							onClick={() => onSelectProgram(prog.id)}
-							className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-								isSelected
-									? "bg-primary text-white shadow-xs font-bold"
-									: "bg-surface-raised hover:bg-surface-raised/80 text-text-muted hover:text-text-main border border-border"
-							}`}
-						>
-							<span>{prog.name}</span>
-							{prog.code && (
-								<span
-									className={`ml-1 text-[10px] font-mono ${
-										isSelected ? "text-white/80" : "text-text-subtle"
-									}`}
-								>
-									({prog.code})
-								</span>
-							)}
-						</button>
-					);
-				})}
+				{programs.length === 0 ? (
+					<span className="text-xs text-text-subtle italic">
+						No degree programs found for this department
+					</span>
+				) : (
+					programs.map((prog) => {
+						const isSelected =
+							String(selectedProgramId) === String(prog.id) ||
+							(!selectedProgramId &&
+								!allowAllPrograms &&
+								prog.id === programs[0]?.id);
+
+						return (
+							<button
+								key={prog.id}
+								type="button"
+								onClick={() => onSelectProgram(prog.id)}
+								className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+									isSelected
+										? "bg-primary text-white shadow-xs font-bold"
+										: "bg-surface-raised hover:bg-surface-raised/80 text-text-muted hover:text-text-main border border-border"
+								}`}
+							>
+								<span>{prog.name}</span>
+								{prog.code && (
+									<span
+										className={`ml-1 text-[10px] font-mono ${
+											isSelected ? "text-white/80" : "text-text-subtle"
+										}`}
+									>
+										({prog.code})
+									</span>
+								)}
+							</button>
+						);
+					})
+				)}
 			</div>
 
 			{/* Right: Level Switcher & Search Bar */}

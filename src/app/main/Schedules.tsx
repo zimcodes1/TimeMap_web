@@ -18,7 +18,10 @@ import {
 	getFacultiesList,
 	getDepartmentsList,
 } from "@/api/main/hierarchyAPI";
-import { getGenerationPermissions } from "@/api/main/generationAPI";
+import {
+	getGenerationPermissions,
+	getGenerationRuns,
+} from "@/api/main/generationAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -38,6 +41,12 @@ import {
 	getWeekRange,
 	getWeekDayDates,
 } from "@/utils/semesterWeeks";
+import {
+	filterFacultiesByScope,
+	filterDepartmentsByScope,
+	getAdminScopeLabel,
+} from "@/lib/scopeUtils";
+import type { DepartmentOption } from "@/components/schedules/generator/DepartmentLoopBar";
 import SchedulesView from "@/pages/main/SchedulesView";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
@@ -52,6 +61,7 @@ export default function SchedulesContainer() {
 	const queryClient = useQueryClient();
 	const { user } = useAuth();
 
+	// Scope and admin level determination
 	const isSuperuser =
 		user?.role === "admin" && user?.adminLevel === "university";
 	const isSchoolAdmin = user?.role === "admin" && user?.adminLevel === "school";
@@ -119,7 +129,7 @@ export default function SchedulesContainer() {
 		queryFn: getVenuesOptions,
 	});
 
-	// Hierarchy queries for generator scoping
+	// Hierarchy queries for generator and view scoping
 	const { data: schoolsData = [] } = useQuery<School[]>({
 		queryKey: ["schools", "list"],
 		queryFn: getSchoolsList,
@@ -178,21 +188,80 @@ export default function SchedulesContainer() {
 		);
 	}, [activeSemester, totalWeeks]);
 
-	// Program, Level, and Week state
-	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+	// Filter accessible faculties by scope
+	const scopedFaculties = useMemo(() => {
+		return filterFacultiesByScope(facultiesData, user, departmentsData);
+	}, [facultiesData, user, departmentsData]);
+
+	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+
+	useEffect(() => {
+		if (scopedFaculties.length > 0 && !selectedFacultyId) {
+			setSelectedFacultyId(String(scopedFaculties[0].id));
+		}
+	}, [scopedFaculties, selectedFacultyId]);
+
+	// Filter accessible departments by scope
+	const scopedDepartments = useMemo(() => {
+		return filterDepartmentsByScope(departmentsData, user, facultiesData);
+	}, [departmentsData, user, facultiesData]);
+
+	// Departments narrowed by selected faculty for school/system admins
+	const departmentsInView = useMemo(() => {
+		if ((isSchoolAdmin || isSuperuser) && selectedFacultyId) {
+			return scopedDepartments.filter(
+				(d) => String(d.facultyId) === String(selectedFacultyId),
+			);
+		}
+		return scopedDepartments;
+	}, [scopedDepartments, isSchoolAdmin, isSuperuser, selectedFacultyId]);
+
+	// Department selection state
+	const [selectedDepartmentId, setSelectedDepartmentId] = useState<
+		string | number
+	>("");
+
+	// Keep selectedDepartmentId synchronized with accessible departments
+	useEffect(() => {
+		if (departmentsInView.length > 0) {
+			const exists = departmentsInView.some(
+				(d) => String(d.id) === String(selectedDepartmentId),
+			);
+			if (!exists || !selectedDepartmentId) {
+				setSelectedDepartmentId(departmentsInView[0].id);
+			}
+		} else if (scopedDepartments.length > 0 && !selectedDepartmentId) {
+			setSelectedDepartmentId(scopedDepartments[0].id);
+		}
+	}, [departmentsInView, scopedDepartments, selectedDepartmentId]);
+
+	// Degree programs for the selected department
+	const departmentPrograms = useMemo(() => {
+		if (!selectedDepartmentId) return [];
+		return programsData.filter(
+			(p) => String(p.departmentId) === String(selectedDepartmentId),
+		);
+	}, [programsData, selectedDepartmentId]);
+
+	// Program, Level, and Search State
+	const [selectedProgramId, setSelectedProgramId] = useState<string | number>(
+		"ALL",
+	);
 	const [selectedLevel, setSelectedLevel] = useState<number>(100);
+	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-	// Initialize selectedProgramId once programsData is loaded
+	// Reset program if it doesn't belong to current department
 	useEffect(() => {
-		if (programsData.length > 0 && !selectedProgramId) {
-			const defaultProg =
-				programsData.find((p) => p.isDefault) || programsData[0];
-			if (defaultProg) {
-				setSelectedProgramId(defaultProg.id);
+		if (selectedProgramId !== "ALL" && departmentPrograms.length > 0) {
+			const exists = departmentPrograms.some(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (!exists) {
+				setSelectedProgramId("ALL");
 			}
 		}
-	}, [programsData, selectedProgramId]);
+	}, [departmentPrograms, selectedProgramId]);
 
 	// Sync currentWeek with defaultCurrentWeek when semester is detected
 	useEffect(() => {
@@ -212,7 +281,37 @@ export default function SchedulesContainer() {
 
 	const isCurrentWeekActive = currentWeek === defaultCurrentWeek;
 
-	// Timetable Entries Query (filtered by active semester, program, level, and entry_type="lecture")
+	// Scope label for current user role
+	const scopeLabel = useMemo(() => {
+		return getAdminScopeLabel(
+			user,
+			departmentsData,
+			facultiesData,
+			selectedFacultyId,
+		);
+	}, [user, departmentsData, facultiesData, selectedFacultyId]);
+
+	// Active Generation Runs Query for live published conflict report cross-referencing
+	const { data: generationRuns = [] } = useQuery<TimetableGenerationRun[]>({
+		queryKey: ["scheduling", "runs", activeSemester?.id],
+		queryFn: () => getGenerationRuns({ semester: activeSemester?.id }),
+		enabled: Boolean(activeSemester?.id),
+	});
+
+	const publishedRun = useMemo(() => {
+		return generationRuns.find((r) => r.isPublished);
+	}, [generationRuns]);
+
+	// Department options for DepartmentLoopBar
+	const departmentOptions: DepartmentOption[] = useMemo(() => {
+		return departmentsInView.map((d) => ({
+			id: d.id,
+			name: d.name,
+			code: d.code,
+		}));
+	}, [departmentsInView]);
+
+	// Timetable Entries Query (filtered by active semester, department, program, level, and entry_type="lecture")
 	const {
 		data: entriesData,
 		isLoading: entriesLoading,
@@ -223,19 +322,21 @@ export default function SchedulesContainer() {
 			"scheduling",
 			"entries",
 			activeSemester?.id,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 		],
 		queryFn: () =>
 			getTimetableEntries({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
+				department: selectedDepartmentId || undefined,
+				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
 				level: selectedLevel || undefined,
 				entry_type: "lecture",
 			}),
 	});
 
-	// Lecture Sessions Query (filtered by week date range, active semester, program, level)
+	// Lecture Sessions Query (filtered by week date range, active semester, department, program, level)
 	const {
 		data: sessionsData,
 		isLoading: sessionsLoading,
@@ -246,6 +347,7 @@ export default function SchedulesContainer() {
 			"scheduling",
 			"sessions",
 			activeSemester?.id,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 			currentWeek,
@@ -255,7 +357,8 @@ export default function SchedulesContainer() {
 		queryFn: () =>
 			getLectureSessions({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
+				department: selectedDepartmentId || undefined,
+				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
 				level: selectedLevel || undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
@@ -348,6 +451,7 @@ export default function SchedulesContainer() {
 	const handleManualRefresh = () => {
 		refetchEntries();
 		refetchSessions();
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
 		toast.info("Refreshing schedule data...");
 	};
 
@@ -401,6 +505,7 @@ export default function SchedulesContainer() {
 	const handlePublishSuccess = () => {
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
 		refetchEntries();
 		refetchSessions();
 	};
@@ -421,11 +526,19 @@ export default function SchedulesContainer() {
 				sessions={sessionsData}
 				sessionsLoading={sessionsLoading}
 				isRefetching={isRefetching}
-				programs={programsData}
+				faculties={scopedFaculties}
+				selectedFacultyId={selectedFacultyId}
+				onSelectFaculty={setSelectedFacultyId}
+				departments={departmentOptions}
+				selectedDepartmentId={selectedDepartmentId}
+				onSelectDepartment={setSelectedDepartmentId}
+				departmentPrograms={departmentPrograms}
 				selectedProgramId={selectedProgramId}
 				onSelectProgram={setSelectedProgramId}
 				selectedLevel={selectedLevel}
 				onSelectLevel={setSelectedLevel}
+				searchQuery={searchQuery}
+				onSearchChange={setSearchQuery}
 				currentWeek={currentWeek}
 				totalWeeks={totalWeeks}
 				onPreviousWeek={handlePreviousWeek}
@@ -435,6 +548,7 @@ export default function SchedulesContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
+				conflictReport={publishedRun?.conflictReport}
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
@@ -443,6 +557,11 @@ export default function SchedulesContainer() {
 				onOpenPermissions={() => setIsPermissionsModalOpen(true)}
 				canGenerate={canGenerate}
 				canConfigurePermissions={canConfigurePermissions}
+				isDeptAdmin={isDeptAdmin}
+				isFacultyAdmin={isFacultyAdmin}
+				isSchoolAdmin={isSchoolAdmin}
+				isSuperuser={isSuperuser}
+				scopeLabel={scopeLabel}
 			/>
 
 			<GenerateTimetableModal

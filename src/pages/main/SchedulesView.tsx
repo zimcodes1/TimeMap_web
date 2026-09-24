@@ -11,19 +11,27 @@ import {
 	CalendarOff,
 	Sparkles,
 	ShieldCheck,
+	Lock,
 } from "lucide-react";
 import type {
 	TimetableEntry,
 	LectureSession,
 	Program,
 	Semester,
+	Faculty,
+	GenerationConflictReport,
 } from "@/types";
 import type { WeekRange, WeekDayInfo } from "@/utils/semesterWeeks";
 import { TimetableAcademicGrid } from "@/components/schedules/TimetableAcademicGrid";
 import { TimetableListView } from "@/components/schedules/TimetableListView";
 import { TimetableTitle } from "@/components/schedules/TimetableTitle";
 import { WeekNavigator } from "@/components/schedules/WeekNavigator";
-import { TimetableFilterBar } from "@/components/schedules/TimetableFilterBar";
+import {
+	DepartmentLoopBar,
+	type DepartmentOption,
+} from "@/components/schedules/generator/DepartmentLoopBar";
+import { FacultySubFilterBar } from "@/components/schedules/generator/FacultySubFilterBar";
+import { RunProgramLevelFilterBar } from "@/components/schedules/generator/RunProgramLevelFilterBar";
 
 interface SchedulesViewProps {
 	entries: TimetableEntry[] | undefined;
@@ -31,11 +39,21 @@ interface SchedulesViewProps {
 	sessions: LectureSession[] | undefined;
 	sessionsLoading?: boolean;
 	isRefetching?: boolean;
-	programs?: Program[];
-	selectedProgramId: string;
-	onSelectProgram: (programId: string) => void;
+	// Scope Hierarchy
+	faculties?: Faculty[];
+	selectedFacultyId?: string;
+	onSelectFaculty?: (facId: string) => void;
+	departments?: DepartmentOption[];
+	selectedDepartmentId: string | number;
+	onSelectDepartment: (deptId: string | number) => void;
+	departmentPrograms?: Program[];
+	selectedProgramId: string | number;
+	onSelectProgram: (programId: string | number) => void;
 	selectedLevel: number;
 	onSelectLevel: (level: number) => void;
+	searchQuery?: string;
+	onSearchChange?: (query: string) => void;
+	// Week & Semester
 	currentWeek: number;
 	totalWeeks: number;
 	onPreviousWeek: () => void;
@@ -45,17 +63,26 @@ interface SchedulesViewProps {
 	weekRange: WeekRange;
 	weekDayDates: WeekDayInfo[];
 	activeSemester?: Semester;
+	// Conflicts & Diagnostics
+	conflictReport?: GenerationConflictReport;
+	// Action Handlers
 	onManualRefresh: () => void;
 	onOpenScheduleEntry: (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
 	) => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
+	onOpenPermissions?: () => void;
 	onOpenGenerator?: () => void;
 	onOpenHistory?: () => void;
-	onOpenPermissions?: () => void;
 	canGenerate?: boolean;
 	canConfigurePermissions?: boolean;
+	// Scope Admin Levels
+	isDeptAdmin?: boolean;
+	isFacultyAdmin?: boolean;
+	isSchoolAdmin?: boolean;
+	isSuperuser?: boolean;
+	scopeLabel?: { title: string; subtitle?: string; level: string };
 }
 
 export default function SchedulesView({
@@ -64,11 +91,19 @@ export default function SchedulesView({
 	sessions,
 	sessionsLoading = false,
 	isRefetching = false,
-	programs = [],
+	faculties = [],
+	selectedFacultyId = "",
+	onSelectFaculty,
+	departments = [],
+	selectedDepartmentId,
+	onSelectDepartment,
+	departmentPrograms = [],
 	selectedProgramId,
 	onSelectProgram,
 	selectedLevel,
 	onSelectLevel,
+	searchQuery = "",
+	onSearchChange = () => {},
 	currentWeek,
 	totalWeeks,
 	onPreviousWeek,
@@ -78,37 +113,58 @@ export default function SchedulesView({
 	weekRange,
 	weekDayDates,
 	activeSemester,
+	conflictReport,
 	onManualRefresh,
 	onOpenScheduleEntry,
 	onShiftSessionTrigger,
 	onOpenPermissions,
+	onOpenGenerator: _onOpenGenerator,
+	onOpenHistory: _onOpenHistory,
 	canGenerate = false,
 	canConfigurePermissions = false,
+	isDeptAdmin = false,
+	isFacultyAdmin: _isFacultyAdmin = false,
+	isSchoolAdmin = false,
+	isSuperuser = false,
+	scopeLabel,
 }: SchedulesViewProps) {
 	// Main view modes: List and Grid are the primary tabs
-	const [activeTab, setActiveTab] = useState<"list" | "grid">("grid");
+	const [activeTab, setActiveTab] = useState<"grid" | "list">("grid");
 
 	const today = new Date();
 	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-	// Find active program name
-	const currentProgram = useMemo(() => {
-		return programs.find((p) => p.id === selectedProgramId) || programs[0];
-	}, [programs, selectedProgramId]);
+	// Find active department and program display name
+	const activeDept = useMemo(() => {
+		return departments.find(
+			(d) => String(d.id) === String(selectedDepartmentId),
+		);
+	}, [departments, selectedDepartmentId]);
 
-	const programDisplayName = currentProgram?.name || "Department";
+	const activeProg = useMemo(() => {
+		if (selectedProgramId === "ALL") return null;
+		return departmentPrograms.find(
+			(p) => String(p.id) === String(selectedProgramId),
+		);
+	}, [departmentPrograms, selectedProgramId]);
+
+	const cohortDisplayName = activeProg
+		? activeProg.name
+		: activeDept
+			? `Department of ${activeDept.name}`
+			: "Department Timetable";
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
+			{/* Top Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
 					<Text variant="h3" weight="bold" className="text-text-main">
 						Lecture Timetables
 					</Text>
 					<Text variant="body-sm" color="muted">
-						Weekly academic schedule per program and level with Conflict
-						Detection & automated scheduling integration.
+						Weekly academic schedule per department, program and level with
+						Conflict Detection & automated scheduling integration.
 					</Text>
 				</div>
 
@@ -176,18 +232,58 @@ export default function SchedulesView({
 				</div>
 			)}
 
-			{/* Program and Level Filter Bar */}
-			<TimetableFilterBar
-				programs={programs}
-				selectedProgramId={selectedProgramId}
-				onSelectProgram={onSelectProgram}
-				selectedLevel={selectedLevel}
-				onSelectLevel={onSelectLevel}
-			/>
+			{/* 1. School Admin / Superuser Faculty Sub-Filter */}
+			{(isSchoolAdmin || isSuperuser) &&
+				faculties.length > 1 &&
+				onSelectFaculty && (
+					<FacultySubFilterBar
+						faculties={faculties}
+						selectedFacultyId={selectedFacultyId}
+						onSelectFaculty={onSelectFaculty}
+						schoolName={scopeLabel?.title}
+					/>
+				)}
+
+			{/* 2. Department Loop Navigation Bar */}
+			{departments.length > 0 ? (
+				<DepartmentLoopBar
+					departments={departments}
+					selectedDepartmentId={selectedDepartmentId}
+					onSelectDepartment={onSelectDepartment}
+					isDeptAdmin={isDeptAdmin}
+					adminLevel={isDeptAdmin ? "department" : undefined}
+				/>
+			) : (
+				<div className="p-6 text-center border border-dashed border-border rounded-2xl bg-surface-raised/30 space-y-2">
+					<Lock size={22} className="mx-auto text-text-muted" />
+					<div className="text-xs font-bold text-text-main">
+						No Accessible Departments in Scope
+					</div>
+					<p className="text-[11px] text-text-muted max-w-md mx-auto">
+						{isDeptAdmin
+							? "You only have permission to view your assigned department."
+							: "No departments matching your active scope filter were found."}
+					</p>
+				</div>
+			)}
+
+			{/* 3. Program, Level & Search Filter Bar */}
+			{departments.length > 0 && (
+				<RunProgramLevelFilterBar
+					programs={departmentPrograms}
+					selectedProgramId={selectedProgramId}
+					onSelectProgram={onSelectProgram}
+					selectedLevel={selectedLevel}
+					onSelectLevel={onSelectLevel}
+					searchQuery={searchQuery}
+					onSearchChange={onSearchChange}
+					allowAllPrograms={true}
+				/>
+			)}
 
 			{/* Bold Top-Center Timetable Title */}
 			<TimetableTitle
-				programName={programDisplayName}
+				programName={cohortDisplayName}
 				level={selectedLevel}
 				weekNumber={currentWeek}
 				totalWeeks={totalWeeks}
@@ -195,7 +291,7 @@ export default function SchedulesView({
 				semesterName={activeSemester?.displayName || activeSemester?.name}
 			/>
 
-			{/* Main Tabs: List View & Grid View */}
+			{/* Main Tabs: Grid View & List View */}
 			<div className="flex justify-center">
 				<TabSwitcher<"grid" | "list">
 					tabs={[
@@ -203,6 +299,7 @@ export default function SchedulesView({
 							id: "grid",
 							label: "Grid View",
 							icon: LayoutGrid,
+							count: entries?.length,
 						},
 						{
 							id: "list",
@@ -225,8 +322,11 @@ export default function SchedulesView({
 				) : (
 					<TimetableAcademicGrid
 						entries={entries || []}
+						selectedDepartmentId={selectedDepartmentId}
 						selectedProgramId={selectedProgramId}
 						selectedLevel={selectedLevel}
+						searchQuery={searchQuery}
+						conflictReport={conflictReport}
 						weekDayDates={weekDayDates}
 						onOpenCreateEntry={(defaultDay, defaultSlot) =>
 							onOpenScheduleEntry(
@@ -251,7 +351,7 @@ export default function SchedulesView({
 				/>
 			)}
 
-			{/* Bottom Next/Previous Controls */}
+			{/* Bottom Next/Previous Week Controls */}
 			<WeekNavigator
 				currentWeek={currentWeek}
 				totalWeeks={totalWeeks}

@@ -64,10 +64,18 @@ interface RawTimetableEntry {
   course_code?: string;
   course_title?: string;
   course_level?: number;
+  course_type?: string;
+  department_id?: number | string;
+  department_name?: string;
+  faculty_id?: number | string;
+  faculty_name?: string;
   lecturer?: number | string;
   lecturer_name?: string;
+  lecturers?: string[];
   venue?: number | string;
   venue_name?: string;
+  venue_capacity?: number;
+  expected_students?: number;
   day_of_week?: string;
   start_time: string;
   end_time: string;
@@ -95,7 +103,13 @@ interface RawLectureSession {
   course_code?: string;
   course_title?: string;
   course_level?: number;
+  course_type?: string;
+  department_id?: number | string;
+  department_name?: string;
+  faculty_id?: number | string;
+  faculty_name?: string;
   lecturer_name?: string;
+  lecturers?: string[];
   target_program_id?: number | string;
   program_name?: string;
   program_code?: string;
@@ -105,6 +119,8 @@ interface RawLectureSession {
   session_end_time: string;
   venue?: number | string;
   venue_name?: string;
+  venue_capacity?: number;
+  day_of_week?: string;
   status: "scheduled" | "shifted" | "postponed" | "cancelled" | "held" | "not_held";
   can_shift?: boolean;
   report_status?: "held" | "not_held" | "unreported";
@@ -128,6 +144,34 @@ interface RawExamSitting {
   }>;
 }
 
+function parseDayOfWeek(rawDay?: string, recurrenceRule?: string): TimetableEntry["dayOfWeek"] {
+  const candidate = (rawDay || "").trim().toLowerCase();
+  const dayMap: Record<string, TimetableEntry["dayOfWeek"]> = {
+    monday: "Monday",
+    tuesday: "Tuesday",
+    wednesday: "Wednesday",
+    thursday: "Thursday",
+    friday: "Friday",
+    saturday: "Saturday",
+    mon: "Monday",
+    tue: "Tuesday",
+    wed: "Wednesday",
+    thu: "Thursday",
+    fri: "Friday",
+    sat: "Saturday",
+  };
+  if (candidate in dayMap) {
+    return dayMap[candidate];
+  }
+  if (recurrenceRule) {
+    const parts = recurrenceRule.toLowerCase().split(":");
+    if (parts.length > 1 && parts[1] in dayMap) {
+      return dayMap[parts[1]];
+    }
+  }
+  return "Monday";
+}
+
 function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
   return {
     id: String(raw.id),
@@ -138,10 +182,19 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.title || "Course",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
-    lecturerName: raw.lecturer_name || "Assigned Lecturer",
+    courseType: raw.course_type,
+    departmentId: raw.department_id ? String(raw.department_id) : undefined,
+    departmentName: raw.department_name,
+    facultyId: raw.faculty_id ? String(raw.faculty_id) : undefined,
+    facultyName: raw.faculty_name,
+    lecturerId: raw.lecturer ? String(raw.lecturer) : undefined,
+    lecturerName: raw.lecturer_name || (raw.lecturers && raw.lecturers[0]) || "Assigned Lecturer",
+    lecturers: raw.lecturers || (raw.lecturer_name ? [raw.lecturer_name] : []),
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
-    dayOfWeek: (raw.day_of_week as TimetableEntry["dayOfWeek"]) || "Monday",
+    venueCapacity: raw.venue_capacity,
+    expectedStudents: raw.expected_students,
+    dayOfWeek: parseDayOfWeek(raw.day_of_week, raw.recurrence_rule),
     startTime: raw.start_time,
     endTime: raw.end_time,
     semesterId: raw.semester ? String(raw.semester) : undefined,
@@ -167,16 +220,24 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
-    lecturerName: raw.lecturer_name || "Lecturer",
+    courseType: raw.course_type,
+    departmentId: raw.department_id ? String(raw.department_id) : undefined,
+    departmentName: raw.department_name,
+    facultyId: raw.faculty_id ? String(raw.faculty_id) : undefined,
+    facultyName: raw.faculty_name,
+    lecturerName: raw.lecturer_name || (raw.lecturers && raw.lecturers[0]) || "Lecturer",
+    lecturers: raw.lecturers || (raw.lecturer_name ? [raw.lecturer_name] : []),
     targetProgramId: raw.target_program_id ? String(raw.target_program_id) : undefined,
     programName: raw.program_name,
     programCode: raw.program_code,
     programScope: raw.program_scope || "general",
     date: raw.session_date,
+    dayOfWeek: raw.day_of_week,
     startTime: raw.session_start_time,
     endTime: raw.session_end_time,
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
+    venueCapacity: raw.venue_capacity,
     status: raw.status || "scheduled",
     canShift: Boolean(raw.can_shift),
     reportStatus: raw.report_status || "unreported",
@@ -212,6 +273,8 @@ export async function getTimetableEntries(params?: {
   semester?: string | number;
   program?: string | number;
   level?: string | number;
+  department?: string | number;
+  faculty?: string | number;
   entry_type?: string;
 }): Promise<TimetableEntry[]> {
   const response = await apiClient.get<RawTimetableEntry[] | { results: RawTimetableEntry[] }>(
@@ -299,6 +362,8 @@ export async function getLectureSessions(params?: {
   semester?: string | number;
   program?: string | number;
   level?: string | number;
+  department?: string | number;
+  faculty?: string | number;
   entry_type?: string;
 }): Promise<LectureSession[]> {
   const response = await apiClient.get<RawLectureSession[] | { results: RawLectureSession[] }>(

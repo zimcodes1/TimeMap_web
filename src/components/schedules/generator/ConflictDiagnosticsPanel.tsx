@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
 	CheckCircle2,
@@ -9,20 +9,23 @@ import {
 	Calendar,
 	Clock,
 	Maximize2,
+	ShieldCheck,
 } from "lucide-react";
 import type { TimetableGenerationRun } from "@/types";
 
 interface ConflictDiagnosticsPanelProps {
 	run: TimetableGenerationRun;
+	scopedDepartmentIds?: (string | number)[];
+	scopeLabel?: { title: string; subtitle?: string; level: string };
 }
 
 interface StudentConflictItem {
 	student_group?: string;
 	slot?: string;
 	course_a?: string;
-	occurrence_a?: number;
+	occurrence_a?: string | number;
 	course_b?: string;
-	occurrence_b?: number;
+	occurrence_b?: string | number;
 }
 
 interface LecturerConflictItem {
@@ -31,6 +34,8 @@ interface LecturerConflictItem {
 	slot?: string;
 	course_a?: string;
 	course_b?: string;
+	occurrence_a?: string | number;
+	occurrence_b?: string | number;
 }
 
 interface VenueConflictItem {
@@ -39,6 +44,8 @@ interface VenueConflictItem {
 	slot?: string;
 	course_a?: string;
 	course_b?: string;
+	occurrence_a?: string | number;
+	occurrence_b?: string | number;
 }
 
 interface DailyLimitConflictItem {
@@ -50,10 +57,12 @@ interface DailyLimitConflictItem {
 }
 
 interface OccurrenceDayConflictItem {
+	course?: string;
 	course_code?: string;
 	day?: string;
-	occurrence_a?: number;
-	occurrence_b?: number;
+	occurrence_a?: string | number;
+	occurrence_b?: string | number;
+	occurrences?: (string | number)[];
 }
 
 interface CapacityViolationItem {
@@ -66,10 +75,13 @@ interface CapacityViolationItem {
 	capacity?: number;
 	expected_students?: number;
 	slot?: string;
+	occurrence?: string;
 }
 
 export function ConflictDiagnosticsPanel({
 	run,
+	scopedDepartmentIds,
+	scopeLabel,
 }: ConflictDiagnosticsPanelProps) {
 	const [activeTab, setActiveTab] = useState<
 		"all" | "student" | "lecturer" | "venue" | "daily" | "repeat" | "capacity"
@@ -78,39 +90,174 @@ export function ConflictDiagnosticsPanel({
 	const cr = run.conflictReport || {};
 	const details = cr.details || {};
 
-	const studentConflicts =
-		((details.student_conflicts || cr.student_conflicts || []) as StudentConflictItem[]);
-	const lecturerConflicts =
-		((details.lecturer_conflicts || cr.lecturer_conflicts || []) as LecturerConflictItem[]);
-	const venueConflicts =
-		((details.venue_conflicts || cr.venue_conflicts || []) as VenueConflictItem[]);
-	const dailyLimitViolations =
-		((details.daily_limit_violations || cr.daily_limit_violations || []) as DailyLimitConflictItem[]);
-	const occurrenceDayViolations =
-		((details.occurrence_day_violations || cr.occurrence_day_violations || []) as OccurrenceDayConflictItem[]);
-	const capacityViolations =
-		((details.capacity_overflows ||
+	// Map courses and occurrences to their department(s) from run.assignmentsPayload
+	const { courseDeptMap, occDeptMap } = useMemo(() => {
+		const cMap = new Map<string, Set<string>>();
+		const oMap = new Map<string, Set<string>>();
+
+		for (const a of run.assignmentsPayload || []) {
+			const depts = new Set<string>();
+			if (a.department_id) {
+				depts.add(String(a.department_id));
+			}
+
+			if (a.course_code) {
+				const existing = cMap.get(a.course_code) || new Set<string>();
+				depts.forEach((d) => existing.add(d));
+				cMap.set(a.course_code, existing);
+			}
+
+			if (a.occurrence_id) {
+				const existing = oMap.get(a.occurrence_id) || new Set<string>();
+				depts.forEach((d) => existing.add(d));
+				oMap.set(a.occurrence_id, existing);
+			}
+		}
+
+		return { courseDeptMap: cMap, occDeptMap: oMap };
+	}, [run.assignmentsPayload]);
+
+	// Helper to check if a course or occurrence is in the admin's scope
+	const isCourseInScope = (courseCode?: string): boolean => {
+		if (!scopedDepartmentIds || scopedDepartmentIds.length === 0) return true;
+		if (!courseCode) return false;
+		const depts = courseDeptMap.get(courseCode);
+		if (!depts) return false;
+		return scopedDepartmentIds.some((id) => depts.has(String(id)));
+	};
+
+	const isOccurrenceInScope = (occId?: string | number): boolean => {
+		if (!scopedDepartmentIds || scopedDepartmentIds.length === 0) return true;
+		if (!occId) return false;
+		const depts = occDeptMap.get(String(occId));
+		if (!depts) return false;
+		return scopedDepartmentIds.some((id) => depts.has(String(id)));
+	};
+
+	// Filter each conflict type according to the admin's scope
+	const rawStudentConflicts = (details.student_conflicts ||
+		cr.student_conflicts ||
+		[]) as StudentConflictItem[];
+	const studentConflicts = useMemo(() => {
+		if (!scopedDepartmentIds) return rawStudentConflicts;
+		return rawStudentConflicts.filter(
+			(c) =>
+				isCourseInScope(c.course_a) ||
+				isCourseInScope(c.course_b) ||
+				isOccurrenceInScope(c.occurrence_a) ||
+				isOccurrenceInScope(c.occurrence_b),
+		);
+	}, [rawStudentConflicts, scopedDepartmentIds, courseDeptMap]);
+
+	const rawLecturerConflicts = (details.lecturer_conflicts ||
+		cr.lecturer_conflicts ||
+		[]) as LecturerConflictItem[];
+	const lecturerConflicts = useMemo(() => {
+		if (!scopedDepartmentIds) return rawLecturerConflicts;
+		return rawLecturerConflicts.filter(
+			(c) =>
+				isCourseInScope(c.course_a) ||
+				isCourseInScope(c.course_b) ||
+				isOccurrenceInScope(c.occurrence_a) ||
+				isOccurrenceInScope(c.occurrence_b),
+		);
+	}, [rawLecturerConflicts, scopedDepartmentIds, courseDeptMap]);
+
+	const rawVenueConflicts = (details.venue_conflicts ||
+		cr.venue_conflicts ||
+		[]) as VenueConflictItem[];
+	const venueConflicts = useMemo(() => {
+		if (!scopedDepartmentIds) return rawVenueConflicts;
+		return rawVenueConflicts.filter(
+			(c) =>
+				isCourseInScope(c.course_a) ||
+				isCourseInScope(c.course_b) ||
+				isOccurrenceInScope(c.occurrence_a) ||
+				isOccurrenceInScope(c.occurrence_b),
+		);
+	}, [rawVenueConflicts, scopedDepartmentIds, courseDeptMap]);
+
+	const rawDailyLimitViolations = (details.daily_limit_violations ||
+		cr.daily_limit_violations ||
+		[]) as DailyLimitConflictItem[];
+	const dailyLimitViolations = useMemo(() => {
+		if (!scopedDepartmentIds) return rawDailyLimitViolations;
+		return rawDailyLimitViolations.filter(
+			(c) => c.courses && c.courses.some((code) => isCourseInScope(code)),
+		);
+	}, [rawDailyLimitViolations, scopedDepartmentIds, courseDeptMap]);
+
+	const rawOccurrenceDayViolations = (details.occurrence_day_violations ||
+		cr.occurrence_day_violations ||
+		[]) as OccurrenceDayConflictItem[];
+	const occurrenceDayViolations = useMemo(() => {
+		if (!scopedDepartmentIds) return rawOccurrenceDayViolations;
+		return rawOccurrenceDayViolations.filter(
+			(c) =>
+				isCourseInScope(c.course) ||
+				isCourseInScope(c.course_code) ||
+				(c.occurrences &&
+					c.occurrences.some((occ) => isOccurrenceInScope(occ))),
+		);
+	}, [rawOccurrenceDayViolations, scopedDepartmentIds, courseDeptMap]);
+
+	const rawCapacityViolations = (details.capacity_overflows ||
 		details.capacity_violations ||
 		cr.capacity_violations ||
 		cr.capacity_overflows ||
-		[]) as CapacityViolationItem[]);
+		[]) as CapacityViolationItem[];
+	const capacityViolations = useMemo(() => {
+		if (!scopedDepartmentIds) return rawCapacityViolations;
+		return rawCapacityViolations.filter(
+			(c) =>
+				isCourseInScope(c.course) ||
+				isCourseInScope(c.course_code) ||
+				isOccurrenceInScope(c.occurrence),
+		);
+	}, [rawCapacityViolations, scopedDepartmentIds, courseDeptMap]);
 
-	const totalHardConflicts = run.hardConflictsCount;
+	const listHardConflicts =
+		studentConflicts.length +
+		lecturerConflicts.length +
+		venueConflicts.length +
+		dailyLimitViolations.length +
+		occurrenceDayViolations.length;
+
+	const runHardCount = run.hardConflictsCount ?? 0;
+
+	// In unscoped view (or when scopedDepartmentIds is not set), fallback to run.hardConflictsCount
+	// so that if detail arrays are empty or still loading, we NEVER claim 0 hard conflicts when hardConflictsCount > 0!
+	const totalHardConflicts = scopedDepartmentIds
+		? listHardConflicts
+		: Math.max(listHardConflicts, runHardCount);
+
 	const totalCapacityViolations = capacityViolations.length;
 
 	if (totalHardConflicts === 0 && totalCapacityViolations === 0) {
 		return (
-			<div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2 text-center">
+			<div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3 text-center">
 				<div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
 					<CheckCircle2 size={24} />
 				</div>
-				<h4 className="font-bold text-sm text-text-main">
-					Zero Hard Conflicts & Optimal Room Allocations
-				</h4>
+				<div className="space-y-1">
+					<h4 className="font-bold text-sm text-text-main">
+						{scopedDepartmentIds
+							? "Zero Hard Conflicts in Your Scope"
+							: "Zero Hard Conflicts & Optimal Room Allocations"}
+					</h4>
+					{scopeLabel && (
+						<div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-semibold">
+							<ShieldCheck size={11} />
+							<span>
+								{scopeLabel.title} ({scopeLabel.level})
+							</span>
+						</div>
+					)}
+				</div>
 				<p className="text-xs text-text-muted max-w-md mx-auto leading-relaxed">
-					All 6 hard and soft constraint sets were strictly satisfied: zero
-					student group overlaps, zero lecturer double-bookings, zero venue
-					collisions, distinct lecture days, and zero room capacity overflows.
+					{scopedDepartmentIds && runHardCount > 0
+						? `All hard and soft timetable constraints are strictly satisfied for courses and cohorts within your assigned department (${scopeLabel?.title || "your scope"}). Note: ${runHardCount} hard conflicts exist in other departments in this run.`
+						: "All hard and soft timetable constraints are strictly satisfied: zero student group overlaps, zero lecturer double-bookings, zero venue collisions, distinct lecture days, and zero room capacity overflows."}
 				</p>
 			</div>
 		);
@@ -118,6 +265,7 @@ export function ConflictDiagnosticsPanel({
 
 	return (
 		<div className="border border-border rounded-2xl bg-surface overflow-hidden space-y-4 p-4">
+			{/* Diagnostics Header & Admin Scope Indicator */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border">
 				<div>
 					<h4 className="font-bold text-sm text-text-main flex items-center gap-2">
@@ -129,11 +277,19 @@ export function ConflictDiagnosticsPanel({
 						/>
 						<span>Constraint Diagnostics Breakdown</span>
 					</h4>
-					<p className="text-xs text-text-muted">
-						{totalHardConflicts === 0
-							? "Zero hard conflicts. Minor soft room capacity adjustments detected below."
-							: `${totalHardConflicts} hard constraint collision${totalHardConflicts > 1 ? "s" : ""} require attention.`}
-					</p>
+					<div className="flex flex-wrap items-center gap-2 mt-1">
+						<p className="text-xs text-text-muted">
+							{totalHardConflicts === 0
+								? "Zero hard conflicts in scope. Minor soft room capacity adjustments detected below."
+								: `${totalHardConflicts} hard constraint collision${totalHardConflicts > 1 ? "s" : ""} require attention in your scope.`}
+						</p>
+						{scopeLabel && (
+							<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-raised border border-border text-[10px] text-text-muted font-medium">
+								<ShieldCheck size={10} className="text-primary" />
+								<span>{scopeLabel.title}</span>
+							</span>
+						)}
+					</div>
 				</div>
 
 				<div className="flex items-center gap-2">
@@ -357,7 +513,9 @@ export function ConflictDiagnosticsPanel({
 							<div className="flex items-center justify-between text-amber-400 font-semibold">
 								<span className="flex items-center gap-1.5">
 									<Calendar size={14} />
-									<span>Multi-Session Same Day Repeat: {c.course_code}</span>
+									<span>
+										Multi-Session Same Day Repeat: {c.course || c.course_code}
+									</span>
 								</span>
 								<span className="font-mono text-[11px]">{c.day}</span>
 							</div>
@@ -407,6 +565,29 @@ export function ConflictDiagnosticsPanel({
 						</div>
 					))}
 
+				{/* When run summary records conflicts but detailed breakdown arrays are loading or summary-only */}
+				{totalHardConflicts > 0 && listHardConflicts === 0 && (
+					<div className="p-6 text-center border border-dashed border-border rounded-xl bg-surface-raised/40 text-xs text-text-muted space-y-2">
+						<AlertTriangle size={22} className="mx-auto text-amber-400" />
+						<div className="space-y-1">
+							<p className="font-semibold text-text-main">
+								{totalHardConflicts} Hard Conflict
+								{totalHardConflicts > 1 ? "s" : ""} Recorded in Generation Run
+							</p>
+							<p className="text-[11px] text-text-muted max-w-md mx-auto">
+								Summary metrics report {run.studentConflictsCount || 0} student
+								clash{run.studentConflictsCount !== 1 ? "es" : ""},{" "}
+								{run.lecturerConflictsCount || 0} lecturer double-booking
+								{run.lecturerConflictsCount !== 1 ? "s" : ""}, and{" "}
+								{run.venueConflictsCount || 0} venue collision
+								{run.venueConflictsCount !== 1 ? "s" : ""}. Full collision
+								occurrences can be inspected in the Weekly Timetable Grid and
+								All Scheduled Occurrences table.
+							</p>
+						</div>
+					</div>
+				)}
+
 				{/* Empty category state */}
 				{activeTab !== "all" &&
 					((activeTab === "student" && studentConflicts.length === 0) ||
@@ -418,7 +599,7 @@ export function ConflictDiagnosticsPanel({
 						<div className="p-6 text-center border border-dashed border-border rounded-xl bg-surface-raised/40 text-xs text-text-muted space-y-1">
 							<CheckCircle2 size={18} className="mx-auto text-emerald-400" />
 							<p className="font-semibold text-text-main">
-								No violations in this category
+								No violations in this category in your scope
 							</p>
 							<p className="text-[11px]">
 								Constraint condition is completely satisfied.

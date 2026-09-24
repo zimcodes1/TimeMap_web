@@ -1,4 +1,4 @@
-import type { User, Department, Faculty, School } from "@/types";
+import type { User, Department, Faculty, School, GeneratedAssignment } from "@/types";
 
 /**
  * Resolves the numeric-level rank of a given admin level string.
@@ -176,5 +176,156 @@ export function getVisibleTabs(currentUser: User | null): ("admin" | "lecturer" 
 
   // Superuser / University level
   return ["admin", "lecturer", "student"];
+}
+
+/**
+ * Resolves the list of department IDs accessible by the current admin user.
+ * - Department Admin: returns ONLY their assigned department ID.
+ * - Faculty Admin: returns departments belonging to their assigned faculty.
+ * - School Admin: returns departments in their school, optionally narrowed by selectedFacultyId.
+ * - University Admin / Superuser: returns all departments, optionally narrowed by selectedFacultyId.
+ */
+export function getAdminAccessibleDepartmentIds(
+  currentUser: User | null,
+  allDepartments: Department[],
+  allFaculties: Faculty[] = [],
+  selectedFacultyId?: string
+): string[] {
+  if (!currentUser || currentUser.role !== "admin") {
+    return allDepartments.map((d) => String(d.id));
+  }
+
+  const level = currentUser.adminLevel;
+
+  // 1. Department Admin: strictly their own department
+  if (level === "department") {
+    const myDeptId = currentUser.adminScopeId || currentUser.departmentId;
+    return myDeptId ? [String(myDeptId)] : [];
+  }
+
+  // 2. Faculty Admin: all departments in their assigned faculty
+  if (level === "faculty") {
+    const myFacultyId = currentUser.adminScopeId || currentUser.facultyId;
+    if (!myFacultyId) return [];
+    return allDepartments
+      .filter((d) => String(d.facultyId) === String(myFacultyId))
+      .map((d) => String(d.id));
+  }
+
+  // 3. School Admin: departments in their school, optionally filtered by selectedFacultyId
+  if (level === "school") {
+    const mySchoolId = currentUser.adminScopeId || currentUser.schoolId;
+    if (!mySchoolId) return [];
+
+    const facultiesInSchool = allFaculties.filter(
+      (f) => String(f.schoolId) === String(mySchoolId)
+    );
+
+    let targetFaculties = facultiesInSchool;
+    if (selectedFacultyId && selectedFacultyId !== "ALL") {
+      targetFaculties = facultiesInSchool.filter(
+        (f) => String(f.id) === String(selectedFacultyId)
+      );
+    }
+
+    const targetFacultyIds = targetFaculties.map((f) => String(f.id));
+    return allDepartments
+      .filter((d) => targetFacultyIds.includes(String(d.facultyId)))
+      .map((d) => String(d.id));
+  }
+
+  // 4. University Admin / Superuser: optionally filtered by selectedFacultyId
+  if (selectedFacultyId && selectedFacultyId !== "ALL") {
+    return allDepartments
+      .filter((d) => String(d.facultyId) === String(selectedFacultyId))
+      .map((d) => String(d.id));
+  }
+
+  return allDepartments.map((d) => String(d.id));
+}
+
+/**
+ * Checks if a generated assignment belongs to the admin's accessible departments.
+ */
+export function isAssignmentInScope(
+  a: GeneratedAssignment,
+  accessibleDepartmentIds: string[]
+): boolean {
+  if (!accessibleDepartmentIds || accessibleDepartmentIds.length === 0) {
+    return false;
+  }
+
+  // Check assignment's owning department
+  if (a.department_id && accessibleDepartmentIds.includes(String(a.department_id))) {
+    return true;
+  }
+
+  // Check if any attributed program's department matches
+  if (a.programs && a.programs.length > 0) {
+    const hasMatchingProgram = a.programs.some((p) => {
+      const progDeptId = (p as any).department_id || (p as any).departmentId;
+      return progDeptId && accessibleDepartmentIds.includes(String(progDeptId));
+    });
+    if (hasMatchingProgram) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Returns a human-readable scope label for the active admin inspection view.
+ */
+export function getAdminScopeLabel(
+  currentUser: User | null,
+  departments: Department[] = [],
+  faculties: Faculty[] = [],
+  selectedFacultyId?: string
+): { title: string; subtitle?: string; level: string } {
+  if (!currentUser || currentUser.role !== "admin") {
+    return { title: "General View", level: "Guest" };
+  }
+
+  const level = currentUser.adminLevel || "university";
+
+  if (level === "department") {
+    const deptId = currentUser.adminScopeId || currentUser.departmentId;
+    const dept = departments.find((d) => String(d.id) === String(deptId));
+    return {
+      title: dept ? dept.name : "Department Scope",
+      subtitle: dept?.code ? `Code: ${dept.code}` : undefined,
+      level: "Department Admin",
+    };
+  }
+
+  if (level === "faculty") {
+    const facId = currentUser.adminScopeId || currentUser.facultyId;
+    const fac = faculties.find((f) => String(f.id) === String(facId));
+    return {
+      title: fac ? fac.name : "Faculty Scope",
+      subtitle: fac?.code ? `Code: ${fac.code}` : undefined,
+      level: "Faculty Admin",
+    };
+  }
+
+  if (level === "school") {
+    let subtitle = currentUser.schoolName || undefined;
+    if (selectedFacultyId && selectedFacultyId !== "ALL") {
+      const fac = faculties.find((f) => String(f.id) === String(selectedFacultyId));
+      if (fac) subtitle = `Filtered to: ${fac.name}`;
+    }
+    return {
+      title: currentUser.schoolName || "School Scope",
+      subtitle,
+      level: "School Admin",
+    };
+  }
+
+  return {
+    title: "University Scope",
+    subtitle: selectedFacultyId && selectedFacultyId !== "ALL"
+      ? `Filtered to: ${faculties.find((f) => String(f.id) === String(selectedFacultyId))?.name || "Faculty"}`
+      : "Full Access",
+    level: "University Admin",
+  };
 }
 
