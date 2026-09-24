@@ -11,15 +11,22 @@ import {
 	CheckCircle2,
 	Maximize2,
 	GraduationCap,
+	XCircle,
+	Ban,
+	Edit,
 } from "lucide-react";
-import type { TimetableEntry } from "@/types";
+import type { TimetableEntry, LectureSession } from "@/types";
 import type { AssociatedConflict } from "@/components/schedules/generator/ScheduleConflictDetailModal";
 
 interface LiveEntryDetailModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	entry: TimetableEntry | null;
-	conflicts: AssociatedConflict[];
+	entry?: TimetableEntry | null;
+	session?: LectureSession | null;
+	conflicts?: AssociatedConflict[];
+	isPast?: boolean;
+	date?: string;
+	canShift?: boolean;
 	onShiftClick?: () => void;
 }
 
@@ -27,21 +34,84 @@ export function LiveEntryDetailModal({
 	isOpen,
 	onClose,
 	entry,
-	conflicts,
+	session,
+	conflicts = [],
+	isPast,
+	date,
+	canShift,
 	onShiftClick,
 }: LiveEntryDetailModalProps) {
-	if (!entry) return null;
+	if (!entry && !session) return null;
 
-	const hasHardConflicts = conflicts.some((c) => c.severity === "hard");
-	const hasConflicts = conflicts.length > 0;
-	const isPractical = (entry.courseType || "").toLowerCase() === "practical";
+	// Extract unified attributes across entry and session
+	const courseCode = session?.courseCode || entry?.courseCode || "";
+	const courseTitle = session?.courseTitle || entry?.courseTitle || "";
+	const courseLevel = session?.courseLevel || entry?.courseLevel;
+	const courseType = session?.courseType || entry?.courseType || "";
+	const isPractical = (courseType || "").toLowerCase() === "practical";
+
+	const venueName =
+		session?.venueName || entry?.venueName || "Unassigned Venue";
+	const venueCapacity = session?.venueCapacity || entry?.venueCapacity;
+
+	const dayOfWeek = session?.dayOfWeek || entry?.dayOfWeek || "";
+	const dateStr = session?.date || date || "";
+	const startTime = session?.startTime || entry?.startTime || "";
+	const endTime = session?.endTime || entry?.endTime || "";
+
+	const cohortName =
+		session?.programName ||
+		entry?.targetProgramName ||
+		entry?.departmentName ||
+		"All Programs";
+	const expectedStudents = entry?.expectedStudents;
 
 	const lecturersList =
-		entry.lecturers && entry.lecturers.length > 0
-			? entry.lecturers
-			: entry.lecturerName
-				? [entry.lecturerName]
-				: [];
+		session?.lecturers && session.lecturers.length > 0
+			? session.lecturers
+			: entry?.lecturers && entry.lecturers.length > 0
+				? entry.lecturers
+				: session?.lecturerName
+					? [session.lecturerName]
+					: entry?.lecturerName
+						? [entry.lecturerName]
+						: [];
+
+	// Conflict determination
+	const hasHardConflicts =
+		conflicts.some((c) => c.severity === "hard") ||
+		Boolean(session?.hasConflict);
+	const hasConflicts = conflicts.length > 0 || Boolean(session?.hasConflict);
+
+	// Past determination
+	const now = new Date();
+	const todayDateStr = `${now.getFullYear()}-${String(
+		now.getMonth() + 1,
+	).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+	const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+		now.getMinutes(),
+	).padStart(2, "0")}:00`;
+
+	const calculatedIsPast = Boolean(
+		isPast !== undefined
+			? isPast
+			: dateStr
+				? dateStr < todayDateStr ||
+					(dateStr === todayDateStr &&
+						Boolean(endTime && endTime < currentTimeStr))
+				: false,
+	);
+
+	const reportStatus = session?.reportStatus;
+	const sessionStatus = session?.status;
+	const isHeld = reportStatus === "held" || sessionStatus === "held";
+	const isNotHeld = reportStatus === "not_held" || sessionStatus === "not_held";
+	const isCancelled = sessionStatus === "cancelled";
+	const isShifted = sessionStatus === "shifted";
+
+	// Shift eligibility: past sessions can NEVER be shifted
+	const isShiftAllowed =
+		!calculatedIsPast && canShift !== false && Boolean(onShiftClick);
 
 	return (
 		<Modal
@@ -56,21 +126,25 @@ export function LiveEntryDetailModal({
 								? "bg-red-500/10 text-red-400"
 								: hasConflicts
 									? "bg-amber-500/10 border border-amber-500/20 text-amber-300"
-									: "bg-emerald-500/20 border border-primary/10 text-primary"
+									: calculatedIsPast
+										? "bg-surface-raised border border-border text-text-muted"
+										: "bg-emerald-500/20 border border-primary/10 text-primary"
 						}`}
 					>
 						{hasHardConflicts ? (
 							<ShieldAlert size={20} />
 						) : hasConflicts ? (
 							<AlertTriangle size={20} />
+						) : calculatedIsPast ? (
+							<Clock size={20} />
 						) : (
 							<CheckCircle2 size={20} />
 						)}
 					</div>
 					<div>
-						<div className="flex items-center gap-2">
+						<div className="flex items-center gap-2 flex-wrap">
 							<span className="text-base font-extrabold text-text-main">
-								{entry.courseCode}
+								{courseCode}
 							</span>
 							{isPractical && (
 								<Badge
@@ -80,33 +154,81 @@ export function LiveEntryDetailModal({
 									Lab / Practical
 								</Badge>
 							)}
-							{entry.courseLevel && (
+							{courseLevel && (
 								<Badge variant="outline" className="text-[10px] py-0 px-1.5">
-									{entry.courseLevel} Level
+									{courseLevel} Level
 								</Badge>
 							)}
+							{calculatedIsPast ? (
+								<Badge
+									variant="outline"
+									className="text-[10px] py-0 px-1.5 text-text-subtle border-border/80"
+								>
+									Past Lecture
+								</Badge>
+							) : (
+								<Badge
+									variant={isShifted ? "warning" : "primary"}
+									className="text-[10px] py-0 px-1.5"
+								>
+									{isShifted ? "Shifted" : "Upcoming"}
+								</Badge>
+							)}
+							{calculatedIsPast && isHeld && (
+								<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+									<CheckCircle2 size={10} /> Held
+								</span>
+							)}
+							{calculatedIsPast && isNotHeld && (
+								<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/20">
+									<XCircle size={10} /> Not Held
+								</span>
+							)}
+							{calculatedIsPast && isCancelled && (
+								<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/20">
+									<Ban size={10} /> Cancelled
+								</span>
+							)}
+							{calculatedIsPast && !isHeld && !isNotHeld && !isCancelled && (
+								<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+									Unreported
+								</span>
+							)}
 						</div>
-						<div className="text-xs text-text-muted font-normal mt-0.5">
-							{entry.courseTitle}
+						<div className="text-xs text-text-muted font-normal mt-0.5 line-clamp-1">
+							{courseTitle}
 						</div>
 					</div>
 				</div>
 			}
-			description="Detailed live lecture schedule details and conflict diagnostics."
+			description={
+				calculatedIsPast
+					? "Past lecture schedule details and attendance reporting record."
+					: "Detailed live lecture schedule details and conflict diagnostics."
+			}
 			footer={
-				<div className="flex items-center justify-end gap-2 w-full">
-					{onShiftClick && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								onClose();
-								onShiftClick();
-							}}
-							className="cursor-pointer text-xs"
-						>
-							Shift / Reschedule
-						</Button>
+				<div className="flex items-center justify-between w-full">
+					{calculatedIsPast ? (
+						<span className="text-[11px] text-text-subtle italic">
+							Past lectures cannot be shifted.
+						</span>
+					) : (
+						<div>
+							{isShiftAllowed && (
+								<Button
+									variant="primary"
+									size="sm"
+									onClick={() => {
+										onClose();
+										onShiftClick?.();
+									}}
+									className="cursor-pointer text-xs gap-1.5"
+								>
+									<Edit size={12} />
+									Shift / Reschedule
+								</Button>
+							)}
+						</div>
 					)}
 					<Button
 						variant="outline"
@@ -120,6 +242,34 @@ export function LiveEntryDetailModal({
 			}
 		>
 			<div className="space-y-4 pt-1">
+				{/* Past Lecture Banner */}
+				{calculatedIsPast && (
+					<div className="p-3.5 rounded-xl border bg-surface-raised/40 border-border/70 flex items-start gap-3">
+						<Clock size={18} className="text-text-muted shrink-0 mt-0.5" />
+						<div className="space-y-1 text-xs">
+							<div className="font-bold text-text-main flex items-center gap-2">
+								<span>Past Lecture Occurrence</span>
+								{dateStr && (
+									<span className="text-[10px] font-mono text-text-subtle font-normal">
+										({dateStr})
+									</span>
+								)}
+							</div>
+							<p className="text-[11px] text-text-muted leading-relaxed">
+								This lecture took place on{" "}
+								<strong className="text-text-main font-semibold">
+									{dayOfWeek || "scheduled day"}
+									{dateStr ? ` (${dateStr})` : ""}
+								</strong>{" "}
+								from {startTime?.slice(0, 5)} to {endTime?.slice(0, 5)}.
+							</p>
+							<div className="pt-0.5 text-[11px] font-medium text-amber-400/90">
+								Past lectures cannot be shifted or rescheduled.
+							</div>
+						</div>
+					</div>
+				)}
+
 				{/* Conflict Status Banner */}
 				{hasConflicts ? (
 					<div
@@ -133,8 +283,10 @@ export function LiveEntryDetailModal({
 						<div className="space-y-1">
 							<div className="text-xs font-bold text-text-main">
 								{hasHardConflicts
-									? `Hard Constraint Conflict Detected (${conflicts.length} issue${conflicts.length > 1 ? "s" : ""})`
-									: `Soft Constraint Notice (${conflicts.length} issue${conflicts.length > 1 ? "s" : ""})`}
+									? `Hard Constraint Conflict Detected (${
+											conflicts.length || 1
+										} issue)`
+									: `Soft Constraint Notice (${conflicts.length || 1} issue)`}
 							</div>
 							<p className="text-[11px] text-text-muted leading-relaxed">
 								{hasHardConflicts
@@ -143,7 +295,7 @@ export function LiveEntryDetailModal({
 							</p>
 						</div>
 					</div>
-				) : (
+				) : !calculatedIsPast ? (
 					<div className="p-3.5 rounded-xl border bg-emerald-500/10 border-emerald-500/20 flex items-center gap-3">
 						<CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
 						<div>
@@ -156,7 +308,7 @@ export function LiveEntryDetailModal({
 							</p>
 						</div>
 					</div>
-				)}
+				) : null}
 
 				{/* Detailed Conflict Breakdown Cards */}
 				{hasConflicts && (
@@ -214,6 +366,23 @@ export function LiveEntryDetailModal({
 									</div>
 								);
 							})}
+
+							{conflicts.length === 0 && session?.conflictReason && (
+								<div className="p-3 rounded-xl border text-xs space-y-1 bg-red-500/5 border-red-500/30 text-text-main">
+									<div className="flex items-center gap-1.5 font-bold text-red-400">
+										<Badge
+											variant="danger"
+											className="text-[9px] py-0 px-1 font-mono uppercase"
+										>
+											COLLISION
+										</Badge>
+										<span>Schedule Conflict</span>
+									</div>
+									<p className="text-[11px] text-text-muted leading-relaxed">
+										{session.conflictReason}
+									</p>
+								</div>
+							)}
 						</div>
 					</div>
 				)}
@@ -231,11 +400,16 @@ export function LiveEntryDetailModal({
 								<Clock size={13} className="text-primary" />
 								<span>Time & Day</span>
 							</div>
-							<div className="font-bold text-text-main">
-								{entry.dayOfWeek || "Weekly Lecture"}
+							<div className="font-bold text-text-main flex items-center gap-1.5">
+								<span>{dayOfWeek || "Weekly Lecture"}</span>
+								{dateStr && (
+									<span className="text-[10px] font-mono text-text-subtle">
+										({dateStr})
+									</span>
+								)}
 							</div>
 							<div className="text-[11px] text-text-muted font-mono">
-								{entry.startTime?.slice(0, 5)} - {entry.endTime?.slice(0, 5)}
+								{startTime?.slice(0, 5)} - {endTime?.slice(0, 5)}
 							</div>
 						</div>
 
@@ -246,15 +420,13 @@ export function LiveEntryDetailModal({
 								<span>Venue Allocation</span>
 							</div>
 							<div className="font-bold text-text-main truncate">
-								{entry.venueName}
+								{venueName}
 							</div>
 							<div className="text-[11px] text-text-muted flex items-center gap-1">
 								<Maximize2 size={11} />
 								<span>
 									Capacity:{" "}
-									{entry.venueCapacity
-										? `${entry.venueCapacity} seats`
-										: "Standard Room"}
+									{venueCapacity ? `${venueCapacity} seats` : "Standard Room"}
 								</span>
 							</div>
 						</div>
@@ -282,17 +454,13 @@ export function LiveEntryDetailModal({
 								<span>Degree Cohort</span>
 							</div>
 							<div className="font-bold text-text-main truncate">
-								{entry.targetProgramName ||
-									entry.departmentName ||
-									"All Programs"}
+								{cohortName}
 							</div>
 							<div className="text-[11px] text-text-muted flex items-center gap-1">
 								<Users size={11} />
 								<span>
-									Level: {entry.courseLevel}L
-									{entry.expectedStudents
-										? ` • ${entry.expectedStudents} students`
-										: ""}
+									Level: {courseLevel ? `${courseLevel}L` : "All"}
+									{expectedStudents ? ` • ${expectedStudents} students` : ""}
 								</span>
 							</div>
 						</div>

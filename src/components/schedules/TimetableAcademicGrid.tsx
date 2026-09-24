@@ -8,7 +8,11 @@ import {
 	User,
 	Clock,
 } from "lucide-react";
-import type { TimetableEntry, GenerationConflictReport } from "@/types";
+import type {
+	TimetableEntry,
+	LectureSession,
+	GenerationConflictReport,
+} from "@/types";
 import type { WeekDayInfo } from "@/utils/semesterWeeks";
 import { resolveLiveEntryConflicts } from "./liveConflictResolver";
 import { LiveEntryDetailModal } from "./LiveEntryDetailModal";
@@ -35,6 +39,7 @@ const DEFAULT_DAYS: Array<
 
 interface TimetableAcademicGridProps {
 	entries: TimetableEntry[];
+	sessions?: LectureSession[];
 	selectedDepartmentId?: string | number;
 	selectedProgramId?: string | number;
 	selectedLevel?: number;
@@ -46,10 +51,12 @@ interface TimetableAcademicGridProps {
 		entry: TimetableEntry,
 		conflicts: AssociatedConflict[],
 	) => void;
+	onShiftSessionTrigger?: (session: LectureSession) => void;
 }
 
 export function TimetableAcademicGrid({
 	entries,
+	sessions = [],
 	selectedDepartmentId,
 	selectedProgramId,
 	selectedLevel,
@@ -58,17 +65,27 @@ export function TimetableAcademicGrid({
 	weekDayDates,
 	onOpenCreateEntry,
 	onSelectEntry,
+	onShiftSessionTrigger,
 }: TimetableAcademicGridProps) {
-	// Selected entry for modal view
+	// Selected entry and session for modal view
 	const [activeModalEntry, setActiveModalEntry] =
 		useState<TimetableEntry | null>(null);
+	const [activeModalSession, setActiveModalSession] =
+		useState<LectureSession | null>(null);
 	const [activeModalConflicts, setActiveModalConflicts] = useState<
 		AssociatedConflict[]
 	>([]);
+	const [activeModalIsPast, setActiveModalIsPast] = useState(false);
+	const [activeModalDate, setActiveModalDate] = useState("");
 	const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-	const today = new Date();
-	const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+	const now = new Date();
+	const todayDateStr = `${now.getFullYear()}-${String(
+		now.getMonth() + 1,
+	).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+	const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+		now.getMinutes(),
+	).padStart(2, "0")}:00`;
 
 	// Filter entries by department, program, level, and search query
 	const displayedEntries = useMemo(() => {
@@ -152,9 +169,15 @@ export function TimetableAcademicGrid({
 	const handleCardClick = (
 		entry: TimetableEntry,
 		conflicts: AssociatedConflict[],
+		isPastLecture: boolean,
+		dateStr: string,
+		matchingSession?: LectureSession | null,
 	) => {
 		setActiveModalEntry(entry);
+		setActiveModalSession(matchingSession || null);
 		setActiveModalConflicts(conflicts);
+		setActiveModalIsPast(isPastLecture);
+		setActiveModalDate(dateStr);
 		setIsDetailModalOpen(true);
 		onSelectEntry?.(entry, conflicts);
 	};
@@ -180,7 +203,7 @@ export function TimetableAcademicGrid({
 						</tr>
 					</thead>
 					<tbody>
-						{rowDays.map(({ dayName, label, isToday }) => {
+						{rowDays.map(({ dayName, label, dateStr, isToday }) => {
 							const isFriday = dayName.toLowerCase() === "friday";
 
 							return (
@@ -242,39 +265,76 @@ export function TimetableAcademicGrid({
 																(entry.courseType || "").toLowerCase() ===
 																"practical";
 
+															// A lecture is past if date is in the past, or if today and its end time has already elapsed
+															const isPastLecture =
+																Boolean(dateStr) &&
+																(dateStr < todayDateStr ||
+																	(dateStr === todayDateStr &&
+																		Boolean(
+																			entry.endTime &&
+																			entry.endTime < currentTimeStr,
+																		)));
+
+															// Find matching session if available in sessions list
+															const matchingSession = sessions.find(
+																(s) =>
+																	(s.entryId === entry.id ||
+																		s.timetableEntryId === entry.id) &&
+																	(dateStr ? s.date === dateStr : true),
+															);
+
 															return (
 																<div
 																	key={entry.id}
 																	onClick={() =>
-																		handleCardClick(entry, conflicts)
+																		handleCardClick(
+																			entry,
+																			conflicts,
+																			isPastLecture,
+																			dateStr,
+																			matchingSession,
+																		)
 																	}
 																	className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
 																		hasHard
 																			? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
 																			: hasSoft
 																				? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
-																				: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																				: isPastLecture
+																					? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
+																					: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
 																	}`}
 																	title={
-																		hasHard
-																			? "Hard timetable conflict! Click to inspect diagnostics."
-																			: hasSoft
-																				? "Capacity or soft notice. Click to inspect details."
-																				: "Optimal schedule. Click to inspect details."
+																		isPastLecture
+																			? "Past lecture session (cannot be shifted). Click to view details."
+																			: hasHard
+																				? "Hard timetable conflict! Click to inspect diagnostics."
+																				: hasSoft
+																					? "Capacity or soft notice. Click to inspect details."
+																					: "Optimal schedule. Click to inspect details."
 																	}
 																>
 																	<div className="flex items-center justify-between gap-1">
-																		<span
-																			className={`font-extrabold tracking-tight ${
-																				hasHard
-																					? "text-red-400"
-																					: hasSoft
-																						? "text-amber-400"
-																						: "text-primary"
-																			}`}
-																		>
-																			{entry.courseCode}
-																		</span>
+																		<div className="flex items-center gap-1.5 min-w-0">
+																			<span
+																				className={`font-extrabold tracking-tight truncate ${
+																					hasHard
+																						? "text-red-400"
+																						: hasSoft
+																							? "text-amber-400"
+																							: isPastLecture
+																								? "text-text-muted"
+																								: "text-primary"
+																				}`}
+																			>
+																				{entry.courseCode}
+																			</span>
+																			{isPastLecture && (
+																				<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-surface-raised text-text-subtle border border-border/60">
+																					Past
+																				</span>
+																			)}
+																		</div>
 																		{hasHard ? (
 																			<ShieldAlert
 																				size={13}
@@ -383,9 +443,26 @@ export function TimetableAcademicGrid({
 			{/* Entry Details & Conflict Modal */}
 			<LiveEntryDetailModal
 				isOpen={isDetailModalOpen}
-				onClose={() => setIsDetailModalOpen(false)}
+				onClose={() => {
+					setIsDetailModalOpen(false);
+					setActiveModalEntry(null);
+					setActiveModalSession(null);
+				}}
 				entry={activeModalEntry}
+				session={activeModalSession}
 				conflicts={activeModalConflicts}
+				isPast={activeModalIsPast}
+				date={activeModalDate}
+				canShift={
+					activeModalSession
+						? activeModalSession.canShift !== false
+						: !activeModalIsPast
+				}
+				onShiftClick={
+					activeModalSession && onShiftSessionTrigger
+						? () => onShiftSessionTrigger(activeModalSession)
+						: undefined
+				}
 			/>
 		</div>
 	);

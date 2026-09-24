@@ -323,12 +323,14 @@ export default function SchedulesView({
 				) : (
 					<TimetableAcademicGrid
 						entries={entries || []}
+						sessions={sessions || []}
 						selectedDepartmentId={selectedDepartmentId}
 						selectedProgramId={selectedProgramId}
 						selectedLevel={selectedLevel}
 						searchQuery={searchQuery}
 						conflictReport={conflictReport}
 						weekDayDates={weekDayDates}
+						onShiftSessionTrigger={onShiftSessionTrigger}
 						onOpenCreateEntry={(defaultDay, defaultSlot) =>
 							onOpenScheduleEntry(
 								defaultDay,

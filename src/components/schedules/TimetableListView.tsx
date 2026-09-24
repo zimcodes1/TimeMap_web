@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { LectureSession } from "@/types";
 import type { WeekDayInfo } from "@/utils/semesterWeeks";
+import { LiveEntryDetailModal } from "./LiveEntryDetailModal";
 
 interface TimetableListViewProps {
 	sessions: LectureSession[];
@@ -31,10 +32,20 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 	onShiftSessionTrigger,
 	isExam = false,
 }) => {
+	const [activeModalSession, setActiveModalSession] =
+		useState<LectureSession | null>(null);
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
 	const now = new Date();
 	const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
 		now.getMinutes(),
 	).padStart(2, "0")}:00`;
+
+	const handleCardClick = (session: LectureSession) => {
+		setActiveModalSession(session);
+		setIsModalOpen(true);
+	};
+
 	return (
 		<div className="space-y-4">
 			{/* All days of the active week in one unified container */}
@@ -120,25 +131,34 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 											session.reportStatus === "not_held" ||
 											session.status === "not_held";
 										const isCancelled = session.status === "cancelled";
-										const isShifted = session.status === "shifted";
 
 										return (
 											<div
 												key={session.id}
-												className={`p-3 rounded-xl space-y-2 border transition-colors shadow-2xs ${
+												onClick={() => handleCardClick(session)}
+												className={`p-3 rounded-xl space-y-2 border transition-all shadow-2xs cursor-pointer ${
 													hasConflict
-														? "bg-red-500/10 border-red-500/30 text-text-main"
+														? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 text-text-main"
 														: isPastSession
-															? "bg-surface-raised/40 border-border/60 opacity-85"
-															: "bg-surface-raised border-border hover:border-primary/40 text-text-main"
+															? "bg-surface-raised/40 border-border/60 hover:border-border hover:bg-surface-raised/60 opacity-85 text-text-muted"
+															: "bg-surface-raised border-border hover:border-primary/50 hover:bg-surface-raised/80 text-text-main"
 												}`}
+												title={
+													isPastSession
+														? "Past lecture session (cannot be shifted). Click to view details."
+														: "Click to view lecture details or reschedule."
+												}
 											>
 												<div className="flex items-start justify-between gap-2">
 													<div>
 														<div className="flex items-center gap-1.5">
 															<span
 																className={`font-extrabold text-sm ${
-																	hasConflict ? "text-red-400" : "text-primary"
+																	hasConflict
+																		? "text-red-400"
+																		: isPastSession
+																			? "text-text-muted"
+																			: "text-primary"
 																}`}
 															>
 																{session.courseCode}
@@ -175,42 +195,6 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 																>
 																	Past Lecture
 																</Badge>
-																{isHeld ? (
-																	<Badge
-																		variant="secondary"
-																		className="text-[9px] py-0 px-1.5 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-semibold"
-																	>
-																		Held
-																	</Badge>
-																) : isNotHeld ? (
-																	<Badge
-																		variant="danger"
-																		className="text-[9px] py-0 px-1.5 bg-rose-500/15 text-rose-400 border-rose-500/30 font-semibold"
-																	>
-																		Not Held
-																	</Badge>
-																) : isCancelled ? (
-																	<Badge
-																		variant="danger"
-																		className="text-[9px] py-0 px-1.5 font-semibold"
-																	>
-																		Cancelled
-																	</Badge>
-																) : isShifted ? (
-																	<Badge
-																		variant="warning"
-																		className="text-[9px] py-0 px-1.5 font-semibold"
-																	>
-																		Shifted
-																	</Badge>
-																) : (
-																	<Badge
-																		variant="warning"
-																		className="text-[9px] py-0 px-1.5 bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold"
-																	>
-																		Unreported
-																	</Badge>
-																)}
 															</>
 														) : (
 															<>
@@ -327,7 +311,10 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 															<Button
 																variant="ghost"
 																size="sm"
-																onClick={() => onShiftSessionTrigger(session)}
+																onClick={(e) => {
+																	e.stopPropagation();
+																	onShiftSessionTrigger(session);
+																}}
 																className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-1 cursor-pointer"
 																title="Shift / Reschedule instance"
 															>
@@ -350,6 +337,32 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 					);
 				})}
 			</div>
+
+			{/* Interactive Session Detail & Shift Modal */}
+			<LiveEntryDetailModal
+				isOpen={isModalOpen}
+				onClose={() => {
+					setIsModalOpen(false);
+					setActiveModalSession(null);
+				}}
+				session={activeModalSession}
+				isPast={
+					activeModalSession
+						? activeModalSession.date < todayStr ||
+							(activeModalSession.date === todayStr &&
+								Boolean(
+									activeModalSession.endTime &&
+									activeModalSession.endTime < currentTimeStr,
+								))
+						: false
+				}
+				canShift={activeModalSession?.canShift !== false}
+				onShiftClick={
+					activeModalSession && onShiftSessionTrigger
+						? () => onShiftSessionTrigger(activeModalSession)
+						: undefined
+				}
+			/>
 		</div>
 	);
 };
