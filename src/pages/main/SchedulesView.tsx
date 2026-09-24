@@ -267,7 +267,7 @@ export default function SchedulesView({
 				</div>
 			)}
 
-			{/* 3. Program, Level & Search Filter Bar */}
+			{/* 3. Program, Level & Search Filter Bar (strictly individual degree program) */}
 			{departments.length > 0 && (
 				<RunProgramLevelFilterBar
 					programs={departmentPrograms}
@@ -277,7 +277,7 @@ export default function SchedulesView({
 					onSelectLevel={onSelectLevel}
 					searchQuery={searchQuery}
 					onSearchChange={onSearchChange}
-					allowAllPrograms={true}
+					allowAllPrograms={false}
 				/>
 			)}
 
@@ -289,6 +289,7 @@ export default function SchedulesView({
 				totalWeeks={totalWeeks}
 				dateRangeLabel={weekRange.rangeLabel}
 				semesterName={activeSemester?.displayName || activeSemester?.name}
+				isCurrentWeek={isCurrentWeekActive}
 			/>
 
 			{/* Main Tabs: Grid View & List View */}

@@ -1,17 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { TabSwitcher } from "@/components/ui/tabs";
 import {
 	Clock,
 	MapPin,
 	User,
 	Edit,
-	Layers,
 	CheckCircle2,
+	AlertCircle,
 	XCircle,
-	HelpCircle,
+	Ban,
+	ShieldAlert,
 } from "lucide-react";
 import type { LectureSession } from "@/types";
 import type { WeekDayInfo } from "@/utils/semesterWeeks";
@@ -31,185 +31,319 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 	onShiftSessionTrigger,
 	isExam = false,
 }) => {
-	const [listSubTab, setListSubTab] = useState<"upcoming" | "past">("upcoming");
-
-	// Partition sessions for this week based on date relative to today
-	const upcomingSessions = sessions.filter((s) => s.date >= todayStr);
-	const pastSessions = sessions.filter((s) => s.date < todayStr);
-
-	const activeDisplaySessions =
-		listSubTab === "upcoming" ? upcomingSessions : pastSessions;
-
+	const now = new Date();
+	const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+		now.getMinutes(),
+	).padStart(2, "0")}:00`;
 	return (
 		<div className="space-y-4">
-			{/* Subtab switcher */}
-			<div className="flex items-center justify-between">
-				<TabSwitcher<"upcoming" | "past">
-					size="sm"
-					tabs={[
-						{
-							id: "upcoming",
-							label: isExam ? "Upcoming Exam Sessions" : "This Week's Lectures",
-							count: upcomingSessions.length,
-						},
-						{
-							id: "past",
-							label: isExam ? "Completed Exams" : "Past Lectures",
-							count: pastSessions.length,
-						},
-					]}
-					activeTab={listSubTab}
-					onChange={(tab) => setListSubTab(tab)}
-				/>
-			</div>
-
-			{/* Days List */}
+			{/* All days of the active week in one unified container */}
 			<div className="space-y-4">
 				{weekDayDates.map((dayInfo) => {
-					const daySessions = activeDisplaySessions.filter(
-						(s) => s.date === dayInfo.dateStr,
-					);
+					const daySessions = sessions
+						.filter((s) => s.date === dayInfo.dateStr)
+						.sort((a, b) =>
+							(a.startTime || "").localeCompare(b.startTime || ""),
+						);
+
+					const isToday = dayInfo.dateStr === todayStr;
+					const isPastDay = dayInfo.dateStr < todayStr;
 
 					return (
 						<Card
 							key={dayInfo.dateStr}
-							className="p-4 border border-border/80 bg-surface rounded-2xl shadow-xs space-y-3"
+							className={`p-4 border rounded-2xl shadow-xs space-y-3 transition-colors ${
+								isToday
+									? "border-primary/50 bg-surface ring-1 ring-primary/20"
+									: isPastDay
+										? "border-border/60 bg-surface/70"
+										: "border-border/80 bg-surface"
+							}`}
 						>
 							{/* Day Header */}
 							<div className="flex items-center justify-between pb-2 border-b border-border/60">
 								<div className="flex items-center gap-2">
-									<span className="font-extrabold text-sm text-text-main">
+									<span
+										className={`font-extrabold text-sm ${
+											isToday ? "text-primary" : "text-text-main"
+										}`}
+									>
 										{dayInfo.dayWithDate}
 									</span>
-									{dayInfo.dateStr === todayStr && (
+									{isToday && (
 										<Badge
 											variant="primary"
-											className="text-[10px] font-bold py-0.5 px-2"
+											className="text-[10px] font-bold py-0.5 px-2 shadow-2xs"
 										>
 											Today
+										</Badge>
+									)}
+									{isPastDay && (
+										<Badge
+											variant="outline"
+											className="text-[10px] font-semibold py-0.2 px-1.5 text-text-subtle border-border/60"
+										>
+											Past
 										</Badge>
 									)}
 								</div>
 								<span className="text-xs font-medium text-text-muted">
 									{daySessions.length}{" "}
-									{daySessions.length === 1 ? "session" : "sessions"}
+									{daySessions.length === 1
+										? isExam
+											? "exam"
+											: "lecture"
+										: isExam
+											? "exams"
+											: "lectures"}
 								</span>
 							</div>
 
 							{/* Sessions inside day */}
 							{daySessions.length > 0 ? (
 								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-									{daySessions.map((session) => (
-										<div
-											key={session.id}
-											className="p-3 bg-surface-raised border border-border rounded-xl space-y-2 hover:border-primary/40 transition-colors shadow-2xs"
-										>
-											<div className="flex items-start justify-between gap-2">
-												<div>
-													<div className="font-extrabold text-sm text-primary">
-														{session.courseCode}
+									{daySessions.map((session) => {
+										const isPastSession =
+											session.date < todayStr ||
+											(session.date === todayStr &&
+												Boolean(
+													session.endTime && session.endTime < currentTimeStr,
+												));
+										const hasConflict = session.hasConflict;
+										const isPractical =
+											(session.courseType || "").toLowerCase() === "practical";
+
+										const isHeld =
+											session.reportStatus === "held" ||
+											session.status === "held";
+										const isNotHeld =
+											session.reportStatus === "not_held" ||
+											session.status === "not_held";
+										const isCancelled = session.status === "cancelled";
+										const isShifted = session.status === "shifted";
+
+										return (
+											<div
+												key={session.id}
+												className={`p-3 rounded-xl space-y-2 border transition-colors shadow-2xs ${
+													hasConflict
+														? "bg-red-500/10 border-red-500/30 text-text-main"
+														: isPastSession
+															? "bg-surface-raised/40 border-border/60 opacity-85"
+															: "bg-surface-raised border-border hover:border-primary/40 text-text-main"
+												}`}
+											>
+												<div className="flex items-start justify-between gap-2">
+													<div>
+														<div className="flex items-center gap-1.5">
+															<span
+																className={`font-extrabold text-sm ${
+																	hasConflict ? "text-red-400" : "text-primary"
+																}`}
+															>
+																{session.courseCode}
+															</span>
+															{isPractical && (
+																<Badge
+																	variant="secondary"
+																	className="text-[9px] py-0 px-1 bg-amber-500/10 text-amber-300 border-amber-500/30"
+																>
+																	Lab
+																</Badge>
+															)}
+															{hasConflict && (
+																<ShieldAlert
+																	size={13}
+																	className="text-red-400 shrink-0"
+																/>
+															)}
+														</div>
+														<div
+															className="text-xs font-medium text-text-main line-clamp-1"
+															title={session.courseTitle}
+														>
+															{session.courseTitle}
+														</div>
 													</div>
-													<div
-														className="text-xs font-medium text-text-main line-clamp-1"
-														title={session.courseTitle}
-													>
-														{session.courseTitle}
+
+													<div className="flex flex-col items-end gap-1 shrink-0">
+														{isPastSession ? (
+															<>
+																<Badge
+																	variant="outline"
+																	className="text-[9px] py-0 px-1 text-text-subtle border-border/80"
+																>
+																	Past Lecture
+																</Badge>
+																{isHeld ? (
+																	<Badge
+																		variant="secondary"
+																		className="text-[9px] py-0 px-1.5 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-semibold"
+																	>
+																		Held
+																	</Badge>
+																) : isNotHeld ? (
+																	<Badge
+																		variant="danger"
+																		className="text-[9px] py-0 px-1.5 bg-rose-500/15 text-rose-400 border-rose-500/30 font-semibold"
+																	>
+																		Not Held
+																	</Badge>
+																) : isCancelled ? (
+																	<Badge
+																		variant="danger"
+																		className="text-[9px] py-0 px-1.5 font-semibold"
+																	>
+																		Cancelled
+																	</Badge>
+																) : isShifted ? (
+																	<Badge
+																		variant="warning"
+																		className="text-[9px] py-0 px-1.5 font-semibold"
+																	>
+																		Shifted
+																	</Badge>
+																) : (
+																	<Badge
+																		variant="warning"
+																		className="text-[9px] py-0 px-1.5 bg-amber-500/15 text-amber-300 border-amber-500/30 font-semibold"
+																	>
+																		Unreported
+																	</Badge>
+																)}
+															</>
+														) : (
+															<>
+																{isToday && (
+																	<Badge
+																		variant="primary"
+																		className="text-[9px] py-0 px-1 font-bold"
+																	>
+																		Today
+																	</Badge>
+																)}
+																<Badge
+																	variant={
+																		session.status === "shifted"
+																			? "warning"
+																			: session.status === "cancelled"
+																				? "danger"
+																				: "outline"
+																	}
+																	className="text-[9px] capitalize py-0 px-1.5"
+																>
+																	{session.status}
+																</Badge>
+															</>
+														)}
 													</div>
 												</div>
 
-												<Badge
-													variant={
-														session.status === "scheduled"
-															? "success"
-															: session.status === "shifted"
-																? "warning"
-																: "default"
-													}
-													className="text-[10px] capitalize shrink-0"
-												>
-													{session.status}
-												</Badge>
-											</div>
-
-											<div className="space-y-1 text-xs text-text-muted pt-1">
-												<div className="flex items-center gap-1.5 font-mono">
-													<Clock size={13} className="text-primary shrink-0" />
-													<span>
-														{session.startTime} - {session.endTime}
-													</span>
-												</div>
-
-												<div className="flex items-center gap-1.5">
-													<MapPin
-														size={13}
-														className="text-text-subtle shrink-0"
-													/>
-													<span className="truncate font-semibold text-text-main">
-														{session.venueName}
-													</span>
-												</div>
-
-												{session.lecturerName && (
-													<div className="flex items-center gap-1.5">
-														<User
-															size={13}
-															className="text-text-subtle shrink-0"
+												{/* Time and Venue */}
+												<div className="grid grid-cols-2 gap-2 text-xs text-text-muted pt-1 border-t border-border/40">
+													<div className="flex items-center gap-1.5 truncate">
+														<Clock
+															size={12}
+															className="shrink-0 text-text-subtle"
 														/>
-														<span className="truncate">
-															{session.lecturerName}
+														<span className="font-mono text-[11px]">
+															{session.startTime?.slice(0, 5)} -{" "}
+															{session.endTime?.slice(0, 5)}
 														</span>
 													</div>
-												)}
-											</div>
-
-											{/* Footer & Actions */}
-											<div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
-												<div className="flex items-center gap-1">
-													{session.courseLevel && (
-														<span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface border border-border text-text-muted">
-															{session.courseLevel}L
+													<div className="flex items-center gap-1.5 truncate">
+														<MapPin
+															size={12}
+															className="shrink-0 text-text-subtle"
+														/>
+														<span
+															className="truncate text-[11px]"
+															title={session.venueName}
+														>
+															{session.venueName}
 														</span>
-													)}
+													</div>
+												</div>
 
-													{listSubTab === "past" && session.reportStatus && (
-														<span className="inline-flex items-center gap-1 text-[11px] font-semibold">
-															{session.reportStatus === "held" ? (
-																<span className="text-emerald-500 flex items-center gap-0.5">
-																	<CheckCircle2 size={12} /> Held
+												{/* Lecturer and Action / Attendance Readout */}
+												<div className="flex items-center justify-between text-xs pt-1 border-t border-border/40 min-h-[28px]">
+													<div className="flex items-center gap-1.5 text-text-muted truncate max-w-[170px]">
+														<User
+															size={12}
+															className="shrink-0 text-text-subtle"
+														/>
+														<span
+															className="truncate text-[11px]"
+															title={session.lecturerName}
+														>
+															{session.lecturerName || "Assigned Lecturer"}
+														</span>
+													</div>
+
+													{/* For past sessions: show report/attendance outcome, NEVER show shift button */}
+													{isPastSession ? (
+														<div className="flex items-center gap-1">
+															{isHeld ? (
+																<span className="flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+																	<CheckCircle2
+																		size={12}
+																		className="shrink-0 text-emerald-400"
+																	/>
+																	<span>Held</span>
 																</span>
-															) : session.reportStatus === "not_held" ? (
-																<span className="text-red-400 flex items-center gap-0.5">
-																	<XCircle size={12} /> Not Held
+															) : isNotHeld ? (
+																<span className="flex items-center gap-1 text-[11px] font-medium text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+																	<XCircle
+																		size={12}
+																		className="shrink-0 text-rose-400"
+																	/>
+																	<span>Not Held</span>
+																</span>
+															) : isCancelled ? (
+																<span className="flex items-center gap-1 text-[11px] font-medium text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20">
+																	<Ban
+																		size={12}
+																		className="shrink-0 text-rose-400"
+																	/>
+																	<span>Cancelled</span>
 																</span>
 															) : (
-																<span className="text-amber-400 flex items-center gap-0.5">
-																	<HelpCircle size={12} /> Unreported
+																<span
+																	className="flex items-center gap-1 text-[11px] font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20"
+																	title="No attendance report submitted by class rep"
+																>
+																	<AlertCircle
+																		size={12}
+																		className="shrink-0 text-amber-400"
+																	/>
+																	<span>Unreported</span>
 																</span>
 															)}
-														</span>
+														</div>
+													) : (
+														/* For upcoming/active sessions: show Shift button if authorized */
+														session.canShift &&
+														onShiftSessionTrigger && (
+															<Button
+																variant="ghost"
+																size="sm"
+																onClick={() => onShiftSessionTrigger(session)}
+																className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-1 cursor-pointer"
+																title="Shift / Reschedule instance"
+															>
+																<Edit size={11} />
+																<span>Shift</span>
+															</Button>
+														)
 													)}
 												</div>
-
-												{session.canShift && onShiftSessionTrigger && (
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => onShiftSessionTrigger(session)}
-														className="h-7 px-2 text-[11px] font-semibold cursor-pointer gap-1"
-													>
-														<Edit size={11} /> Shift
-													</Button>
-												)}
 											</div>
-										</div>
-									))}
+										);
+									})}
 								</div>
 							) : (
-								<div className="py-4 text-center text-text-subtle text-xs flex items-center justify-center gap-1.5">
-									<Layers size={14} className="opacity-40" />
-									<span>
-										No scheduled {isExam ? "exams" : "lectures"} on this day.
-									</span>
+								<div className="py-6 text-center text-text-muted text-xs border border-dashed border-border/60 rounded-xl">
+									No lectures scheduled for this day
 								</div>
 							)}
 						</Card>

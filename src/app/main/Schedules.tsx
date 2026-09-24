@@ -12,7 +12,7 @@ import {
 	type CreateScheduleEntryPayload,
 } from "@/api/main/schedulesAPI";
 import { getPrograms } from "@/api/main/programsAPI";
-import { getSemesters } from "@/api/main/semestersAPI";
+import { getSemesters, getAcademicSessions } from "@/api/main/semestersAPI";
 import {
 	getSchoolsList,
 	getFacultiesList,
@@ -21,6 +21,7 @@ import {
 import {
 	getGenerationPermissions,
 	getGenerationRuns,
+	getGenerationRunDetail,
 } from "@/api/main/generationAPI";
 import type {
 	TimetableEntry,
@@ -29,6 +30,7 @@ import type {
 	Venue,
 	Program,
 	Semester,
+	AcademicSession,
 	School,
 	Faculty,
 	Department,
@@ -36,10 +38,9 @@ import type {
 } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
-	getCurrentWeekNumber,
-	getTotalWeeks,
 	getWeekRange,
 	getWeekDayDates,
+	getSemesterWeekTimeline,
 } from "@/utils/semesterWeeks";
 import {
 	filterFacultiesByScope,
@@ -114,9 +115,14 @@ export default function SchedulesContainer() {
 		queryFn: () => getPrograms(),
 	});
 
+	const { data: academicSessionsData = [] } = useQuery<AcademicSession[]>({
+		queryKey: ["academic-sessions", "list", userSchoolId],
+		queryFn: () => getAcademicSessions({ school: userSchoolId || undefined }),
+	});
+
 	const { data: semestersData = [] } = useQuery<Semester[]>({
-		queryKey: ["semesters", "list"],
-		queryFn: () => getSemesters(),
+		queryKey: ["semesters", "list", userSchoolId],
+		queryFn: () => getSemesters({ school: userSchoolId || undefined }),
 	});
 
 	const { data: coursesData = [] } = useQuery<Course[]>({
@@ -166,27 +172,44 @@ export default function SchedulesContainer() {
 
 	const canConfigurePermissions = isSuperuser || isSchoolAdmin;
 
-	// Identify active semester
-	const activeSemester = useMemo(() => {
-		return semestersData.find((s) => s.isActive) || semestersData[0];
-	}, [semestersData]);
-
-	// Compute semester weeks
-	const totalWeeks = useMemo(() => {
-		return getTotalWeeks(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
-			15,
+	// Identify current active academic session set by school/system admin
+	const currentAcademicSession = useMemo(() => {
+		return (
+			academicSessionsData.find((s) => s.isCurrent) ||
+			academicSessionsData[0] ||
+			null
 		);
+	}, [academicSessionsData]);
+
+	// Identify active semester belonging to the active academic session
+	const activeSemester = useMemo(() => {
+		if (currentAcademicSession) {
+			const activeInSession = semestersData.find(
+				(s) =>
+					s.isActive &&
+					String(s.sessionId) === String(currentAcademicSession.id),
+			);
+			if (activeInSession) return activeInSession;
+		}
+
+		const activeInSchool = semestersData.find(
+			(s) =>
+				s.isActive &&
+				(!userSchoolId || String(s.schoolId) === String(userSchoolId)),
+		);
+		if (activeInSchool) return activeInSchool;
+
+		return semestersData.find((s) => s.isActive) || semestersData[0];
+	}, [semestersData, currentAcademicSession, userSchoolId]);
+
+	// Compute semester timeline relative to the active semester (never counting a full calendar year)
+	const semesterTimeline = useMemo(() => {
+		return getSemesterWeekTimeline(activeSemester);
 	}, [activeSemester]);
 
-	const defaultCurrentWeek = useMemo(() => {
-		return getCurrentWeekNumber(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
-			totalWeeks,
-		);
-	}, [activeSemester, totalWeeks]);
+	const totalWeeks = semesterTimeline.totalWeeks;
+	const defaultCurrentWeek = semesterTimeline.currentWeek;
+	const semesterStartDate = semesterTimeline.referenceStartDate;
 
 	// Filter accessible faculties by scope
 	const scopedFaculties = useMemo(() => {
@@ -243,23 +266,25 @@ export default function SchedulesContainer() {
 		);
 	}, [programsData, selectedDepartmentId]);
 
-	// Program, Level, and Search State
+	// Program, Level, and Search State (Strictly degree program level - never "ALL")
 	const [selectedProgramId, setSelectedProgramId] = useState<string | number>(
-		"ALL",
+		"",
 	);
 	const [selectedLevel, setSelectedLevel] = useState<number>(100);
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-	// Reset program if it doesn't belong to current department
+	// Synchronize selectedProgramId with available department programs
 	useEffect(() => {
-		if (selectedProgramId !== "ALL" && departmentPrograms.length > 0) {
+		if (departmentPrograms.length > 0) {
 			const exists = departmentPrograms.some(
 				(p) => String(p.id) === String(selectedProgramId),
 			);
-			if (!exists) {
-				setSelectedProgramId("ALL");
+			if (!exists || !selectedProgramId || selectedProgramId === "ALL") {
+				setSelectedProgramId(departmentPrograms[0].id);
 			}
+		} else {
+			setSelectedProgramId("");
 		}
 	}, [departmentPrograms, selectedProgramId]);
 
@@ -272,8 +297,8 @@ export default function SchedulesContainer() {
 
 	// Week range and day dates calculation
 	const weekRange = useMemo(() => {
-		return getWeekRange(activeSemester?.lectureStartDate, currentWeek);
-	}, [activeSemester, currentWeek]);
+		return getWeekRange(semesterStartDate, currentWeek);
+	}, [semesterStartDate, currentWeek]);
 
 	const weekDayDates = useMemo(() => {
 		return getWeekDayDates(weekRange.startDate);
@@ -298,9 +323,19 @@ export default function SchedulesContainer() {
 		enabled: Boolean(activeSemester?.id),
 	});
 
-	const publishedRun = useMemo(() => {
+	const publishedRunSummary = useMemo(() => {
 		return generationRuns.find((r) => r.isPublished);
 	}, [generationRuns]);
+
+	// Query full detail of the published run so full conflictReport.details are available
+	const { data: publishedRunDetail } = useQuery<TimetableGenerationRun>({
+		queryKey: ["scheduling", "runDetail", publishedRunSummary?.id],
+		queryFn: () => getGenerationRunDetail(publishedRunSummary!.id),
+		enabled: Boolean(publishedRunSummary?.id),
+	});
+
+	const activeConflictReport =
+		publishedRunDetail?.conflictReport || publishedRunSummary?.conflictReport;
 
 	// Department options for DepartmentLoopBar
 	const departmentOptions: DepartmentOption[] = useMemo(() => {
@@ -330,7 +365,10 @@ export default function SchedulesContainer() {
 			getTimetableEntries({
 				semester: activeSemester?.id,
 				department: selectedDepartmentId || undefined,
-				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
+				program:
+					selectedProgramId && selectedProgramId !== "ALL"
+						? selectedProgramId
+						: undefined,
 				level: selectedLevel || undefined,
 				entry_type: "lecture",
 			}),
@@ -358,7 +396,10 @@ export default function SchedulesContainer() {
 			getLectureSessions({
 				semester: activeSemester?.id,
 				department: selectedDepartmentId || undefined,
-				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
+				program:
+					selectedProgramId && selectedProgramId !== "ALL"
+						? selectedProgramId
+						: undefined,
 				level: selectedLevel || undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
@@ -452,6 +493,7 @@ export default function SchedulesContainer() {
 		refetchEntries();
 		refetchSessions();
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runDetail"] });
 		toast.info("Refreshing schedule data...");
 	};
 
@@ -506,6 +548,7 @@ export default function SchedulesContainer() {
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runDetail"] });
 		refetchEntries();
 		refetchSessions();
 	};
@@ -548,7 +591,7 @@ export default function SchedulesContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
-				conflictReport={publishedRun?.conflictReport}
+				conflictReport={activeConflictReport}
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}

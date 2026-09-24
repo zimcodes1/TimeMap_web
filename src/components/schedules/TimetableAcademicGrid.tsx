@@ -67,6 +67,9 @@ export function TimetableAcademicGrid({
 	>([]);
 	const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
+	const today = new Date();
+	const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
 	// Filter entries by department, program, level, and search query
 	const displayedEntries = useMemo(() => {
 		return entries.filter((entry) => {
@@ -85,20 +88,8 @@ export function TimetableAcademicGrid({
 					entry.targetProgramId &&
 					String(entry.targetProgramId) !== String(selectedProgramId)
 				) {
-					// Allow general courses that apply university-wide
-					if (entry.programScope !== "general") {
-						return false;
-					}
-				}
-			} else if (selectedDepartmentId) {
-				// No specific program; check department if present
-				if (
-					entry.departmentId &&
-					String(entry.departmentId) !== String(selectedDepartmentId)
-				) {
-					if (entry.programScope !== "general") {
-						return false;
-					}
+					// Exclude if explicitly targeted to another program
+					return false;
 				}
 			}
 
@@ -124,20 +115,6 @@ export function TimetableAcademicGrid({
 		searchQuery,
 	]);
 
-	// Precompute conflicts for each entry
-	const entryConflictsMap = useMemo(() => {
-		const map = new Map<string, AssociatedConflict[]>();
-		for (const entry of entries) {
-			const conflicts = resolveLiveEntryConflicts(
-				entry,
-				entries,
-				conflictReport,
-			);
-			map.set(String(entry.id), conflicts);
-		}
-		return map;
-	}, [entries, conflictReport]);
-
 	// Helper to test if entry overlaps a 2-hour slot
 	const isOverlapping = (
 		entryStart: string,
@@ -161,17 +138,21 @@ export function TimetableAcademicGrid({
 				dayName: item.day,
 				label: item.dayWithDate,
 				dateStr: item.dateStr,
+				isToday: item.dateStr === todayDateStr,
 			}));
 		}
 		return DEFAULT_DAYS.map((d) => ({
 			dayName: d,
 			label: d,
 			dateStr: "",
+			isToday: false,
 		}));
-	}, [weekDayDates]);
+	}, [weekDayDates, todayDateStr]);
 
-	const handleCardClick = (entry: TimetableEntry) => {
-		const conflicts = entryConflictsMap.get(String(entry.id)) || [];
+	const handleCardClick = (
+		entry: TimetableEntry,
+		conflicts: AssociatedConflict[],
+	) => {
 		setActiveModalEntry(entry);
 		setActiveModalConflicts(conflicts);
 		setIsDetailModalOpen(true);
@@ -199,7 +180,7 @@ export function TimetableAcademicGrid({
 						</tr>
 					</thead>
 					<tbody>
-						{rowDays.map(({ dayName, label }) => {
+						{rowDays.map(({ dayName, label, isToday }) => {
 							const isFriday = dayName.toLowerCase() === "friday";
 
 							return (
@@ -208,8 +189,18 @@ export function TimetableAcademicGrid({
 									className="border-b border-border last:border-b-0 hover:bg-surface-raised/30 transition-colors"
 								>
 									<td className="p-3.5 font-bold text-xs text-text-main border-r border-border bg-surface-raised/40 align-top">
-										<div className="text-text-main font-bold whitespace-nowrap">
-											{label}
+										<div className="flex items-center gap-1.5 flex-wrap">
+											<span className="text-text-main font-bold whitespace-nowrap">
+												{label}
+											</span>
+											{isToday && (
+												<Badge
+													variant="primary"
+													className="text-[9px] font-bold py-0.2 px-1.5"
+												>
+													Today
+												</Badge>
+											)}
 										</div>
 									</td>
 									{TIME_SLOTS.map((slot) => {
@@ -235,8 +226,12 @@ export function TimetableAcademicGrid({
 												{matchingEntries.length > 0 ? (
 													<div className="space-y-1.5 h-full">
 														{matchingEntries.map((entry) => {
-															const conflicts =
-																entryConflictsMap.get(String(entry.id)) || [];
+															const conflicts = resolveLiveEntryConflicts(
+																entry,
+																displayedEntries,
+																conflictReport,
+																matchingEntries,
+															);
 															const hasHard = conflicts.some(
 																(c) => c.severity === "hard",
 															);
@@ -250,12 +245,14 @@ export function TimetableAcademicGrid({
 															return (
 																<div
 																	key={entry.id}
-																	onClick={() => handleCardClick(entry)}
+																	onClick={() =>
+																		handleCardClick(entry, conflicts)
+																	}
 																	className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
 																		hasHard
-																			? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 ring-1 ring-red-500/30 text-text-main"
+																			? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
 																			: hasSoft
-																				? "bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 hover:bg-amber-500/15 text-text-main"
+																				? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
 																				: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
 																	}`}
 																	title={

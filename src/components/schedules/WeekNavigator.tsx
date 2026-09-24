@@ -40,16 +40,21 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
 				</Button>
 			</div>
 
-			<div className="flex items-center gap-2.5 text-center">
+			<div className="flex items-center gap-3 text-center flex-wrap justify-center">
 				<div className="flex flex-col items-center">
-					<div className="flex items-center gap-1.5 font-bold text-sm text-text-main">
+					<div className="flex items-center gap-2 font-bold text-sm text-text-main">
 						<Calendar size={14} className="text-primary" />
 						<span>
 							Week {currentWeek} of {totalWeeks}
 						</span>
+						{isCurrentWeekActive && (
+							<span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+								Current Week
+							</span>
+						)}
 					</div>
 					{dateRangeLabel && (
-						<span className="text-[11px] text-text-muted font-mono">
+						<span className="text-[11px] text-text-muted font-mono mt-0.5">
 							{dateRangeLabel}
 						</span>
 					)}
@@ -59,9 +64,10 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
 					<button
 						type="button"
 						onClick={onResetToCurrent}
-						className="text-[11px] font-semibold text-primary hover:underline ml-1 cursor-pointer"
+						className="text-[11px] font-bold text-primary hover:text-primary/80 bg-primary/10 px-2.5 py-1 rounded-xl border border-primary/20 transition-all cursor-pointer shadow-2xs"
+						title="Jump back to the current active week"
 					>
-						Today's Week
+						Return to Current Week
 					</button>
 				)}
 			</div>

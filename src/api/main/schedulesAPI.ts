@@ -241,6 +241,8 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
     status: raw.status || "scheduled",
     canShift: Boolean(raw.can_shift),
     reportStatus: raw.report_status || "unreported",
+    hasConflict: Boolean((raw as any).has_conflict),
+    conflictReason: (raw as any).conflict_reason || "",
   };
 }
 

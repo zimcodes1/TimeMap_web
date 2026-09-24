@@ -10,6 +10,7 @@ interface TimetableTitleProps {
 	dateRangeLabel?: string;
 	isExam?: boolean;
 	semesterName?: string;
+	isCurrentWeek?: boolean;
 }
 
 export const TimetableTitle: React.FC<TimetableTitleProps> = ({
@@ -20,6 +21,7 @@ export const TimetableTitle: React.FC<TimetableTitleProps> = ({
 	dateRangeLabel,
 	isExam = false,
 	semesterName,
+	isCurrentWeek = false,
 }) => {
 	const levelDisplay =
 		typeof level === "number"
@@ -42,10 +44,25 @@ export const TimetableTitle: React.FC<TimetableTitleProps> = ({
 			</div>
 
 			<div className="flex flex-wrap items-center justify-center gap-2 text-xs text-text-muted">
-				{semesterName && (
+				{isCurrentWeek ? (
 					<Badge
 						variant="primary"
-						className="text-[11px] font-semibold py-0.5 px-2"
+						className="text-[11px] font-bold py-0.5 px-2 bg-primary text-white"
+					>
+						Current Week
+					</Badge>
+				) : (
+					<Badge
+						variant="outline"
+						className="text-[11px] font-semibold py-0.5 px-2 text-text-muted"
+					>
+						Week {weekNumber}
+					</Badge>
+				)}
+				{semesterName && (
+					<Badge
+						variant="outline"
+						className="text-[11px] font-semibold py-0.5 px-2 border-border"
 					>
 						{semesterName}
 					</Badge>

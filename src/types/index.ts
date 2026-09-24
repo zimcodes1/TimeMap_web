@@ -254,6 +254,8 @@ export interface LectureSession {
   hasReport?: boolean;
   canShift?: boolean;
   reportStatus?: 'held' | 'not_held' | 'unreported';
+  hasConflict?: boolean;
+  conflictReason?: string;
 }
 
 export interface ExamSitting {
