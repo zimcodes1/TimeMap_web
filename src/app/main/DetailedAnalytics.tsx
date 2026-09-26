@@ -18,6 +18,8 @@ export default function DetailedAnalyticsContainer() {
 	const adminLevel = currentUser?.adminLevel;
 	const isDeptAdmin = adminLevel === "department";
 	const isFacultyAdmin = adminLevel === "faculty";
+	const isSchoolOrSuperuser =
+		adminLevel === "school" || adminLevel === "university" || !adminLevel;
 
 	// 1. Hierarchy Queries
 	const { data: facultiesData = [] } = useQuery<Faculty[]>({
@@ -125,18 +127,65 @@ export default function DetailedAnalyticsContainer() {
 		}
 	}, [selectedDepartmentId, programsData, selectedProgramId]);
 
+	// Active department details
+	const activeDepartment = useMemo(() => {
+		return displayedDepartments.find(
+			(d) => String(d.id) === String(selectedDepartmentId),
+		);
+	}, [displayedDepartments, selectedDepartmentId]);
+
+	// Compute maxLevel based on selected program or department's default program
+	const computedMaxLevel = useMemo(() => {
+		if (selectedProgramId) {
+			const prog = programsData.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (prog?.maxLevel) return prog.maxLevel;
+		}
+		// Look for default program of department
+		const defaultProg = programsData.find((p) => p.isDefault);
+		if (defaultProg?.maxLevel) return defaultProg.maxLevel;
+
+		const deptProgDefault = activeDepartment?.programs?.find(
+			(p) => p.isDefault,
+		);
+		if (deptProgDefault?.maxLevel) return deptProgDefault.maxLevel;
+
+		if (activeDepartment?.maxLevel) return activeDepartment.maxLevel;
+		return 400;
+	}, [selectedProgramId, programsData, activeDepartment]);
+
+	// Auto-clamp selectedLevel if it exceeds computedMaxLevel
+	useEffect(() => {
+		if (selectedLevel && Number(selectedLevel) > computedMaxLevel) {
+			setSelectedLevel("");
+		}
+	}, [computedMaxLevel, selectedLevel]);
+
 	// Base params common to queries
 	const baseFilterParams = useMemo(() => {
+		if (isSchoolOrSuperuser) {
+			return {
+				facultyId: selectedFacultyId || undefined,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			};
+		}
+		if (isFacultyAdmin) {
+			return {
+				facultyId: currentUser?.adminScopeId || undefined,
+				departmentId: selectedDepartmentId || undefined,
+				level: selectedLevel || undefined,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			};
+		}
 		return {
-			facultyId: isFacultyAdmin
-				? currentUser?.adminScopeId || undefined
-				: selectedFacultyId || undefined,
 			departmentId: selectedDepartmentId || undefined,
 			programId: selectedProgramId || undefined,
 			level: selectedLevel || undefined,
 			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
 		};
 	}, [
+		isSchoolOrSuperuser,
 		isFacultyAdmin,
 		currentUser,
 		selectedFacultyId,
@@ -152,49 +201,62 @@ export default function DetailedAnalyticsContainer() {
 		queryFn: () => getLectureHoldRateAnalytics(baseFilterParams),
 	});
 
-	// 2. Lecturer Breakdown
+	// 2. Lecturer Breakdown (Department Admin only)
 	const { data: lecturersData, isLoading: lecturersLoading } = useQuery({
 		queryKey: ["analytics", "detailed", "lecturers", baseFilterParams],
 		queryFn: () =>
 			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "lecturer" }),
-		enabled: Boolean(selectedDepartmentId),
+		enabled: isDeptAdmin && Boolean(selectedDepartmentId),
 	});
 
-	// 3. Courses Breakdown
+	// 3. Courses Breakdown (Department Admin only)
 	const { data: coursesData, isLoading: coursesLoading } = useQuery({
 		queryKey: ["analytics", "detailed", "courses", baseFilterParams],
 		queryFn: () =>
 			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "course" }),
-		enabled: Boolean(selectedDepartmentId),
+		enabled: isDeptAdmin && Boolean(selectedDepartmentId),
 	});
 
-	// 4. Programs Breakdown
+	// 4. Programs Breakdown (Department Admin only)
 	const { data: programsBreakdownData, isLoading: programsLoading } = useQuery({
 		queryKey: ["analytics", "detailed", "programs", baseFilterParams],
 		queryFn: () =>
 			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "program" }),
-		enabled: Boolean(selectedDepartmentId),
+		enabled: isDeptAdmin && Boolean(selectedDepartmentId),
 	});
 
-	// 5. Department Totals Breakdown (for Faculty & School Admins)
+	// 5. Faculty Totals Breakdown (School Admins only)
+	const { data: facultiesDataResponse, isLoading: facultiesLoading } = useQuery(
+		{
+			queryKey: ["analytics", "detailed", "faculties", activeSemester?.id],
+			queryFn: () =>
+				getLectureHoldRateAnalytics({
+					semesterId: activeSemester?.id
+						? String(activeSemester.id)
+						: undefined,
+					groupBy: "faculty",
+				}),
+			enabled: isSchoolOrSuperuser,
+		},
+	);
+
+	// 6. Department Totals Breakdown (Faculty Admins only)
 	const deptTotalsParams = useMemo(() => {
 		return {
-			facultyId: isFacultyAdmin
-				? currentUser?.adminScopeId || undefined
-				: selectedFacultyId || undefined,
+			facultyId: currentUser?.adminScopeId || undefined,
 			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
-			groupBy: "department",
+			groupBy: "department" as const,
 		};
-	}, [isFacultyAdmin, currentUser, selectedFacultyId, activeSemester]);
+	}, [currentUser, activeSemester]);
 
 	const { data: departmentsDataResponse, isLoading: departmentsLoading } =
 		useQuery({
 			queryKey: ["analytics", "detailed", "departments", deptTotalsParams],
 			queryFn: () => getLectureHoldRateAnalytics(deptTotalsParams),
-			enabled: !isDeptAdmin,
+			enabled: isFacultyAdmin,
 		});
 
-	// 6. Weekly Progression
+	// 7. Weekly Progression
 	const { data: weeklyBreakdown, isLoading: weeklyLoading } = useQuery({
 		queryKey: ["analytics", "detailed", "weekly", baseFilterParams],
 		queryFn: () =>
@@ -204,7 +266,9 @@ export default function DetailedAnalyticsContainer() {
 	const handleResetFilters = () => {
 		setSelectedProgramId("");
 		setSelectedLevel("");
-		if (!isDeptAdmin && displayedDepartments.length > 0) {
+		if (isSchoolOrSuperuser && scopedFaculties.length > 0) {
+			setSelectedFacultyId(String(scopedFaculties[0].id));
+		} else if (isFacultyAdmin && displayedDepartments.length > 0) {
 			setSelectedDepartmentId(String(displayedDepartments[0].id));
 		}
 	};
@@ -225,7 +289,10 @@ export default function DetailedAnalyticsContainer() {
 			onProgramChange={setSelectedProgramId}
 			selectedLevel={selectedLevel}
 			onLevelChange={setSelectedLevel}
+			maxLevel={computedMaxLevel}
 			summaryHoldRate={summaryHoldRate}
+			facultiesBreakdown={facultiesDataResponse?.breakdown || []}
+			facultiesLoading={facultiesLoading}
 			lecturersBreakdown={lecturersData?.breakdown || []}
 			lecturersLoading={lecturersLoading}
 			coursesBreakdown={coursesData?.breakdown || []}

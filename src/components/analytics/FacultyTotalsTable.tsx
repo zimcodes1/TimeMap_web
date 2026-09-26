@@ -3,37 +3,34 @@ import { Search, Building2, ArrowUpDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { HoldRateBreakdownItem } from "@/types";
 
-interface DepartmentTotalsTableProps {
-	departments: HoldRateBreakdownItem[];
+interface FacultyTotalsTableProps {
+	faculties: HoldRateBreakdownItem[];
 	isLoading?: boolean;
-	facultyName?: string;
-	onSelectDepartment?: (deptId: string) => void;
-	actionLabel?: string;
+	onSelectFaculty?: (facultyId: string) => void;
 }
 
-export default function DepartmentTotalsTable({
-	departments = [],
+export default function FacultyTotalsTable({
+	faculties = [],
 	isLoading = false,
-	facultyName,
-	onSelectDepartment,
-	actionLabel = "Inspect Lecturers",
-}: DepartmentTotalsTableProps) {
+	onSelectFaculty,
+}: FacultyTotalsTableProps) {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [sortBy, setSortBy] = useState<"rate" | "sessions">("rate");
+	const [sortBy, setSortBy] = useState<"rate" | "sessions">("sessions");
 	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-	const filteredDepartments = useMemo(() => {
-		let list = [...departments];
+	const filteredFaculties = useMemo(() => {
+		let list = [...faculties];
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase();
 			list = list.filter(
-				(d) =>
-					d.departmentName?.toLowerCase().includes(q) ||
-					d.departmentCode?.toLowerCase().includes(q) ||
-					d.label?.toLowerCase().includes(q),
+				(f) =>
+					f.facultyName?.toLowerCase().includes(q) ||
+					f.facultyCode?.toLowerCase().includes(q) ||
+					f.label?.toLowerCase().includes(q),
 			);
 		}
 		list.sort((a, b) => {
@@ -48,7 +45,7 @@ export default function DepartmentTotalsTable({
 			return sortOrder === "desc" ? valB - valA : valA - valB;
 		});
 		return list;
-	}, [departments, searchQuery, sortBy, sortOrder]);
+	}, [faculties, searchQuery, sortBy, sortOrder]);
 
 	const toggleSort = (field: "rate" | "sessions") => {
 		if (sortBy === field) {
@@ -65,17 +62,15 @@ export default function DepartmentTotalsTable({
 				<div>
 					<div className="flex items-center gap-2">
 						<Text variant="h6" weight="bold">
-							Department Compliance Totals
+							Faculty Compliance Totals
 						</Text>
-						{facultyName && (
-							<Badge variant="outline" className="text-xs">
-								{facultyName}
-							</Badge>
-						)}
+						<Badge variant="outline" className="text-xs">
+							School-Wide Aggregates
+						</Badge>
 					</div>
 					<Text variant="caption" color="muted">
-						Compare aggregate lecture delivery and hold rate performance across
-						all departments.
+						Compare aggregate lecture delivery, hold rates, and session
+						compliance across all faculties under the school.
 					</Text>
 				</div>
 
@@ -86,7 +81,7 @@ export default function DepartmentTotalsTable({
 					/>
 					<input
 						type="text"
-						placeholder="Search department..."
+						placeholder="Search faculty..."
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="w-full text-xs bg-surface-raised border border-border rounded-xl pl-8 pr-3 py-2 text-text-main placeholder:text-text-subtle focus:outline-none focus:ring-1 focus:ring-primary"
@@ -100,12 +95,12 @@ export default function DepartmentTotalsTable({
 						<Skeleton key={i} className="h-14 w-full rounded-xl" />
 					))}
 				</div>
-			) : filteredDepartments.length > 0 ? (
+			) : filteredFaculties.length > 0 ? (
 				<div className="overflow-x-auto">
 					<table className="w-full text-xs text-left border-collapse">
 						<thead>
 							<tr className="border-b border-border text-text-muted">
-								<th className="py-2.5 px-3 font-semibold">Department</th>
+								<th className="py-2.5 px-3 font-semibold">Faculty</th>
 								<th className="py-2.5 px-3 font-semibold">Code</th>
 								<th
 									className="py-2.5 px-3 font-semibold cursor-pointer select-none hover:text-text-main"
@@ -134,94 +129,91 @@ export default function DepartmentTotalsTable({
 										<ArrowUpDown size={12} />
 									</div>
 								</th>
-								<th className="py-2.5 px-3 font-semibold text-right">Action</th>
+								{onSelectFaculty && (
+									<th className="py-2.5 px-3 font-semibold text-right">
+										Action
+									</th>
+								)}
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-border/40">
-							{filteredDepartments.map((item, idx) => {
+							{filteredFaculties.map((item, idx) => {
 								const rate = Number(item.holdRatePercentage ?? 0);
-								const total =
-									item.totalSessions ||
-									(item.heldCount ?? 0) +
-										(item.notHeldCount ?? 0) +
-										(item.unreportedCount ?? 0);
-								const name = item.departmentName || item.label || "Department";
-								const code = item.departmentCode || "DEPT";
-
 								return (
 									<tr
-										key={item.departmentId || item.key || idx}
+										key={item.facultyId || item.key || idx}
 										className="hover:bg-surface-raised/40 transition-colors"
 									>
 										<td className="py-3 px-3">
 											<div className="flex items-center gap-2">
-												<Building2
-													size={16}
-													className="text-primary shrink-0"
-												/>
+												<div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+													<Building2 size={13} />
+												</div>
 												<span className="font-semibold text-text-main">
-													{name}
+													{item.facultyName || item.label}
 												</span>
 											</div>
 										</td>
-										<td className="py-3 px-3 font-mono font-medium text-text-muted">
-											{code}
+										<td className="py-3 px-3 font-mono text-text-muted">
+											{item.facultyCode || "FAC"}
 										</td>
-										<td className="py-3 px-3 font-medium text-text-main">
-											{total}
+										<td className="py-3 px-3 font-semibold">
+											{item.totalSessions ?? 0}
 										</td>
-										<td className="py-3 px-3 font-semibold text-emerald-400">
-											{item.heldCount}
+										<td className="py-3 px-3 text-emerald-400 font-semibold">
+											{item.heldCount ?? 0}
 										</td>
-										<td className="py-3 px-3 font-semibold text-rose-400">
-											{item.notHeldCount}
+										<td className="py-3 px-3 text-rose-400 font-semibold">
+											{item.notHeldCount ?? 0}
 										</td>
-										<td className="py-3 px-3 font-semibold text-amber-400">
-											{item.unreportedCount}
+										<td className="py-3 px-3 text-amber-400 font-semibold">
+											{item.unreportedCount ?? 0}
 										</td>
-										<td className="py-3 px-3 min-w-[130px]">
+										<td className="py-3 px-3">
 											<div className="flex items-center gap-2">
-												<Badge
-													variant={
-														rate >= 80
-															? "success"
-															: rate >= 60
-																? "warning"
-																: "danger"
-													}
-													className="text-[11px] font-bold"
-												>
-													{rate}%
-												</Badge>
-												<div className="flex-1 bg-surface-raised h-1.5 rounded-full overflow-hidden">
+												<div className="w-16 h-1.5 bg-surface-raised rounded-full overflow-hidden border border-border">
 													<div
-														className={`h-full rounded-full ${
-															rate >= 80
+														className={`h-full transition-all ${
+															rate >= 75
 																? "bg-emerald-500"
-																: rate >= 60
+																: rate >= 50
 																	? "bg-amber-500"
 																	: "bg-rose-500"
 														}`}
-														style={{
-															width: `${Math.min(100, Math.max(0, rate))}%`,
-														}}
+														style={{ width: `${Math.min(100, rate)}%` }}
 													/>
 												</div>
+												<span
+													className={`font-bold ${
+														rate >= 75
+															? "text-emerald-400"
+															: rate >= 50
+																? "text-amber-400"
+																: "text-rose-400"
+													}`}
+												>
+													{rate.toFixed(1)}%
+												</span>
 											</div>
 										</td>
-										<td className="py-3 px-3 text-right">
-											{onSelectDepartment && item.departmentId && (
-												<button
-													type="button"
-													onClick={() =>
-														onSelectDepartment(String(item.departmentId))
-													}
-													className="text-xs text-primary hover:underline font-semibold"
-												>
-													{actionLabel}
-												</button>
-											)}
-										</td>
+										{onSelectFaculty && (
+											<td className="py-3 px-3 text-right">
+												{item.facultyId || item.key ? (
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() =>
+															onSelectFaculty(
+																String(item.facultyId || item.key),
+															)
+														}
+														className="h-7 text-xs text-primary hover:bg-primary/10 px-2"
+													>
+														View Trend
+													</Button>
+												) : null}
+											</td>
+										)}
 									</tr>
 								);
 							})}
@@ -229,11 +221,8 @@ export default function DepartmentTotalsTable({
 					</table>
 				</div>
 			) : (
-				<div className="py-8 text-center text-text-subtle text-xs border border-dashed border-border/50 rounded-xl">
-					<p className="font-semibold text-text-muted mb-1">
-						No department records found
-					</p>
-					<p>No departmental hold reports recorded for this selection.</p>
+				<div className="py-12 text-center text-text-muted text-xs border border-dashed border-border/60 rounded-xl">
+					No faculty compliance records found matching your filters.
 				</div>
 			)}
 		</Card>

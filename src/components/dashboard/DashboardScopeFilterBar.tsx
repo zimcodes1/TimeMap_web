@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
 	Building2,
 	Layers,
@@ -22,18 +23,10 @@ interface DashboardScopeFilterBarProps {
 	onProgramChange: (programId: string) => void;
 	selectedLevel: string;
 	onLevelChange: (level: string) => void;
+	maxLevel?: number;
 	currentWeekLabel?: string;
 	onResetFilters: () => void;
 }
-
-const LEVEL_OPTIONS = [
-	{ label: "All Levels", value: "" },
-	{ label: "100 Level", value: "100" },
-	{ label: "200 Level", value: "200" },
-	{ label: "300 Level", value: "300" },
-	{ label: "400 Level", value: "400" },
-	{ label: "500 Level", value: "500" },
-];
 
 export default function DashboardScopeFilterBar({
 	adminLevel,
@@ -48,6 +41,7 @@ export default function DashboardScopeFilterBar({
 	onProgramChange,
 	selectedLevel,
 	onLevelChange,
+	maxLevel,
 	currentWeekLabel,
 	onResetFilters,
 }: DashboardScopeFilterBarProps) {
@@ -55,6 +49,16 @@ export default function DashboardScopeFilterBar({
 	const isFacultyAdmin = adminLevel === "faculty";
 	const isSchoolOrSuperuser =
 		adminLevel === "school" || adminLevel === "university" || !adminLevel;
+
+	// Dynamic Level Options according to maxLevel
+	const levelOptions = useMemo(() => {
+		const max = maxLevel && maxLevel >= 100 ? maxLevel : 400;
+		const opts = [{ label: "All Levels", value: "" }];
+		for (let lvl = 100; lvl <= max; lvl += 100) {
+			opts.push({ label: `${lvl} Level`, value: String(lvl) });
+		}
+		return opts;
+	}, [maxLevel]);
 
 	// Active department details
 	const activeDepartment = departments.find(
@@ -183,7 +187,7 @@ export default function DashboardScopeFilterBar({
 						onChange={(e) => onLevelChange(e.target.value)}
 						className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
 					>
-						{LEVEL_OPTIONS.map((opt) => (
+						{levelOptions.map((opt) => (
 							<option key={opt.value} value={opt.value}>
 								{opt.label}
 							</option>

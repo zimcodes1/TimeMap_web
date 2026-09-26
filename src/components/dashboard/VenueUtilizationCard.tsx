@@ -17,13 +17,16 @@ interface VenueUtilizationCardProps {
 	utilization?: VenueUtilizationAnalytics;
 	isLoading?: boolean;
 	departmentName?: string;
+	adminLevel?: string;
 }
 
 export default function VenueUtilizationCard({
 	utilization,
 	isLoading = false,
 	departmentName,
+	adminLevel,
 }: VenueUtilizationCardProps) {
+	const isSchoolAdmin = adminLevel === "school";
 	const breakdown = utilization?.breakdown || [];
 	const totalBookedHours = utilization?.summary?.totalBookedHours ?? 0;
 	const totalVenues = utilization?.summary?.totalVenues ?? breakdown.length;
@@ -41,17 +44,25 @@ export default function VenueUtilizationCard({
 						<>
 							<div className="flex items-center gap-2">
 								<Text variant="h6" weight="bold">
-									Venue Utilization
+									{isSchoolAdmin
+										? "Faculty Venue Utilization"
+										: "Venue Utilization"}
 								</Text>
-								{departmentName && (
+								{!isSchoolAdmin && departmentName && (
 									<Badge variant="default" className="text-[11px] font-medium">
 										{departmentName}
 									</Badge>
 								)}
+								{isSchoolAdmin && (
+									<Badge variant="outline" className="text-[11px] font-medium">
+										Faculty Aggregates
+									</Badge>
+								)}
 							</div>
 							<Text variant="caption" color="muted">
-								Total Booked: {totalBookedHours} hrs across {totalVenues} venues
-								in this department
+								{isSchoolAdmin
+									? `Total Booked: ${totalBookedHours} hrs across ${breakdown.length} faculties in this school`
+									: `Total Booked: ${totalBookedHours} hrs across ${totalVenues} venues in this department`}
 							</Text>
 						</>
 					)}
@@ -61,7 +72,7 @@ export default function VenueUtilizationCard({
 						variant="outline"
 						className="text-xs shrink-0 self-start sm:self-auto"
 					>
-						Department Scoped
+						{isSchoolAdmin ? "School Scoped" : "Department Scoped"}
 					</Badge>
 				)}
 			</div>
@@ -83,7 +94,7 @@ export default function VenueUtilizationCard({
 						>
 							<CartesianGrid strokeDasharray="3 3" opacity={0.15} />
 							<XAxis
-								dataKey="venueName"
+								dataKey={isSchoolAdmin ? "facultyCode" : "venueName"}
 								tick={{ fontSize: 10, fill: "#94a3b8" }}
 								interval={0}
 							/>
@@ -92,11 +103,11 @@ export default function VenueUtilizationCard({
 								content={({ active, payload }) => {
 									if (active && payload && payload.length) {
 										const data = payload[0].payload;
+										const label =
+											data.facultyName || data.venueName || data.facultyCode;
 										return (
 											<div className="bg-surface border border-border p-2.5 rounded-xl shadow-xl text-xs space-y-1">
-												<p className="font-bold text-text-main">
-													{data.venueName}
-												</p>
+												<p className="font-bold text-text-main">{label}</p>
 												<p className="text-blue-400">
 													Booked:{" "}
 													<span className="font-semibold">
@@ -131,8 +142,9 @@ export default function VenueUtilizationCard({
 							No venue utilization records
 						</p>
 						<p>
-							No lectures were booked for venues in this department during this
-							period.
+							{isSchoolAdmin
+								? "No lectures were booked for venues in faculties under this school."
+								: "No lectures were booked for venues in this department during this period."}
 						</p>
 					</div>
 				)}

@@ -48,6 +48,7 @@ interface DashboardViewProps {
 	onProgramChange: (id: string) => void;
 	selectedLevel: string;
 	onLevelChange: (lvl: string) => void;
+	maxLevel?: number;
 	currentWeekLabel?: string;
 	onResetFilters: () => void;
 }
@@ -76,6 +77,7 @@ export default function DashboardView({
 	onProgramChange,
 	selectedLevel,
 	onLevelChange,
+	maxLevel,
 	currentWeekLabel,
 	onResetFilters,
 }: DashboardViewProps) {
@@ -266,6 +268,7 @@ export default function DashboardView({
 				onProgramChange={onProgramChange}
 				selectedLevel={selectedLevel}
 				onLevelChange={onLevelChange}
+				maxLevel={maxLevel}
 				currentWeekLabel={currentWeekLabel}
 				onResetFilters={onResetFilters}
 			/>
@@ -275,11 +278,12 @@ export default function DashboardView({
 				{/* 1. Lecture-Hold Rate Line Chart */}
 				<HoldRateLineChart holdRate={holdRate} isLoading={holdRateLoading} />
 
-				{/* 2. Venue Utilization Scoped Strictly Per Department */}
+				{/* 2. Venue Utilization (Faculty aggregates for School Admin, Dept scoped otherwise) */}
 				<VenueUtilizationCard
 					utilization={utilization}
 					isLoading={utilizationLoading}
 					departmentName={activeDept ? activeDept.name : undefined}
+					adminLevel={adminLevel}
 				/>
 
 				{/* 3. Discrepancy Resolution Breakdown */}

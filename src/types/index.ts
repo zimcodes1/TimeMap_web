@@ -395,6 +395,9 @@ export interface HoldRateBreakdownItem {
   departmentId?: string;
   departmentName?: string;
   departmentCode?: string;
+  facultyId?: string;
+  facultyName?: string;
+  facultyCode?: string;
   level?: number;
   weekNumber?: number;
   dateRange?: string;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import {
 	ArrowLeft,
@@ -22,6 +22,7 @@ import type {
 	Program,
 	Semester,
 } from "@/types";
+import FacultyTotalsTable from "@/components/analytics/FacultyTotalsTable";
 import LecturerHoldRateTable from "@/components/analytics/LecturerHoldRateTable";
 import CourseHoldRateTable from "@/components/analytics/CourseHoldRateTable";
 import ProgramHoldRateTable from "@/components/analytics/ProgramHoldRateTable";
@@ -47,9 +48,12 @@ interface DetailedAnalyticsViewProps {
 
 	selectedLevel: string;
 	onLevelChange: (lvl: string) => void;
+	maxLevel?: number;
 
 	// Analytics data
 	summaryHoldRate?: HoldRateAnalytics;
+	facultiesBreakdown?: HoldRateBreakdownItem[];
+	facultiesLoading?: boolean;
 	lecturersBreakdown: HoldRateBreakdownItem[];
 	lecturersLoading: boolean;
 	coursesBreakdown: HoldRateBreakdownItem[];
@@ -63,15 +67,6 @@ interface DetailedAnalyticsViewProps {
 
 	onResetFilters: () => void;
 }
-
-const LEVEL_OPTIONS = [
-	{ label: "All Levels", value: "" },
-	{ label: "100 Level", value: "100" },
-	{ label: "200 Level", value: "200" },
-	{ label: "300 Level", value: "300" },
-	{ label: "400 Level", value: "400" },
-	{ label: "500 Level", value: "500" },
-];
 
 export default function DetailedAnalyticsView({
 	adminLevel,
@@ -88,7 +83,10 @@ export default function DetailedAnalyticsView({
 	onProgramChange,
 	selectedLevel,
 	onLevelChange,
+	maxLevel,
 	summaryHoldRate,
+	facultiesBreakdown = [],
+	facultiesLoading = false,
 	lecturersBreakdown,
 	lecturersLoading,
 	coursesBreakdown,
@@ -106,9 +104,30 @@ export default function DetailedAnalyticsView({
 	const isSchoolOrSuperuser =
 		adminLevel === "school" || adminLevel === "university" || !adminLevel;
 
+	const validTabs = useMemo(() => {
+		if (isSchoolOrSuperuser) return ["faculties", "trends"];
+		if (isFacultyAdmin) return ["departments", "trends"];
+		return ["lecturers", "courses", "programs", "trends"];
+	}, [isSchoolOrSuperuser, isFacultyAdmin]);
+
 	const [activeTab, setActiveTab] = useState<string>(
-		isDeptAdmin ? "lecturers" : "departments",
+		isSchoolOrSuperuser
+			? "faculties"
+			: isFacultyAdmin
+				? "departments"
+				: "lecturers",
 	);
+
+	const currentTab = validTabs.includes(activeTab) ? activeTab : validTabs[0];
+
+	const levelOptions = useMemo(() => {
+		const effectiveMax = maxLevel && maxLevel >= 100 ? maxLevel : 500;
+		const options = [{ label: "All Levels", value: "" }];
+		for (let lvl = 100; lvl <= effectiveMax; lvl += 100) {
+			options.push({ label: `${lvl} Level`, value: String(lvl) });
+		}
+		return options;
+	}, [maxLevel]);
 
 	const activeDept = departments.find(
 		(d) => String(d.id) === String(selectedDepartmentId),
@@ -292,7 +311,7 @@ export default function DetailedAnalyticsView({
 						</div>
 					)}
 
-					{!isDeptAdmin && (
+					{isFacultyAdmin && (
 						<div className="space-y-1">
 							<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
 								<Building2 size={12} />
@@ -312,53 +331,72 @@ export default function DetailedAnalyticsView({
 						</div>
 					)}
 
-					<div className="space-y-1">
-						<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
-							<Layers size={12} />
-							<span>Program</span>
-						</label>
-						<select
-							value={selectedProgramId}
-							onChange={(e) => onProgramChange(e.target.value)}
-							className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
-						>
-							<option value="">All Programs ({programs.length})</option>
-							{programs.map((p) => (
-								<option key={p.id} value={p.id}>
-									{p.name} ({p.code})
-								</option>
-							))}
-						</select>
-					</div>
+					{isDeptAdmin && (
+						<div className="space-y-1">
+							<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
+								<Layers size={12} />
+								<span>Program</span>
+							</label>
+							<select
+								value={selectedProgramId}
+								onChange={(e) => onProgramChange(e.target.value)}
+								className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
+							>
+								<option value="">All Programs ({programs.length})</option>
+								{programs.map((p) => (
+									<option key={p.id} value={p.id}>
+										{p.name} ({p.code})
+									</option>
+								))}
+							</select>
+						</div>
+					)}
 
-					<div className="space-y-1">
-						<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
-							<Layers size={12} />
-							<span>Level</span>
-						</label>
-						<select
-							value={selectedLevel}
-							onChange={(e) => onLevelChange(e.target.value)}
-							className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
-						>
-							{LEVEL_OPTIONS.map((opt) => (
-								<option key={opt.value} value={opt.value}>
-									{opt.label}
-								</option>
-							))}
-						</select>
-					</div>
+					{!isSchoolOrSuperuser && (
+						<div className="space-y-1">
+							<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
+								<Layers size={12} />
+								<span>Level</span>
+							</label>
+							<select
+								value={selectedLevel}
+								onChange={(e) => onLevelChange(e.target.value)}
+								className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
+							>
+								{levelOptions.map((opt) => (
+									<option key={opt.value} value={opt.value}>
+										{opt.label}
+									</option>
+								))}
+							</select>
+						</div>
+					)}
 				</div>
 			</div>
 
 			{/* Navigation Tabs */}
 			<div className="flex border-b border-border gap-2">
-				{!isDeptAdmin && (
+				{isSchoolOrSuperuser && (
+					<button
+						type="button"
+						onClick={() => setActiveTab("faculties")}
+						className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+							currentTab === "faculties"
+								? "border-primary text-primary"
+								: "border-transparent text-text-muted hover:text-text-main"
+						}`}
+					>
+						<Building2 size={14} />
+						<span>Faculty Totals</span>
+					</button>
+				)}
+
+				{isFacultyAdmin && (
 					<button
 						type="button"
 						onClick={() => setActiveTab("departments")}
 						className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-							activeTab === "departments"
+							currentTab === "departments"
 								? "border-primary text-primary"
 								: "border-transparent text-text-muted hover:text-text-main"
 						}`}
@@ -368,50 +406,54 @@ export default function DetailedAnalyticsView({
 					</button>
 				)}
 
-				<button
-					type="button"
-					onClick={() => setActiveTab("lecturers")}
-					className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-						activeTab === "lecturers"
-							? "border-primary text-primary"
-							: "border-transparent text-text-muted hover:text-text-main"
-					}`}
-				>
-					<Users size={14} />
-					<span>Lecturer Hold Rates</span>
-				</button>
+				{isDeptAdmin && (
+					<>
+						<button
+							type="button"
+							onClick={() => setActiveTab("lecturers")}
+							className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+								currentTab === "lecturers"
+									? "border-primary text-primary"
+									: "border-transparent text-text-muted hover:text-text-main"
+							}`}
+						>
+							<Users size={14} />
+							<span>Lecturer Hold Rates</span>
+						</button>
 
-				<button
-					type="button"
-					onClick={() => setActiveTab("courses")}
-					className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-						activeTab === "courses"
-							? "border-primary text-primary"
-							: "border-transparent text-text-muted hover:text-text-main"
-					}`}
-				>
-					<BookOpen size={14} />
-					<span>Courses Breakdown</span>
-				</button>
+						<button
+							type="button"
+							onClick={() => setActiveTab("courses")}
+							className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+								currentTab === "courses"
+									? "border-primary text-primary"
+									: "border-transparent text-text-muted hover:text-text-main"
+							}`}
+						>
+							<BookOpen size={14} />
+							<span>Courses Breakdown</span>
+						</button>
 
-				<button
-					type="button"
-					onClick={() => setActiveTab("programs")}
-					className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-						activeTab === "programs"
-							? "border-primary text-primary"
-							: "border-transparent text-text-muted hover:text-text-main"
-					}`}
-				>
-					<Layers size={14} />
-					<span>Programs Breakdown</span>
-				</button>
+						<button
+							type="button"
+							onClick={() => setActiveTab("programs")}
+							className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+								currentTab === "programs"
+									? "border-primary text-primary"
+									: "border-transparent text-text-muted hover:text-text-main"
+							}`}
+						>
+							<Layers size={14} />
+							<span>Programs Breakdown</span>
+						</button>
+					</>
+				)}
 
 				<button
 					type="button"
 					onClick={() => setActiveTab("trends")}
 					className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
-						activeTab === "trends"
+						currentTab === "trends"
 							? "border-primary text-primary"
 							: "border-transparent text-text-muted hover:text-text-main"
 					}`}
@@ -422,19 +464,31 @@ export default function DetailedAnalyticsView({
 			</div>
 
 			{/* Tab Contents */}
-			{activeTab === "departments" && !isDeptAdmin && (
-				<DepartmentTotalsTable
-					departments={departmentsBreakdown}
-					isLoading={departmentsLoading}
-					facultyName={activeFaculty ? activeFaculty.name : undefined}
-					onSelectDepartment={(deptId) => {
-						onDepartmentChange(deptId);
-						setActiveTab("lecturers");
+			{currentTab === "faculties" && isSchoolOrSuperuser && (
+				<FacultyTotalsTable
+					faculties={facultiesBreakdown}
+					isLoading={facultiesLoading}
+					onSelectFaculty={(facId) => {
+						onFacultyChange(facId);
+						setActiveTab("trends");
 					}}
 				/>
 			)}
 
-			{activeTab === "lecturers" && (
+			{currentTab === "departments" && isFacultyAdmin && (
+				<DepartmentTotalsTable
+					departments={departmentsBreakdown}
+					isLoading={departmentsLoading}
+					facultyName={activeFaculty ? activeFaculty.name : undefined}
+					actionLabel="View Trend"
+					onSelectDepartment={(deptId) => {
+						onDepartmentChange(deptId);
+						setActiveTab("trends");
+					}}
+				/>
+			)}
+
+			{currentTab === "lecturers" && isDeptAdmin && (
 				<LecturerHoldRateTable
 					lecturers={lecturersBreakdown}
 					isLoading={lecturersLoading}
@@ -442,21 +496,21 @@ export default function DetailedAnalyticsView({
 				/>
 			)}
 
-			{activeTab === "courses" && (
+			{currentTab === "courses" && isDeptAdmin && (
 				<CourseHoldRateTable
 					courses={coursesBreakdown}
 					isLoading={coursesLoading}
 				/>
 			)}
 
-			{activeTab === "programs" && (
+			{currentTab === "programs" && isDeptAdmin && (
 				<ProgramHoldRateTable
 					programs={programsBreakdown}
 					isLoading={programsLoading}
 				/>
 			)}
 
-			{activeTab === "trends" && (
+			{currentTab === "trends" && (
 				<HoldRateLineChart
 					holdRate={weeklyBreakdown}
 					isLoading={weeklyLoading}

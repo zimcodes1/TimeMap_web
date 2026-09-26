@@ -134,6 +134,41 @@ export default function DashboardContainer() {
 		}
 	}, [selectedDepartmentId, programsData, selectedProgramId]);
 
+	// Active department details
+	const activeDepartment = useMemo(() => {
+		return displayedDepartments.find(
+			(d) => String(d.id) === String(selectedDepartmentId),
+		);
+	}, [displayedDepartments, selectedDepartmentId]);
+
+	// Compute maxLevel based on selected program or department's default program
+	const computedMaxLevel = useMemo(() => {
+		if (selectedProgramId) {
+			const prog = programsData.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (prog?.maxLevel) return prog.maxLevel;
+		}
+		// Look for default program of department
+		const defaultProg = programsData.find((p) => p.isDefault);
+		if (defaultProg?.maxLevel) return defaultProg.maxLevel;
+
+		const deptProgDefault = activeDepartment?.programs?.find(
+			(p) => p.isDefault,
+		);
+		if (deptProgDefault?.maxLevel) return deptProgDefault.maxLevel;
+
+		if (activeDepartment?.maxLevel) return activeDepartment.maxLevel;
+		return 400;
+	}, [selectedProgramId, programsData, activeDepartment]);
+
+	// Auto-clamp selectedLevel if it exceeds computedMaxLevel
+	useEffect(() => {
+		if (selectedLevel && Number(selectedLevel) > computedMaxLevel) {
+			setSelectedLevel("");
+		}
+	}, [computedMaxLevel, selectedLevel]);
+
 	// 2. Analytics Queries
 	// Hold Rate: scoped to department (or faculty), program, level, semester, grouped by week
 	const holdRateParams = useMemo(() => {
@@ -162,18 +197,27 @@ export default function DashboardContainer() {
 		queryFn: () => getLectureHoldRateAnalytics(holdRateParams),
 	});
 
-	// Venue Utilization: strictly scoped per department!
+	const isSchoolAdmin = adminLevel === "school";
+
+	// Venue Utilization: aggregated per faculty for School Admin, strictly per department otherwise
 	const utilizationParams = useMemo(() => {
+		if (isSchoolAdmin) {
+			return {
+				facultyId: selectedFacultyId || undefined,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+				groupBy: "faculty",
+			};
+		}
 		return {
 			departmentId: selectedDepartmentId || undefined,
 			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
 		};
-	}, [selectedDepartmentId, activeSemester]);
+	}, [isSchoolAdmin, selectedFacultyId, selectedDepartmentId, activeSemester]);
 
 	const { data: utilization, isLoading: utilizationLoading } = useQuery({
 		queryKey: ["analytics", "utilization", utilizationParams],
 		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
-		enabled: Boolean(selectedDepartmentId),
+		enabled: isSchoolAdmin || Boolean(selectedDepartmentId),
 	});
 
 	// Discrepancy Analytics
@@ -226,6 +270,7 @@ export default function DashboardContainer() {
 			onProgramChange={setSelectedProgramId}
 			selectedLevel={selectedLevel}
 			onLevelChange={setSelectedLevel}
+			maxLevel={computedMaxLevel}
 			currentWeekLabel={currentWeekLabel}
 			onResetFilters={handleResetFilters}
 		/>
