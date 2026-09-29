@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 RULES.md
 .tanstack/tmp/c36b6680-cce88448f416da1ec6ba9e3355fbbb72
+.env

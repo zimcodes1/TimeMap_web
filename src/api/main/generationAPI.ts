@@ -244,3 +244,39 @@ export async function updateGenerationPermissions(payload: {
   return mapRawPermissionToPermission(response.data);
 }
 
+/**
+ * Export scheduling problem dataset as hierarchical JSON or CSV
+ * POST /api/scheduling/generate/export-problem/
+ */
+export async function exportSchedulingProblem(payload: {
+  semester_id: string | number;
+  scope_type: "school" | "faculty" | "department";
+  scope_id: string | number;
+  format?: "json" | "csv";
+}): Promise<any> {
+  const semesterId = Number(payload.semester_id);
+  const scopeId = Number(payload.scope_id);
+
+  if (!semesterId || isNaN(semesterId)) {
+    throw new Error("Invalid semester ID. Please select an active semester.");
+  }
+  if (!scopeId || isNaN(scopeId)) {
+    throw new Error("Invalid scope ID. Please select a valid target scope.");
+  }
+
+  const format = payload.format || "json";
+  const response = await apiClient.post(
+    "/scheduling/generate/export-problem/",
+    {
+      semester_id: semesterId,
+      scope_type: payload.scope_type,
+      scope_id: scopeId,
+      format,
+    },
+    {
+      responseType: format === "csv" ? "text" : "json",
+    }
+  );
+  return response.data;
+}
+

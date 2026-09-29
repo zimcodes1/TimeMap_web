@@ -14,6 +14,7 @@ import {
 	getGenerationRunDetail,
 	generateTimetable,
 	publishGenerationRun,
+	exportSchedulingProblem,
 } from "@/api/main/generationAPI";
 import type {
 	Semester,
@@ -67,6 +68,7 @@ export default function ScheduleGeneratorContainer() {
 	const [pendingGeneratePayload, setPendingGeneratePayload] =
 		useState<GenerateTimetablePayload | null>(null);
 	const [isOverwriteModalOpen, setIsOverwriteModalOpen] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
 
 	// Fetch detailed run data (conflict_report, assignments_payload) for the active run
 	const activeRunId = activeRun?.id;
@@ -349,6 +351,64 @@ export default function ScheduleGeneratorContainer() {
 		},
 	});
 
+	const handleExportProblem = async (format: "json" | "csv" = "json") => {
+		if (!semesterId || !scopeId) {
+			toast.error(
+				"Please select a target semester and scope before exporting.",
+			);
+			return;
+		}
+		setIsExporting(true);
+		const toastId = toast.loading(
+			`Exporting scheduling problem dataset (${format.toUpperCase()})...`,
+		);
+		try {
+			const data = await exportSchedulingProblem({
+				semester_id: semesterId,
+				scope_type: scopeType,
+				scope_id: scopeId,
+				format,
+			});
+
+			const filename = `scheduling_problem_${scopeType}_${scopeId}_semester_${semesterId}.${format}`;
+			if (format === "csv") {
+				const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			} else {
+				const blob = new Blob([JSON.stringify(data, null, 2)], {
+					type: "application/json",
+				});
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
+			toast.success(
+				`Scheduling problem dataset exported successfully as ${format.toUpperCase()}!`,
+				{ id: toastId },
+			);
+		} catch (err: any) {
+			const errorMsg =
+				err?.response?.data?.error ||
+				err?.message ||
+				"Failed to export scheduling problem.";
+			toast.error(errorMsg, { id: toastId });
+		} finally {
+			setIsExporting(false);
+		}
+	};
+
 	return (
 		<>
 			<ScheduleGeneratorView
@@ -372,6 +432,8 @@ export default function ScheduleGeneratorContainer() {
 				onStagnationLimitChange={setStagnationLimit}
 				isGenerating={generateMutation.isPending}
 				onSubmit={handleSubmit}
+				onExportProblem={handleExportProblem}
+				isExporting={isExporting}
 				activeRun={currentRun}
 				onPublishRun={(id) => publishMutation.mutate(id)}
 				isPublishing={publishMutation.isPending}

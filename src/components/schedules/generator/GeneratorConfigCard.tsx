@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Settings2, Cpu, AlertTriangle } from "lucide-react";
+import {
+	Sparkles,
+	Settings2,
+	Cpu,
+	AlertTriangle,
+	FileDown,
+} from "lucide-react";
 import type { Semester, School, Faculty, Department } from "@/types";
 
 interface GeneratorConfigCardProps {
@@ -27,6 +33,8 @@ interface GeneratorConfigCardProps {
 	onStagnationLimitChange: (val: number) => void;
 	isGenerating: boolean;
 	onSubmit: (e: React.FormEvent) => void;
+	onExportProblem?: (format?: "json" | "csv") => void;
+	isExporting?: boolean;
 	hasPermission: boolean;
 	permissionNotice?: string | null;
 	isSchoolAdmin: boolean;
@@ -55,6 +63,8 @@ export function GeneratorConfigCard({
 	onStagnationLimitChange,
 	isGenerating,
 	onSubmit,
+	onExportProblem,
+	isExporting = false,
 	hasPermission,
 	permissionNotice,
 	isSchoolAdmin,
@@ -281,7 +291,7 @@ export function GeneratorConfigCard({
 					<Button
 						variant="primary"
 						type="submit"
-						disabled={isGenerating || !hasPermission}
+						disabled={isGenerating || isExporting || !hasPermission}
 						className="w-full cursor-pointer gap-2 text-xs h-10 font-semibold"
 					>
 						{isGenerating ? (
@@ -296,6 +306,53 @@ export function GeneratorConfigCard({
 							</>
 						)}
 					</Button>
+
+					{/* Problem Dataset Export Actions */}
+					<div className="pt-2 border-t border-border flex items-center gap-2">
+						<Button
+							variant="outline"
+							type="button"
+							disabled={
+								isGenerating ||
+								isExporting ||
+								!hasPermission ||
+								!semesterId ||
+								!scopeId
+							}
+							onClick={() => onExportProblem?.("json")}
+							className="flex-1 cursor-pointer gap-2 text-xs h-9 font-medium hover:bg-surface-raised"
+							title="Export problem dataset with faculty, department, and program branches in JSON"
+						>
+							{isExporting ? (
+								<>
+									<Cpu size={14} className="animate-spin text-primary" />
+									<span>Exporting Dataset...</span>
+								</>
+							) : (
+								<>
+									<FileDown size={14} className="text-primary" />
+									<span>Export Problem (JSON)</span>
+								</>
+							)}
+						</Button>
+
+						<Button
+							variant="outline"
+							type="button"
+							disabled={
+								isGenerating ||
+								isExporting ||
+								!hasPermission ||
+								!semesterId ||
+								!scopeId
+							}
+							onClick={() => onExportProblem?.("csv")}
+							className="cursor-pointer text-[11px] h-9 px-3 text-text-muted hover:text-text-main hover:bg-surface-raised font-medium"
+							title="Export problem dataset as CSV"
+						>
+							CSV
+						</Button>
+					</div>
 				</form>
 			)}
 		</div>

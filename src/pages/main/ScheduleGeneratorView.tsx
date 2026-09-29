@@ -48,6 +48,8 @@ interface ScheduleGeneratorViewProps {
 	onStagnationLimitChange: (val: number) => void;
 	isGenerating: boolean;
 	onSubmit: (e: React.FormEvent) => void;
+	onExportProblem?: (format?: "json" | "csv") => void;
+	isExporting?: boolean;
 	activeRun: TimetableGenerationRun | null;
 	onPublishRun: (runId: string) => void;
 	isPublishing: boolean;
@@ -81,6 +83,8 @@ export default function ScheduleGeneratorView({
 	onStagnationLimitChange,
 	isGenerating,
 	onSubmit,
+	onExportProblem,
+	isExporting,
 	activeRun,
 	onPublishRun,
 	isPublishing,
@@ -194,6 +198,8 @@ export default function ScheduleGeneratorView({
 						onStagnationLimitChange={onStagnationLimitChange}
 						isGenerating={isGenerating}
 						onSubmit={onSubmit}
+						onExportProblem={onExportProblem}
+						isExporting={isExporting}
 						hasPermission={hasPermission}
 						permissionNotice={permissionNotice}
 						isSchoolAdmin={isSchoolAdmin}
