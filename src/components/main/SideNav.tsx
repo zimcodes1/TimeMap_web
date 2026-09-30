@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,17 @@ export default function SideNav({
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+	const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+	useEffect(() => {
+		if (hoveredItem && itemRefs.current[hoveredItem]) {
+			const rect = itemRefs.current[hoveredItem]!.getBoundingClientRect();
+			setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 8 });
+		} else {
+			setTooltipPos(null);
+		}
+	}, [hoveredItem]);
 
 	const toggleGroup = (label: string) =>
 		setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -109,6 +121,7 @@ export default function SideNav({
 										return (
 											<div
 												key={item.label}
+												ref={(el) => { itemRefs.current[item.label] = el; }}
 												className="relative"
 												onMouseEnter={() =>
 													collapsed && setHoveredItem(item.label)
@@ -117,7 +130,7 @@ export default function SideNav({
 											>
 												{collapsed ? (
 													/* Collapsed Mode Popover Trigger */
-													<div className="relative">
+													<>
 														<button
 															type="button"
 															onClick={() => toggleGroup(item.label)}
@@ -131,9 +144,12 @@ export default function SideNav({
 															<span className="shrink-0">{item.icon}</span>
 														</button>
 
-														{/* Hover Popover in Collapsed Mode */}
-														{hoveredItem === item.label && (
-															<div className="absolute left-full top-0 ml-2 z-50 w-48 bg-surface border border-border rounded-xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 text-text-main">
+														{/* Hover Popover in Collapsed Mode — portalled to body */}
+														{hoveredItem === item.label && tooltipPos && createPortal(
+															<div
+																style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)", zIndex: 9999 }}
+																className="w-48 bg-surface border border-border rounded-xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 text-text-main"
+															>
 																<Text
 																	variant="caption"
 																	className="px-2 py-1 font-bold text-text-main block border-b border-border"
@@ -155,9 +171,10 @@ export default function SideNav({
 																		{child.label}
 																	</Link>
 																))}
-															</div>
+															</div>,
+															document.body
 														)}
-													</div>
+													</>
 												) : (
 													/* Expanded Accordion Mode */
 													<div>
@@ -213,6 +230,7 @@ export default function SideNav({
 									return (
 										<div
 											key={item.label}
+											ref={(el) => { itemRefs.current[item.label] = el; }}
 											className="relative"
 											onMouseEnter={() =>
 												collapsed && setHoveredItem(item.label)
@@ -236,11 +254,15 @@ export default function SideNav({
 												{!collapsed && <span>{item.label}</span>}
 											</Link>
 
-											{/* Tooltip hint in collapsed mode */}
-											{collapsed && hoveredItem === item.label && (
-												<div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1.5 bg-surface text-text-main border border-border rounded-md text-xs font-semibold whitespace-nowrap shadow-md pointer-events-none">
+											{/* Tooltip hint in collapsed mode — portalled to body */}
+											{collapsed && hoveredItem === item.label && tooltipPos && createPortal(
+												<div
+													style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)", zIndex: 9999 }}
+													className="px-2.5 py-1.5 bg-surface text-text-main border border-border rounded-md text-xs font-semibold whitespace-nowrap shadow-md pointer-events-none"
+												>
 													{item.label}
-												</div>
+												</div>,
+												document.body
 											)}
 										</div>
 									);
