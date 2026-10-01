@@ -168,21 +168,15 @@ export default function ScheduleRunInspectionView({
 							{run.scopeName || "Timetable Inspection"}
 						</h1>
 
-						{run.isPublished ? (
-							<Badge
-								variant="primary"
-								className="text-[11px] font-bold bg-emerald-500 text-white flex items-center gap-1 shadow-xs"
-							>
-								<CheckCircle2 size={11} />
-								<span>Live Published</span>
-							</Badge>
-						) : (
+						{!run.isPublished ? (
 							<Badge
 								variant="outline"
 								className="text-[11px] font-semibold text-amber-400 border-amber-500/40 bg-amber-500/10"
 							>
 								Draft Solution
 							</Badge>
+						) : (
+							""
 						)}
 						{run.semesterName && (
 							<Badge

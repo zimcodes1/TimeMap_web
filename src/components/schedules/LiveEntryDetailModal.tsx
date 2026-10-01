@@ -167,26 +167,24 @@ export function LiveEntryDetailModal({
 									Past Lecture
 								</Badge>
 							)}
-							<Badge
-								variant={
-									isShifted
-										? "warning"
-										: isCancelled
-											? "danger"
-											: calculatedIsPast
-												? "outline"
-												: "primary"
-								}
-								className="text-[10px] py-0 px-1.5 capitalize"
-							>
-								{isShifted
-									? "Shifted"
-									: isCancelled
-										? "Cancelled"
-										: calculatedIsPast
-											? "Archived"
-											: "Upcoming"}
-							</Badge>
+							{isCancelled || isShifted ? (
+								<Badge
+									variant={
+										isShifted
+											? "warning"
+											: isCancelled
+												? "danger"
+												: calculatedIsPast
+													? "outline"
+													: "primary"
+									}
+									className="text-[10px] py-0 px-1.5 capitalize"
+								>
+									{isShifted ? "Shifted" : isCancelled ? "Cancelled" : ""}
+								</Badge>
+							) : (
+								""
+							)}
 							{calculatedIsPast && isHeld && (
 								<span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
 									<CheckCircle2 size={10} /> Held

@@ -7,7 +7,6 @@ import {
 	Plus,
 	LayoutGrid,
 	List,
-	RefreshCw,
 	CalendarOff,
 	Sparkles,
 	ShieldCheck,
@@ -90,7 +89,6 @@ export default function SchedulesView({
 	entriesLoading = false,
 	sessions,
 	sessionsLoading = false,
-	isRefetching = false,
 	faculties = [],
 	selectedFacultyId = "",
 	onSelectFaculty,
@@ -114,16 +112,12 @@ export default function SchedulesView({
 	weekDayDates,
 	activeSemester,
 	conflictReport,
-	onManualRefresh,
 	onOpenScheduleEntry,
 	onShiftSessionTrigger,
 	onOpenPermissions,
-	onOpenGenerator: _onOpenGenerator,
-	onOpenHistory: _onOpenHistory,
 	canGenerate = false,
 	canConfigurePermissions = false,
 	isDeptAdmin = false,
-	isFacultyAdmin: _isFacultyAdmin = false,
 	isSchoolAdmin = false,
 	isSuperuser = false,
 	scopeLabel,
@@ -169,20 +163,6 @@ export default function SchedulesView({
 				</div>
 
 				<div className="flex flex-wrap justify-end items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onManualRefresh}
-						disabled={isRefetching}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<RefreshCw
-							size={13}
-							className={isRefetching ? "animate-spin text-primary" : ""}
-						/>
-						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
-					</Button>
-
 					{canConfigurePermissions && onOpenPermissions && (
 						<Button
 							variant="outline"
