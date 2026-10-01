@@ -227,8 +227,19 @@ export function TimetableAcademicGrid({
 										</div>
 									</td>
 									{TIME_SLOTS.map((slot) => {
-										// Case-insensitive day match + time overlap
-										const matchingEntries = displayedEntries.filter(
+										const isFridayJummat = isFriday && slot.id === "slot-3";
+
+										// 1. Sessions on this date in this slot
+										const sessionsOnDate = dateStr
+											? sessions.filter((s) => s.date === dateStr)
+											: [];
+
+										const sessionsInSlot = sessionsOnDate.filter((s) =>
+											isOverlapping(s.startTime, s.endTime, slot.start, slot.end),
+										);
+
+										// 2. Base entries scheduled for this day of the week in this slot
+										const templateEntriesInSlot = displayedEntries.filter(
 											(e) =>
 												e.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
 												isOverlapping(
@@ -239,21 +250,117 @@ export function TimetableAcademicGrid({
 												),
 										);
 
-										const isFridayJummat = isFriday && slot.id === "slot-3";
+										// Entries whose session on this date was shifted away from this slot
+										const entriesShiftedAwayFromSlot = templateEntriesInSlot
+											.map((e) => {
+												const s = sessionsOnDate.find(
+													(sess) =>
+														sess.entryId === e.id ||
+														sess.timetableEntryId === e.id,
+												);
+												if (
+													s &&
+													s.status === "shifted" &&
+													!isOverlapping(
+														s.startTime,
+														s.endTime,
+														slot.start,
+														slot.end,
+													)
+												) {
+													return { entry: e, session: s };
+												}
+												return null;
+											})
+											.filter(
+												(
+													item,
+												): item is {
+													entry: TimetableEntry;
+													session: LectureSession;
+												} => item !== null,
+											);
+
+										// Active items to render in this slot
+										interface ActiveSlotItem {
+											key: string;
+											entry: TimetableEntry;
+											session: LectureSession | null;
+										}
+
+										const activeSlotItems: ActiveSlotItem[] = [];
+
+										// Add sessions in this slot
+										sessionsInSlot.forEach((s) => {
+											const matchingEntry = displayedEntries.find(
+												(e) =>
+													e.id === s.entryId || e.id === s.timetableEntryId,
+											);
+											const entry = matchingEntry || {
+												id: s.entryId || s.timetableEntryId || `session-${s.id}`,
+												entryType: s.entryType || "lecture",
+												title: s.courseTitle,
+												type: s.entryType || "lecture",
+												courseCode: s.courseCode,
+												courseTitle: s.courseTitle,
+												courseLevel: s.courseLevel,
+												courseType: s.courseType,
+												departmentId: s.departmentId,
+												departmentName: s.departmentName,
+												facultyId: s.facultyId,
+												facultyName: s.facultyName,
+												lecturerName: s.lecturerName,
+												lecturers: s.lecturers,
+												venueId: s.venueId,
+												venueName: s.venueName,
+												venueCapacity: s.venueCapacity,
+												dayOfWeek: dayName as any,
+												startTime: s.startTime,
+												endTime: s.endTime,
+												targetProgramName: s.programName,
+											};
+											activeSlotItems.push({
+												key: `session-${s.id}`,
+												entry,
+												session: s,
+											});
+										});
+
+										// Add template entries in this slot that don't have a materialized session
+										templateEntriesInSlot.forEach((e) => {
+											const hasSessionOnDate = sessionsOnDate.some(
+												(s) =>
+													s.entryId === e.id || s.timetableEntryId === e.id,
+											);
+											if (!hasSessionOnDate) {
+												activeSlotItems.push({
+													key: `entry-${e.id}`,
+													entry: e,
+													session: null,
+												});
+											}
+										});
+
+										const hasAnyContent =
+											activeSlotItems.length > 0 ||
+											entriesShiftedAwayFromSlot.length > 0;
 
 										return (
 											<td
 												key={slot.id}
 												className="p-2 border-r border-border last:border-r-0 align-top min-h-[7rem] h-28"
 											>
-												{matchingEntries.length > 0 ? (
+												{hasAnyContent ? (
 													<div className="space-y-1.5 h-full">
-														{matchingEntries.map((entry) => {
+														{/* Active items in this slot */}
+														{activeSlotItems.map(({ key, entry, session: matchingSession }) => {
+															const matchingEntriesForConflicts =
+																activeSlotItems.map((item) => item.entry);
 															const conflicts = resolveLiveEntryConflicts(
 																entry,
 																displayedEntries,
 																conflictReport,
-																matchingEntries,
+																matchingEntriesForConflicts,
 															);
 															const hasHard = conflicts.some(
 																(c) => c.severity === "hard",
@@ -265,27 +372,26 @@ export function TimetableAcademicGrid({
 																(entry.courseType || "").toLowerCase() ===
 																"practical";
 
-															// A lecture is past if date is in the past, or if today and its end time has already elapsed
-															const isPastLecture =
-																Boolean(dateStr) &&
-																(dateStr < todayDateStr ||
-																	(dateStr === todayDateStr &&
-																		Boolean(
-																			entry.endTime &&
-																			entry.endTime < currentTimeStr,
-																		)));
+															const isShifted =
+																matchingSession?.status === "shifted";
 
-															// Find matching session if available in sessions list
-															const matchingSession = sessions.find(
-																(s) =>
-																	(s.entryId === entry.id ||
-																		s.timetableEntryId === entry.id) &&
-																	(dateStr ? s.date === dateStr : true),
-															);
+															// Session date & time for past calculation
+															const sessionDate =
+																matchingSession?.date || dateStr;
+															const sessionEndTime =
+																matchingSession?.endTime || entry.endTime;
+															const isPastLecture =
+																Boolean(sessionDate) &&
+																(sessionDate < todayDateStr ||
+																	(sessionDate === todayDateStr &&
+																		Boolean(
+																			sessionEndTime &&
+																				sessionEndTime < currentTimeStr,
+																		)));
 
 															return (
 																<div
-																	key={entry.id}
+																	key={key}
 																	onClick={() =>
 																		handleCardClick(
 																			entry,
@@ -300,18 +406,22 @@ export function TimetableAcademicGrid({
 																			? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
 																			: hasSoft
 																				? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
-																				: isPastLecture
-																					? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
-																					: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																				: isShifted
+																					? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
+																					: isPastLecture
+																						? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
+																						: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
 																	}`}
 																	title={
-																		isPastLecture
-																			? "Past lecture session (cannot be shifted). Click to view details."
-																			: hasHard
-																				? "Hard timetable conflict! Click to inspect diagnostics."
-																				: hasSoft
-																					? "Capacity or soft notice. Click to inspect details."
-																					: "Optimal schedule. Click to inspect details."
+																		isShifted
+																			? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
+																			: isPastLecture
+																				? "Past lecture session (cannot be shifted). Click to view details."
+																				: hasHard
+																					? "Hard timetable conflict! Click to inspect diagnostics."
+																					: hasSoft
+																						? "Capacity or soft notice. Click to inspect details."
+																						: "Optimal schedule. Click to inspect details."
 																	}
 																>
 																	<div className="flex items-center justify-between gap-1">
@@ -322,13 +432,20 @@ export function TimetableAcademicGrid({
 																						? "text-red-400"
 																						: hasSoft
 																							? "text-amber-400"
-																							: isPastLecture
-																								? "text-text-muted"
-																								: "text-primary"
+																							: isShifted
+																								? "text-amber-300"
+																								: isPastLecture
+																									? "text-text-muted"
+																									: "text-primary"
 																				}`}
 																			>
 																				{entry.courseCode}
 																			</span>
+																			{isShifted && (
+																				<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+																					Shifted
+																				</span>
+																			)}
 																			{isPastLecture && (
 																				<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-surface-raised text-text-subtle border border-border/60">
 																					Past
@@ -358,21 +475,50 @@ export function TimetableAcademicGrid({
 																	<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
 																		<MapPin
 																			size={10}
-																			className="shrink-0 text-text-subtle"
+																			className={`shrink-0 ${isShifted ? "text-amber-400" : "text-text-subtle"}`}
 																		/>
-																		<span className="truncate">
-																			{entry.venueName}
+																		<span
+																			className={`truncate ${isShifted ? "text-amber-300 font-medium" : ""}`}
+																		>
+																			{matchingSession?.venueName ||
+																				entry.venueName}
 																		</span>
 																	</div>
 
-																	{entry.lecturerName && (
+																	{matchingSession &&
+																		(isShifted ||
+																			(matchingSession.startTime &&
+																				matchingSession.startTime !==
+																					entry.startTime)) && (
+																			<div className="flex items-center gap-1 text-[10px] text-amber-400 font-medium truncate">
+																				<Clock
+																					size={10}
+																					className="shrink-0"
+																				/>
+																				<span>
+																					{matchingSession.startTime.slice(
+																						0,
+																						5,
+																					)}{" "}
+																					-{" "}
+																					{matchingSession.endTime.slice(
+																						0,
+																						5,
+																					)}
+																				</span>
+																			</div>
+																		)}
+
+																	{(matchingSession?.lecturerName ||
+																		entry.lecturerName) && (
 																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
 																			<User
 																				size={10}
 																				className="shrink-0 text-text-subtle"
 																			/>
 																			<span className="truncate">
-																				{entry.lecturerName}
+																				{matchingSession?.lecturerName ||
+																					entry.lecturerName}
 																			</span>
 																		</div>
 																	)}
@@ -403,6 +549,45 @@ export function TimetableAcademicGrid({
 																</div>
 															);
 														})}
+
+														{/* Vacated notices for entries shifted to another slot */}
+														{entriesShiftedAwayFromSlot.map(
+															({
+																entry: vacatedEntry,
+																session: movedSession,
+															}) => (
+																<div
+																	key={`vacated-${vacatedEntry.id}`}
+																	onClick={() =>
+																		handleCardClick(
+																			vacatedEntry,
+																			[],
+																			Boolean(
+																				dateStr && dateStr < todayDateStr,
+																			),
+																			dateStr,
+																			movedSession,
+																		)
+																	}
+																	className="p-2 rounded-xl text-xs space-y-0.5 border border-dashed border-amber-500/30 bg-surface-raised/20 opacity-80 hover:opacity-100 transition-all cursor-pointer"
+																	title={`Shifted to ${movedSession.startTime.slice(0, 5)} - ${movedSession.endTime.slice(0, 5)} at ${movedSession.venueName}. Click to inspect details.`}
+																>
+																	<div className="flex items-center justify-between gap-1">
+																		<span className="font-bold text-text-muted line-through truncate">
+																			{vacatedEntry.courseCode}
+																		</span>
+																		<span className="shrink-0 text-[8px] font-bold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+																			Shifted →{" "}
+																			{movedSession.startTime.slice(0, 5)}
+																		</span>
+																	</div>
+																	<div className="text-[10px] text-text-subtle truncate">
+																		Now at{" "}
+																		{movedSession.venueName || "new venue"}
+																	</div>
+																</div>
+															),
+														)}
 													</div>
 												) : isFridayJummat ? (
 													<div className="h-full min-h-[5rem] rounded-xl border border-dashed border-border/60 bg-surface-raised/20 flex flex-col items-center justify-center p-2 text-center">

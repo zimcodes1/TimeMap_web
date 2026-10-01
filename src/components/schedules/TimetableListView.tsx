@@ -187,39 +187,36 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 													</div>
 
 													<div className="flex flex-col items-end gap-1 shrink-0">
-														{isPastSession ? (
-															<>
+														<div className="flex items-center gap-1">
+															{isPastSession && (
 																<Badge
 																	variant="outline"
 																	className="text-[9px] py-0 px-1 text-text-subtle border-border/80"
 																>
-																	Past Lecture
+																	Past
 																</Badge>
-															</>
-														) : (
-															<>
-																{isToday && (
-																	<Badge
-																		variant="primary"
-																		className="text-[9px] py-0 px-1 font-bold"
-																	>
-																		Today
-																	</Badge>
-																)}
+															)}
+															{isToday && (
 																<Badge
-																	variant={
-																		session.status === "shifted"
-																			? "warning"
-																			: session.status === "cancelled"
-																				? "danger"
-																				: "outline"
-																	}
-																	className="text-[9px] capitalize py-0 px-1.5"
+																	variant="primary"
+																	className="text-[9px] py-0 px-1 font-bold"
 																>
-																	{session.status}
+																	Today
 																</Badge>
-															</>
-														)}
+															)}
+															<Badge
+																variant={
+																	session.status === "shifted"
+																		? "warning"
+																		: session.status === "cancelled"
+																			? "danger"
+																			: "outline"
+																}
+																className="text-[9px] capitalize py-0 px-1.5"
+															>
+																{session.status}
+															</Badge>
+														</div>
 													</div>
 												</div>
 

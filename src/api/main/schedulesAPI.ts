@@ -213,9 +213,11 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
 }
 
 function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
+  const entryId = String(raw.timetable_entry || "");
   return {
     id: String(raw.id),
-    entryId: String(raw.timetable_entry || ""),
+    entryId: entryId,
+    timetableEntryId: entryId || undefined,
     entryType: raw.entry_type || "lecture",
     courseCode: raw.course_code || "CSC301",
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
