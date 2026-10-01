@@ -18,6 +18,7 @@ interface VenueUtilizationCardProps {
 	isLoading?: boolean;
 	departmentName?: string;
 	adminLevel?: string;
+	isFacultyOwnedOnly?: boolean;
 }
 
 export default function VenueUtilizationCard({
@@ -25,6 +26,7 @@ export default function VenueUtilizationCard({
 	isLoading = false,
 	departmentName,
 	adminLevel,
+	isFacultyOwnedOnly = false,
 }: VenueUtilizationCardProps) {
 	const isSchoolAdmin = adminLevel === "school";
 	const breakdown = utilization?.breakdown || [];
@@ -53,6 +55,11 @@ export default function VenueUtilizationCard({
 										{departmentName}
 									</Badge>
 								)}
+								{!isSchoolAdmin && isFacultyOwnedOnly && (
+									<Badge variant="info" className="text-[11px] font-medium">
+										Faculty-Owned Venues
+									</Badge>
+								)}
 								{isSchoolAdmin && (
 									<Badge variant="outline" className="text-[11px] font-medium">
 										Faculty Aggregates
@@ -62,6 +69,8 @@ export default function VenueUtilizationCard({
 							<Text variant="caption" color="muted">
 								{isSchoolAdmin
 									? `Total Booked: ${totalBookedHours} hrs across ${breakdown.length} faculties in this school`
+									: isFacultyOwnedOnly
+									? `Total Booked: ${totalBookedHours} hrs across ${totalVenues} faculty-owned venues`
 									: `Total Booked: ${totalBookedHours} hrs across ${totalVenues} venues in this department`}
 							</Text>
 						</>
@@ -72,7 +81,11 @@ export default function VenueUtilizationCard({
 						variant="outline"
 						className="text-xs shrink-0 self-start sm:self-auto"
 					>
-						{isSchoolAdmin ? "School Scoped" : "Department Scoped"}
+						{isSchoolAdmin
+							? "School Scoped"
+							: isFacultyOwnedOnly
+							? "Faculty-Owned Venues"
+							: "Department Scoped"}
 					</Badge>
 				)}
 			</div>
@@ -144,6 +157,8 @@ export default function VenueUtilizationCard({
 						<p>
 							{isSchoolAdmin
 								? "No lectures were booked for venues in faculties under this school."
+								: isFacultyOwnedOnly
+								? "No lectures were booked for faculty-owned venues during this period."
 								: "No lectures were booked for venues in this department during this period."}
 						</p>
 					</div>

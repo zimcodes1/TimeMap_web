@@ -426,10 +426,14 @@ export interface VenueUtilizationAnalytics {
   summary: {
     totalBookedHours: number;
     totalVenues: number;
+    totalFaculties?: number;
   };
   breakdown: Array<{
-    venueId: string;
-    venueName: string;
+    venueId?: string;
+    venueName?: string;
+    facultyId?: string;
+    facultyName?: string;
+    facultyCode?: string;
     totalBookedHours: number;
     utilizationPercentage?: number;
     totalSessions?: number;

@@ -105,6 +105,15 @@ export default function DashboardContainer() {
 			if (myDeptId && selectedDepartmentId !== String(myDeptId)) {
 				setSelectedDepartmentId(String(myDeptId));
 			}
+		} else if (isFacultyAdmin) {
+			if (selectedDepartmentId) {
+				const deptExists = displayedDepartments.some(
+					(d) => String(d.id) === String(selectedDepartmentId),
+				);
+				if (!deptExists) {
+					setSelectedDepartmentId("");
+				}
+			}
 		} else if (displayedDepartments.length > 0) {
 			const deptExists = displayedDepartments.some(
 				(d) => String(d.id) === String(selectedDepartmentId),
@@ -113,7 +122,7 @@ export default function DashboardContainer() {
 				setSelectedDepartmentId(String(displayedDepartments[0].id));
 			}
 		}
-	}, [isDeptAdmin, currentUser, displayedDepartments, selectedDepartmentId]);
+	}, [isDeptAdmin, isFacultyAdmin, currentUser, displayedDepartments, selectedDepartmentId]);
 
 	// Fetch programs for the selected department
 	const { data: programsData = [] } = useQuery<Program[]>({
@@ -122,8 +131,14 @@ export default function DashboardContainer() {
 		enabled: Boolean(selectedDepartmentId),
 	});
 
-	// Reset program if department changes and program doesn't belong
+	// Reset program if department changes or is cleared
 	useEffect(() => {
+		if (!selectedDepartmentId) {
+			if (selectedProgramId) {
+				setSelectedProgramId("");
+			}
+			return;
+		}
 		if (selectedProgramId && programsData.length > 0) {
 			const progExists = programsData.some(
 				(p) => String(p.id) === String(selectedProgramId),
@@ -199,7 +214,7 @@ export default function DashboardContainer() {
 
 	const isSchoolAdmin = adminLevel === "school";
 
-	// Venue Utilization: aggregated per faculty for School Admin, strictly per department otherwise
+	// Venue Utilization: aggregated per faculty for School Admin, faculty-owned venues when All Departments for Faculty Admin, strictly per department otherwise
 	const utilizationParams = useMemo(() => {
 		if (isSchoolAdmin) {
 			return {
@@ -208,16 +223,35 @@ export default function DashboardContainer() {
 				groupBy: "faculty",
 			};
 		}
+		if (isFacultyAdmin && !selectedDepartmentId) {
+			return {
+				facultyId: currentUser?.adminScopeId || undefined,
+				facultyOwnedOnly: true,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+				groupBy: "venue",
+			};
+		}
 		return {
 			departmentId: selectedDepartmentId || undefined,
 			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			groupBy: "venue",
 		};
-	}, [isSchoolAdmin, selectedFacultyId, selectedDepartmentId, activeSemester]);
+	}, [
+		isSchoolAdmin,
+		isFacultyAdmin,
+		currentUser,
+		selectedFacultyId,
+		selectedDepartmentId,
+		activeSemester,
+	]);
 
 	const { data: utilization, isLoading: utilizationLoading } = useQuery({
 		queryKey: ["analytics", "utilization", utilizationParams],
 		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
-		enabled: isSchoolAdmin || Boolean(selectedDepartmentId),
+		enabled:
+			isSchoolAdmin ||
+			(isFacultyAdmin && !selectedDepartmentId) ||
+			Boolean(selectedDepartmentId),
 	});
 
 	// Discrepancy Analytics
@@ -242,7 +276,9 @@ export default function DashboardContainer() {
 	const handleResetFilters = () => {
 		setSelectedProgramId("");
 		setSelectedLevel("");
-		if (!isDeptAdmin && displayedDepartments.length > 0) {
+		if (isFacultyAdmin) {
+			setSelectedDepartmentId("");
+		} else if (!isDeptAdmin && displayedDepartments.length > 0) {
 			setSelectedDepartmentId(String(displayedDepartments[0].id));
 		}
 	};

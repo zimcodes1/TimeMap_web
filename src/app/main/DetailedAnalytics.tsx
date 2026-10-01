@@ -98,6 +98,15 @@ export default function DetailedAnalyticsContainer() {
 			if (myDeptId && selectedDepartmentId !== String(myDeptId)) {
 				setSelectedDepartmentId(String(myDeptId));
 			}
+		} else if (isFacultyAdmin) {
+			if (selectedDepartmentId) {
+				const deptExists = displayedDepartments.some(
+					(d) => String(d.id) === String(selectedDepartmentId),
+				);
+				if (!deptExists) {
+					setSelectedDepartmentId("");
+				}
+			}
 		} else if (displayedDepartments.length > 0) {
 			const deptExists = displayedDepartments.some(
 				(d) => String(d.id) === String(selectedDepartmentId),
@@ -106,7 +115,7 @@ export default function DetailedAnalyticsContainer() {
 				setSelectedDepartmentId(String(displayedDepartments[0].id));
 			}
 		}
-	}, [isDeptAdmin, currentUser, displayedDepartments, selectedDepartmentId]);
+	}, [isDeptAdmin, isFacultyAdmin, currentUser, displayedDepartments, selectedDepartmentId]);
 
 	// Fetch programs for the selected department
 	const { data: programsData = [] } = useQuery<Program[]>({
@@ -268,7 +277,9 @@ export default function DetailedAnalyticsContainer() {
 		setSelectedLevel("");
 		if (isSchoolOrSuperuser && scopedFaculties.length > 0) {
 			setSelectedFacultyId(String(scopedFaculties[0].id));
-		} else if (isFacultyAdmin && displayedDepartments.length > 0) {
+		} else if (isFacultyAdmin) {
+			setSelectedDepartmentId("");
+		} else if (displayedDepartments.length > 0) {
 			setSelectedDepartmentId(String(displayedDepartments[0].id));
 		}
 	};

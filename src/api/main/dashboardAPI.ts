@@ -16,6 +16,7 @@ export interface AnalyticsFilterParams {
   lecturerId?: string;
   semesterId?: string;
   groupBy?: string;
+  facultyOwnedOnly?: boolean;
 }
 
 export interface DashboardSummaryCounts {
@@ -65,10 +66,14 @@ interface RawVenueUtilizationResponse {
   summary?: {
     total_venues?: number;
     total_booked_hours?: number;
+    total_faculties?: number;
   };
   breakdown?: Array<{
     venue_id?: number | string;
     venue_name?: string;
+    faculty_id?: number | string;
+    faculty_name?: string;
+    faculty_code?: string;
     total_booked_hours?: number;
     total_sessions?: number;
   }>;
@@ -159,6 +164,10 @@ export async function getVenueUtilizationAnalytics(
   if (params.startDate) queryParams.start_date = params.startDate;
   if (params.endDate) queryParams.end_date = params.endDate;
   if (params.departmentId) queryParams.department_id = params.departmentId;
+  if (params.facultyId) queryParams.faculty_id = params.facultyId;
+  if (params.semesterId) queryParams.semester_id = params.semesterId;
+  if (params.groupBy) queryParams.group_by = params.groupBy;
+  if (params.facultyOwnedOnly) queryParams.faculty_owned_only = "true";
 
   const response = await apiClient.get<RawVenueUtilizationResponse>(
     "/reporting/analytics/venue-utilization/",
@@ -170,10 +179,14 @@ export async function getVenueUtilizationAnalytics(
     summary: {
       totalVenues: data.summary?.total_venues ?? 0,
       totalBookedHours: data.summary?.total_booked_hours ?? 0,
+      totalFaculties: data.summary?.total_faculties,
     },
     breakdown: (data.breakdown || []).map((item) => ({
-      venueId: item.venue_id ? String(item.venue_id) : "",
-      venueName: item.venue_name || "Venue",
+      venueId: item.venue_id ? String(item.venue_id) : undefined,
+      venueName: item.venue_name,
+      facultyId: item.faculty_id ? String(item.faculty_id) : undefined,
+      facultyName: item.faculty_name,
+      facultyCode: item.faculty_code,
       totalBookedHours: item.total_booked_hours ?? 0,
       totalSessions: item.total_sessions ?? 0,
     })),

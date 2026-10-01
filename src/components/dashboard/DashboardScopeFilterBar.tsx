@@ -147,6 +147,9 @@ export default function DashboardScopeFilterBar({
 							onChange={(e) => onDepartmentChange(e.target.value)}
 							className="w-full text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main focus:outline-none focus:ring-1 focus:ring-primary"
 						>
+							{isFacultyAdmin && (
+								<option value="">All Departments</option>
+							)}
 							{departments.map((d) => (
 								<option key={d.id} value={d.id}>
 									{d.code} - {d.name}
@@ -195,8 +198,8 @@ export default function DashboardScopeFilterBar({
 					</select>
 				</div>
 
-				{/* 4. Secondary Program filter for Faculty Admin if they drill down */}
-				{isFacultyAdmin && (
+				{/* 4. Secondary Program filter for Faculty Admin if they drill down to a specific department */}
+				{isFacultyAdmin && selectedDepartmentId && (
 					<div className="space-y-1">
 						<label className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
 							<GraduationCap size={12} />
