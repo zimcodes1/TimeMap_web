@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
-import { Input } from "@/components/ui/input";
 import {
 	Sparkles,
-	Settings2,
 	Cpu,
 	AlertTriangle,
 	FileDown,
@@ -23,14 +20,6 @@ interface GeneratorConfigCardProps {
 	schools: School[];
 	faculties: Faculty[];
 	departments: Department[];
-	populationSize: number;
-	onPopulationSizeChange: (val: number) => void;
-	maxGenerations: number;
-	onMaxGenerationsChange: (val: number) => void;
-	mutationRate: number;
-	onMutationRateChange: (val: number) => void;
-	stagnationLimit: number;
-	onStagnationLimitChange: (val: number) => void;
 	isGenerating: boolean;
 	onSubmit: (e: React.FormEvent) => void;
 	onExportProblem?: (format?: "json" | "csv") => void;
@@ -53,14 +42,6 @@ export function GeneratorConfigCard({
 	schools,
 	faculties,
 	departments,
-	populationSize,
-	onPopulationSizeChange,
-	maxGenerations,
-	onMaxGenerationsChange,
-	mutationRate,
-	onMutationRateChange,
-	stagnationLimit,
-	onStagnationLimitChange,
 	isGenerating,
 	onSubmit,
 	onExportProblem,
@@ -71,8 +52,6 @@ export function GeneratorConfigCard({
 	isSuperuser,
 	scopeLabel,
 }: GeneratorConfigCardProps) {
-	const [showAdvanced, setShowAdvanced] = useState(false);
-
 	return (
 		<div className="border border-border rounded-2xl bg-surface p-5 space-y-4 shadow-xs">
 			<div className="flex items-center gap-2.5 pb-3 border-b border-border">
@@ -84,7 +63,7 @@ export function GeneratorConfigCard({
 						Generator Configuration
 					</h3>
 					<p className="text-xs text-text-muted">
-						Configure scope and genetic algorithm parameters
+						Configure scope and generate optimized timetable
 					</p>
 				</div>
 			</div>
@@ -197,94 +176,6 @@ export function GeneratorConfigCard({
 								</span>
 							</div>
 						)}
-
-						{/* Advanced Hyperparameters Accordion */}
-						<div className="border border-border rounded-xl p-3 bg-surface-raised/40 space-y-3">
-							<button
-								type="button"
-								onClick={() => setShowAdvanced((prev) => !prev)}
-								disabled={isGenerating}
-								className="w-full flex items-center justify-between text-xs font-semibold text-text-main cursor-pointer hover:text-primary transition-colors disabled:cursor-not-allowed"
-							>
-								<div className="flex items-center gap-1.5">
-									<Settings2 size={14} className="text-text-muted" />
-									<span>Algorithm Hyperparameters (Advanced)</span>
-								</div>
-								<span className="text-[10px] text-text-muted font-normal">
-									{showAdvanced ? "Collapse" : "Expand"}
-								</span>
-							</button>
-
-							{showAdvanced && (
-								<div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-									<div className="space-y-1">
-										<label className="text-[11px] text-text-muted block font-medium">
-											Population Size
-										</label>
-										<Input
-											type="number"
-											min={10}
-											max={300}
-											value={populationSize}
-											onChange={(e) =>
-												onPopulationSizeChange(Number(e.target.value))
-											}
-											disabled={isGenerating}
-											className="h-8 text-xs"
-										/>
-									</div>
-									<div className="space-y-1">
-										<label className="text-[11px] text-text-muted block font-medium">
-											Max Generations
-										</label>
-										<Input
-											type="number"
-											min={20}
-											max={1000}
-											value={maxGenerations}
-											onChange={(e) =>
-												onMaxGenerationsChange(Number(e.target.value))
-											}
-											disabled={isGenerating}
-											className="h-8 text-xs"
-										/>
-									</div>
-									<div className="space-y-1">
-										<label className="text-[11px] text-text-muted block font-medium">
-											Mutation Rate
-										</label>
-										<Input
-											type="number"
-											step={0.01}
-											min={0.01}
-											max={1.0}
-											value={mutationRate}
-											onChange={(e) =>
-												onMutationRateChange(Number(e.target.value))
-											}
-											disabled={isGenerating}
-											className="h-8 text-xs"
-										/>
-									</div>
-									<div className="space-y-1">
-										<label className="text-[11px] text-text-muted block font-medium">
-											Stagnation Limit
-										</label>
-										<Input
-											type="number"
-											min={10}
-											max={200}
-											value={stagnationLimit}
-											onChange={(e) =>
-												onStagnationLimitChange(Number(e.target.value))
-											}
-											disabled={isGenerating}
-											className="h-8 text-xs"
-										/>
-									</div>
-								</div>
-							)}
-						</div>
 					</fieldset>
 
 					{/* Action Submit Button */}

@@ -140,19 +140,22 @@ export async function generateTimetable(
     throw new Error("Invalid scope ID. Please select a valid target scope.");
   }
 
+  const requestBody: Record<string, any> = {
+    semester_id: semesterId,
+    semester: semesterId,
+    scope_type: payload.scope_type,
+    scope_id: scopeId,
+    publish_immediately: payload.publish_immediately ?? false,
+  };
+
+  if (payload.population_size != null) requestBody.population_size = payload.population_size;
+  if (payload.max_generations != null) requestBody.max_generations = payload.max_generations;
+  if (payload.mutation_rate != null) requestBody.mutation_rate = payload.mutation_rate;
+  if (payload.stagnation_limit != null) requestBody.stagnation_limit = payload.stagnation_limit;
+
   const response = await apiClient.post<RawGenerationRun>(
     "/scheduling/generate/",
-    {
-      semester_id: semesterId,
-      semester: semesterId,
-      scope_type: payload.scope_type,
-      scope_id: scopeId,
-      population_size: payload.population_size,
-      max_generations: payload.max_generations,
-      mutation_rate: payload.mutation_rate,
-      stagnation_limit: payload.stagnation_limit,
-      publish_immediately: payload.publish_immediately ?? false,
-    }
+    requestBody
   );
   return mapRawRunToRun(response.data);
 }

@@ -53,12 +53,6 @@ export default function ScheduleGeneratorContainer() {
 	>("school");
 	const [scopeId, setScopeId] = useState<string>("");
 
-	// Hyperparameters (defaults aligned with fast and accurate convergence)
-	const [populationSize, setPopulationSize] = useState<number>(60);
-	const [maxGenerations, setMaxGenerations] = useState<number>(150);
-	const [mutationRate, setMutationRate] = useState<number>(0.08);
-	const [stagnationLimit, setStagnationLimit] = useState<number>(40);
-
 	// Modals & Active run
 	const [activeRun, setActiveRun] = useState<TimetableGenerationRun | null>(
 		null,
@@ -307,10 +301,6 @@ export default function ScheduleGeneratorContainer() {
 			semester_id: currentSemesterId,
 			scope_type: scopeType,
 			scope_id: effectiveScopeId,
-			population_size: Number(populationSize) || 60,
-			max_generations: Number(maxGenerations) || 150,
-			mutation_rate: Number(mutationRate) || 0.08,
-			stagnation_limit: Number(stagnationLimit) || 40,
 			publish_immediately: false,
 		};
 
@@ -422,14 +412,6 @@ export default function ScheduleGeneratorContainer() {
 				schools={schools}
 				faculties={faculties}
 				departments={departments}
-				populationSize={populationSize}
-				onPopulationSizeChange={setPopulationSize}
-				maxGenerations={maxGenerations}
-				onMaxGenerationsChange={setMaxGenerations}
-				mutationRate={mutationRate}
-				onMutationRateChange={setMutationRate}
-				stagnationLimit={stagnationLimit}
-				onStagnationLimitChange={setStagnationLimit}
 				isGenerating={generateMutation.isPending}
 				onSubmit={handleSubmit}
 				onExportProblem={handleExportProblem}

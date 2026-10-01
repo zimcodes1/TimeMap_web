@@ -38,14 +38,6 @@ interface ScheduleGeneratorViewProps {
 	schools: School[];
 	faculties: Faculty[];
 	departments: Department[];
-	populationSize: number;
-	onPopulationSizeChange: (val: number) => void;
-	maxGenerations: number;
-	onMaxGenerationsChange: (val: number) => void;
-	mutationRate: number;
-	onMutationRateChange: (val: number) => void;
-	stagnationLimit: number;
-	onStagnationLimitChange: (val: number) => void;
 	isGenerating: boolean;
 	onSubmit: (e: React.FormEvent) => void;
 	onExportProblem?: (format?: "json" | "csv") => void;
@@ -73,14 +65,6 @@ export default function ScheduleGeneratorView({
 	schools,
 	faculties,
 	departments,
-	populationSize,
-	onPopulationSizeChange,
-	maxGenerations,
-	onMaxGenerationsChange,
-	mutationRate,
-	onMutationRateChange,
-	stagnationLimit,
-	onStagnationLimitChange,
 	isGenerating,
 	onSubmit,
 	onExportProblem,
@@ -188,14 +172,6 @@ export default function ScheduleGeneratorView({
 						schools={schools}
 						faculties={faculties}
 						departments={departments}
-						populationSize={populationSize}
-						onPopulationSizeChange={onPopulationSizeChange}
-						maxGenerations={maxGenerations}
-						onMaxGenerationsChange={onMaxGenerationsChange}
-						mutationRate={mutationRate}
-						onMutationRateChange={onMutationRateChange}
-						stagnationLimit={stagnationLimit}
-						onStagnationLimitChange={onStagnationLimitChange}
 						isGenerating={isGenerating}
 						onSubmit={onSubmit}
 						onExportProblem={onExportProblem}

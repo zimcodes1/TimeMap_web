@@ -3,8 +3,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
-import { Input } from "@/components/ui/input";
-import { Sparkles, Settings2, AlertTriangle, Cpu } from "lucide-react";
+import { Sparkles, AlertTriangle, Cpu } from "lucide-react";
 import type {
 	Semester,
 	School,
@@ -56,13 +55,6 @@ export function GenerateTimetableModal({
 		"school" | "faculty" | "department"
 	>("school");
 	const [scopeId, setScopeId] = useState<string>("");
-
-	// Advanced optimizer parameters
-	const [showAdvanced, setShowAdvanced] = useState(false);
-	const [populationSize, setPopulationSize] = useState<number>(100);
-	const [maxGenerations, setMaxGenerations] = useState<number>(300);
-	const [mutationRate, setMutationRate] = useState<number>(0.15);
-	const [stagnationLimit, setStagnationLimit] = useState<number>(40);
 
 	const [isGenerating, setIsGenerating] = useState(false);
 
@@ -167,10 +159,6 @@ export function GenerateTimetableModal({
 			semester_id: effectiveSemesterId,
 			scope_type: scopeType,
 			scope_id: effectiveScopeId,
-			population_size: Number(populationSize) || 100,
-			max_generations: Number(maxGenerations) || 300,
-			mutation_rate: Number(mutationRate) || 0.15,
-			stagnation_limit: Number(stagnationLimit) || 40,
 			publish_immediately: false, // Must be reviewed first!
 		};
 
@@ -324,85 +312,7 @@ export function GenerateTimetableModal({
 						</div>
 					)}
 
-					{/* Advanced Optimizer Settings Accordion */}
-					<div className="border border-border rounded-xl p-3 bg-surface-raised/40 space-y-3">
-						<button
-							type="button"
-							onClick={() => setShowAdvanced((prev) => !prev)}
-							disabled={isGenerating}
-							className="w-full flex items-center justify-between text-xs font-semibold text-text-main cursor-pointer hover:text-primary transition-colors"
-						>
-							<div className="flex items-center gap-1.5">
-								<Settings2 size={14} className="text-text-muted" />
-								<span>Optimizer Hyperparameters (Advanced)</span>
-							</div>
-							<span className="text-[10px] text-text-muted">
-								{showAdvanced ? "Hide" : "Show"}
-							</span>
-						</button>
 
-						{showAdvanced && (
-							<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border">
-								<div className="space-y-1">
-									<label className="text-[11px] text-text-muted block">
-										Population
-									</label>
-									<Input
-										type="number"
-										min={10}
-										max={300}
-										value={populationSize}
-										onChange={(e) => setPopulationSize(Number(e.target.value))}
-										disabled={isGenerating}
-										className="h-8 text-xs"
-									/>
-								</div>
-								<div className="space-y-1">
-									<label className="text-[11px] text-text-muted block">
-										Max Generations
-									</label>
-									<Input
-										type="number"
-										min={20}
-										max={1000}
-										value={maxGenerations}
-										onChange={(e) => setMaxGenerations(Number(e.target.value))}
-										disabled={isGenerating}
-										className="h-8 text-xs"
-									/>
-								</div>
-								<div className="space-y-1">
-									<label className="text-[11px] text-text-muted block">
-										Mutation Rate
-									</label>
-									<Input
-										type="number"
-										step={0.01}
-										min={0.01}
-										max={1.0}
-										value={mutationRate}
-										onChange={(e) => setMutationRate(Number(e.target.value))}
-										disabled={isGenerating}
-										className="h-8 text-xs"
-									/>
-								</div>
-								<div className="space-y-1">
-									<label className="text-[11px] text-text-muted block">
-										Stagnation
-									</label>
-									<Input
-										type="number"
-										min={10}
-										max={200}
-										value={stagnationLimit}
-										onChange={(e) => setStagnationLimit(Number(e.target.value))}
-										disabled={isGenerating}
-										className="h-8 text-xs"
-									/>
-								</div>
-							</div>
-						)}
-					</div>
 
 					{/* Running State Banner */}
 					{isGenerating && (
