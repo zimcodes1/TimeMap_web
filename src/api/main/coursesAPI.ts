@@ -190,7 +190,11 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
  */
 export async function getCoursesList(
   lecturersList: User[] = [],
-  params?: { semester?: string | number; program?: string | number }
+  params?: {
+    semester?: string | number;
+    program?: string | number;
+    lecturer?: string | number;
+  }
 ): Promise<Course[]> {
   const response = await apiClient.get<RawCourse[] | { results: RawCourse[] }>("/courses/courses/", { params });
   const list = Array.isArray(response.data) ? response.data : response.data?.results || [];

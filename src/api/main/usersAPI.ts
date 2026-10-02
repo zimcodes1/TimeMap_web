@@ -58,6 +58,7 @@ interface RawLecturerProfile {
   full_name: string;
   department: number | string;
   department_name?: string;
+  department_id?: number | string;
   email?: string;
 }
 
@@ -94,14 +95,16 @@ export function mapRawStudentToUser(raw: RawStudentProfile): User {
 }
 
 export function mapRawLecturerToUser(raw: RawLecturerProfile): User {
+  const deptId = raw.department_id ? String(raw.department_id) : (typeof raw.department === "number" ? String(raw.department) : undefined);
+  const deptName = raw.department_name || (typeof raw.department === "string" ? raw.department : undefined);
   return {
     id: String(raw.id),
     identifier: raw.staff_id || raw.user?.identifier || "",
     name: raw.full_name,
     email: raw.email || "",
     role: "lecturer",
-    departmentId: raw.department ? String(raw.department) : undefined,
-    departmentName: raw.department_name,
+    departmentId: deptId,
+    departmentName: deptName,
     staffId: raw.staff_id,
     isActive: raw.user?.is_active ?? true,
     requiresPasswordReset: raw.user?.requires_password_reset ?? true,
@@ -191,6 +194,14 @@ export async function getLecturersList(): Promise<User[]> {
   );
   const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
   return list.map(mapRawLecturerToUser);
+}
+
+/**
+ * GET /api/auth/lecturers/{id}/
+ */
+export async function getLecturerDetailAPI(id: string): Promise<User> {
+  const response = await apiClient.get<RawLecturerProfile>(`/auth/lecturers/${id}/`);
+  return mapRawLecturerToUser(response.data);
 }
 
 /**

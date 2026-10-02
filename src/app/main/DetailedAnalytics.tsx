@@ -278,8 +278,7 @@ export default function DetailedAnalyticsContainer() {
 	// 8. Venue Capacity Deficit Analytics (Scope-aware, excluded for system admins)
 	const isSystemAdmin =
 		adminLevel === "system" ||
-		adminLevel === "university" ||
-		Boolean(currentUser?.isSuperuser);
+		adminLevel === "university";
 
 	const { data: capacityDeficitData, isLoading: capacityDeficitLoading } =
 		useQuery({

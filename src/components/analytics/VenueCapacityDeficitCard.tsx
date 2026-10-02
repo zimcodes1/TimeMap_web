@@ -7,7 +7,6 @@ import {
 	Users,
 	AlertTriangle,
 	CheckCircle2,
-	TrendingDown,
 	Building2,
 } from "lucide-react";
 import type { CapacityDeficitAnalytics } from "@/types";
@@ -45,7 +44,6 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 
 	const isOptimal = data.status_variant === "success" || data.average_deficit === 0;
 	const isModerate = data.status_variant === "warning";
-	const isCritical = data.status_variant === "danger";
 
 	const borderAccent = isOptimal
 		? "border-l-emerald-500"

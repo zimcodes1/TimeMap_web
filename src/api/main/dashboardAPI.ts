@@ -15,6 +15,7 @@ export interface AnalyticsFilterParams {
   facultyId?: string;
   level?: number | string;
   programId?: string;
+  courseId?: string;
   lecturerId?: string;
   semesterId?: string;
   groupBy?: string;
@@ -108,6 +109,7 @@ export async function getLectureHoldRateAnalytics(
   if (params.facultyId) queryParams.faculty_id = params.facultyId;
   if (params.level) queryParams.level = String(params.level);
   if (params.programId) queryParams.program_id = params.programId;
+  if (params.courseId) queryParams.course_id = params.courseId;
   if (params.lecturerId) queryParams.lecturer_id = params.lecturerId;
   if (params.semesterId) queryParams.semester_id = params.semesterId;
   if (params.groupBy) queryParams.group_by = params.groupBy;

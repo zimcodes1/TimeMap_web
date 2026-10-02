@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Search, ArrowUpDown } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Search, ArrowUpDown, ArrowUpRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
@@ -131,6 +132,7 @@ export default function LecturerHoldRateTable({
 										<ArrowUpDown size={12} />
 									</div>
 								</th>
+								<th className="py-2.5 px-3 font-semibold text-right">Action</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-border/40">
@@ -143,6 +145,8 @@ export default function LecturerHoldRateTable({
 										(item.unreportedCount ?? 0);
 								const name = item.lecturerName || item.label || "Lecturer";
 								const staffId = item.staffId || "N/A";
+								const isAssigned =
+									item.lecturerId && item.lecturerId !== "unassigned";
 
 								return (
 									<tr
@@ -150,14 +154,28 @@ export default function LecturerHoldRateTable({
 										className="hover:bg-surface-raised/40 transition-colors"
 									>
 										<td className="py-3 px-3">
-											<div className="flex items-center gap-2">
-												<div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[11px]">
-													{name.charAt(0).toUpperCase()}
+											{isAssigned ? (
+												<Link
+													to={`/lecturers/${item.lecturerId}` as any}
+													className="flex items-center gap-2 group cursor-pointer"
+												>
+													<div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[11px] group-hover:bg-primary/30 transition-colors">
+														{name.charAt(0).toUpperCase()}
+													</div>
+													<span className="font-semibold text-text-main group-hover:text-primary transition-colors underline-offset-2 group-hover:underline">
+														{name}
+													</span>
+												</Link>
+											) : (
+												<div className="flex items-center gap-2">
+													<div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[11px]">
+														{name.charAt(0).toUpperCase()}
+													</div>
+													<span className="font-semibold text-text-main">
+														{name}
+													</span>
 												</div>
-												<span className="font-semibold text-text-main">
-													{name}
-												</span>
-											</div>
+											)}
 										</td>
 										<td className="py-3 px-3 text-text-muted font-mono">
 											{staffId}
@@ -204,6 +222,20 @@ export default function LecturerHoldRateTable({
 													/>
 												</div>
 											</div>
+										</td>
+										<td className="py-3 px-3 text-right">
+											{isAssigned && (
+												<Link to={`/lecturers/${item.lecturerId}` as any}>
+													<button
+														type="button"
+														className="text-xs text-primary hover:text-primary-hover font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/10 transition-colors inline-flex items-center gap-1 cursor-pointer border border-primary/20"
+														title="View Lecturer Performance & Courses"
+													>
+														<span>Details</span>
+														<ArrowUpRight size={13} />
+													</button>
+												</Link>
+											)}
 										</td>
 									</tr>
 								);
