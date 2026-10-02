@@ -6,6 +6,7 @@ import {
 	getVenueUtilizationAnalytics,
 	getDiscrepancyAnalytics,
 	getDashboardSummaryCounts,
+	getDashboardStatCards,
 } from "@/api/main/dashboardAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
@@ -267,10 +268,16 @@ export default function DashboardContainer() {
 		queryFn: () => getDiscrepancyAnalytics(discrepancyParams),
 	});
 
-	// Dashboard Summary Counts
+	// Dashboard Summary Counts (Legacy fallback)
 	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
 		queryKey: ["analytics", "summary-counts"],
 		queryFn: getDashboardSummaryCounts,
+	});
+
+	// Role-based Statcards Query
+	const { data: roleStatCardsData, isLoading: roleStatCardsLoading } = useQuery({
+		queryKey: ["analytics", "role-statcards"],
+		queryFn: getDashboardStatCards,
 	});
 
 	const handleResetFilters = () => {
@@ -293,6 +300,8 @@ export default function DashboardContainer() {
 			discrepanciesLoading={discrepanciesLoading}
 			summaryCounts={summaryCounts}
 			countsLoading={countsLoading}
+			roleStatCards={roleStatCardsData?.cards}
+			roleStatCardsLoading={roleStatCardsLoading}
 			departments={displayedDepartments}
 			faculties={scopedFaculties}
 			programs={programsData}

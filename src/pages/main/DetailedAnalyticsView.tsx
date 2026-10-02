@@ -21,6 +21,7 @@ import type {
 	Department,
 	Program,
 	Semester,
+	CapacityDeficitAnalytics,
 } from "@/types";
 import FacultyTotalsTable from "@/components/analytics/FacultyTotalsTable";
 import LecturerHoldRateTable from "@/components/analytics/LecturerHoldRateTable";
@@ -28,6 +29,7 @@ import CourseHoldRateTable from "@/components/analytics/CourseHoldRateTable";
 import ProgramHoldRateTable from "@/components/analytics/ProgramHoldRateTable";
 import DepartmentTotalsTable from "@/components/analytics/DepartmentTotalsTable";
 import HoldRateLineChart from "@/components/dashboard/HoldRateLineChart";
+import VenueCapacityDeficitCard from "@/components/analytics/VenueCapacityDeficitCard";
 
 interface DetailedAnalyticsViewProps {
 	adminLevel?: string;
@@ -64,6 +66,8 @@ interface DetailedAnalyticsViewProps {
 	departmentsLoading: boolean;
 	weeklyBreakdown?: HoldRateAnalytics;
 	weeklyLoading: boolean;
+	capacityDeficit?: CapacityDeficitAnalytics;
+	capacityDeficitLoading?: boolean;
 
 	onResetFilters: () => void;
 }
@@ -97,6 +101,8 @@ export default function DetailedAnalyticsView({
 	departmentsLoading,
 	weeklyBreakdown,
 	weeklyLoading,
+	capacityDeficit,
+	capacityDeficitLoading = false,
 	onResetFilters,
 }: DetailedAnalyticsViewProps) {
 	const isDeptAdmin = adminLevel === "department";
@@ -255,6 +261,12 @@ export default function DetailedAnalyticsView({
 					</Text>
 				</Card>
 			</div>
+
+			{/* Venue Capacity Deficit Summary (Non-system admins) */}
+			<VenueCapacityDeficitCard
+				data={capacityDeficit}
+				isLoading={capacityDeficitLoading}
+			/>
 
 			{/* Filter Toolbar */}
 			<div className="bg-surface/80 border border-border/80 rounded-2xl p-4 shadow-sm backdrop-blur-md space-y-3">

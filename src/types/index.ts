@@ -600,3 +600,32 @@ export interface PublishRunResult {
   sessions_materialized: number;
   entries_deleted: number;
 }
+
+export interface DashboardStatCard {
+  id: string;
+  title: string;
+  value: string | number;
+  unit?: string;
+  badge?: string;
+  badge_variant?: 'success' | 'warning' | 'danger' | 'neutral';
+  description?: string;
+}
+
+export interface DashboardStatCardsResponse {
+  role_level: 'system' | 'school' | 'faculty' | 'department';
+  cards: DashboardStatCard[];
+}
+
+export interface CapacityDeficitAnalytics {
+  role_level: string;
+  is_applicable: boolean;
+  scope_name?: string;
+  average_deficit?: number;
+  peak_deficit?: number;
+  total_sessions_analyzed?: number;
+  overcrowded_sessions_count?: number;
+  overcrowding_percentage?: number;
+  case_aware_remark?: string;
+  status_variant?: 'success' | 'warning' | 'danger';
+  message?: string;
+}

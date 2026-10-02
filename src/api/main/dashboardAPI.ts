@@ -4,6 +4,8 @@ import type {
   VenueUtilizationAnalytics,
   DiscrepancyAnalytics,
   Department,
+  DashboardStatCardsResponse,
+  CapacityDeficitAnalytics,
 } from "@/types";
 
 export interface AnalyticsFilterParams {
@@ -273,4 +275,30 @@ export async function getDepartmentsList(): Promise<Department[]> {
   } catch {
     return [];
   }
+}
+
+/**
+ * GET /api/reporting/analytics/dashboard-statcards/
+ */
+export async function getDashboardStatCards(): Promise<DashboardStatCardsResponse> {
+  const response = await apiClient.get<DashboardStatCardsResponse>(
+    "/reporting/analytics/dashboard-statcards/"
+  );
+  return response.data;
+}
+
+/**
+ * GET /api/reporting/analytics/capacity-deficit/
+ */
+export async function getCapacityDeficitAnalytics(
+  semesterId?: string
+): Promise<CapacityDeficitAnalytics> {
+  const params: Record<string, string> = {};
+  if (semesterId) params.semester_id = semesterId;
+
+  const response = await apiClient.get<CapacityDeficitAnalytics>(
+    "/reporting/analytics/capacity-deficit/",
+    { params }
+  );
+  return response.data;
 }

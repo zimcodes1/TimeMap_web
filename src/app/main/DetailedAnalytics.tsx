@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DetailedAnalyticsView from "@/pages/main/DetailedAnalyticsView";
-import { getLectureHoldRateAnalytics } from "@/api/main/dashboardAPI";
+import {
+	getLectureHoldRateAnalytics,
+	getCapacityDeficitAnalytics,
+} from "@/api/main/dashboardAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
 import { getPrograms } from "@/api/main/programsAPI";
@@ -272,6 +275,22 @@ export default function DetailedAnalyticsContainer() {
 			getLectureHoldRateAnalytics({ ...baseFilterParams, groupBy: "week" }),
 	});
 
+	// 8. Venue Capacity Deficit Analytics (Scope-aware, excluded for system admins)
+	const isSystemAdmin =
+		adminLevel === "system" ||
+		adminLevel === "university" ||
+		Boolean(currentUser?.isSuperuser);
+
+	const { data: capacityDeficitData, isLoading: capacityDeficitLoading } =
+		useQuery({
+			queryKey: ["analytics", "capacity-deficit", activeSemester?.id],
+			queryFn: () =>
+				getCapacityDeficitAnalytics(
+					activeSemester?.id ? String(activeSemester.id) : undefined,
+				),
+			enabled: !isSystemAdmin,
+		});
+
 	const handleResetFilters = () => {
 		setSelectedProgramId("");
 		setSelectedLevel("");
@@ -314,6 +333,8 @@ export default function DetailedAnalyticsContainer() {
 			departmentsLoading={departmentsLoading}
 			weeklyBreakdown={weeklyBreakdown}
 			weeklyLoading={weeklyLoading}
+			capacityDeficit={capacityDeficitData}
+			capacityDeficitLoading={capacityDeficitLoading}
 			onResetFilters={handleResetFilters}
 		/>
 	);

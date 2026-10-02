@@ -18,12 +18,14 @@ import type {
 	Faculty,
 	Program,
 	Semester,
+	DashboardStatCard,
 } from "@/types";
 import type { DashboardSummaryCounts } from "@/api/main/dashboardAPI";
 import HoldRateLineChart from "@/components/dashboard/HoldRateLineChart";
 import VenueUtilizationCard from "@/components/dashboard/VenueUtilizationCard";
 import DashboardScopeFilterBar from "@/components/dashboard/DashboardScopeFilterBar";
 import DetailedAnalyticsBanner from "@/components/dashboard/DetailedAnalyticsBanner";
+import RoleBasedStatCards from "@/components/dashboard/RoleBasedStatCards";
 
 interface DashboardViewProps {
 	holdRate?: HoldRateAnalytics;
@@ -34,6 +36,8 @@ interface DashboardViewProps {
 	discrepanciesLoading?: boolean;
 	summaryCounts?: DashboardSummaryCounts;
 	countsLoading?: boolean;
+	roleStatCards?: DashboardStatCard[];
+	roleStatCardsLoading?: boolean;
 	departments: Department[];
 	faculties: Faculty[];
 	programs: Program[];
@@ -64,6 +68,8 @@ export default function DashboardView({
 	discrepanciesLoading = false,
 	summaryCounts,
 	countsLoading = false,
+	roleStatCards,
+	roleStatCardsLoading = false,
 	departments = [],
 	faculties = [],
 	programs = [],
@@ -151,108 +157,116 @@ export default function DashboardView({
 				</div>
 			</div>
 
-			{/* 4 Primary Summary Metrics Cards */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-				{/* Card 1: Total Active Venues */}
-				<Card className="p-4 space-y-2 border-l-4 border-primary/20 border-l-primary">
-					<div className="flex items-center justify-between text-text-muted">
-						<Text variant="overline" className="text-[11px]">
-							Active Venues
-						</Text>
-						<Building2 size={18} className="text-primary" />
-					</div>
-					{countsLoading ? (
-						<div className="flex items-baseline justify-between pt-1">
-							<Skeleton className="h-7 w-24" />
-							<Skeleton className="h-5 w-16" />
-						</div>
-					) : (
-						<div className="flex items-baseline justify-between">
-							<Text variant="h4" weight="bold">
-								{summaryCounts?.totalVenues ??
-									utilization?.summary?.totalVenues ??
-									0}{" "}
-								Venues
+			{/* Role-Based Summary Metrics Cards */}
+			{roleStatCardsLoading || (roleStatCards && roleStatCards.length > 0) ? (
+				<RoleBasedStatCards
+					cards={roleStatCards}
+					isLoading={roleStatCardsLoading}
+					roleLevel={adminLevel}
+				/>
+			) : (
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+					{/* Card 1: Total Active Venues */}
+					<Card className="p-4 space-y-2 border-l-4 border-primary/20 border-l-primary">
+						<div className="flex items-center justify-between text-text-muted">
+							<Text variant="overline" className="text-[11px]">
+								Active Venues
 							</Text>
-							<Badge variant="success">Operational</Badge>
+							<Building2 size={18} className="text-primary" />
 						</div>
-					)}
-				</Card>
+						{countsLoading ? (
+							<div className="flex items-baseline justify-between pt-1">
+								<Skeleton className="h-7 w-24" />
+								<Skeleton className="h-5 w-16" />
+							</div>
+						) : (
+							<div className="flex items-baseline justify-between">
+								<Text variant="h4" weight="bold">
+									{summaryCounts?.totalVenues ??
+										utilization?.summary?.totalVenues ??
+										0}{" "}
+									Venues
+								</Text>
+								<Badge variant="success">Operational</Badge>
+							</div>
+						)}
+					</Card>
 
-				{/* Card 2: Active Courses Registered */}
-				<Card className="p-4 space-y-2 border-l-4 border-blue-600/20 border-l-blue-600">
-					<div className="flex items-center justify-between text-text-muted">
-						<Text variant="overline" className="text-[11px]">
-							Active Courses
-						</Text>
-						<BookOpen size={18} className="text-blue-600" />
-					</div>
-					{countsLoading ? (
-						<div className="flex items-baseline justify-between pt-1">
-							<Skeleton className="h-7 w-24" />
-							<Skeleton className="h-5 w-16" />
-						</div>
-					) : (
-						<div className="flex items-baseline justify-between">
-							<Text variant="h4" weight="bold">
-								{summaryCounts?.activeCourses ?? 0} Courses
+					{/* Card 2: Active Courses Registered */}
+					<Card className="p-4 space-y-2 border-l-4 border-blue-600/20 border-l-blue-600">
+						<div className="flex items-center justify-between text-text-muted">
+							<Text variant="overline" className="text-[11px]">
+								Active Courses
 							</Text>
-							<Text variant="caption" color="muted">
-								Semester Scope
-							</Text>
+							<BookOpen size={18} className="text-blue-600" />
 						</div>
-					)}
-				</Card>
+						{countsLoading ? (
+							<div className="flex items-baseline justify-between pt-1">
+								<Skeleton className="h-7 w-24" />
+								<Skeleton className="h-5 w-16" />
+							</div>
+						) : (
+							<div className="flex items-baseline justify-between">
+								<Text variant="h4" weight="bold">
+									{summaryCounts?.activeCourses ?? 0} Courses
+								</Text>
+								<Text variant="caption" color="muted">
+									Semester Scope
+								</Text>
+							</div>
+						)}
+					</Card>
 
-				{/* Card 3: Pending Discrepancies */}
-				<Card className="p-4 space-y-2 border-l-4 border-amber-500/20 border-l-amber-500">
-					<div className="flex items-center justify-between text-text-muted">
-						<Text variant="overline" className="text-[11px]">
-							Discrepancy Queue
-						</Text>
-						<Clock size={18} className="text-amber-500" />
-					</div>
-					{countsLoading ? (
-						<div className="flex items-baseline justify-between pt-1">
-							<Skeleton className="h-7 w-24" />
-							<Skeleton className="h-5 w-16" />
-						</div>
-					) : (
-						<div className="flex items-baseline justify-between">
-							<Text variant="h4" weight="bold">
-								{summaryCounts?.pendingDiscrepancies ??
-									discrepancies?.summary?.byStatus?.pending ??
-									0}{" "}
-								Pending
+					{/* Card 3: Pending Discrepancies */}
+					<Card className="p-4 space-y-2 border-l-4 border-amber-500/20 border-l-amber-500">
+						<div className="flex items-center justify-between text-text-muted">
+							<Text variant="overline" className="text-[11px]">
+								Discrepancy Queue
 							</Text>
-							<Badge variant="warning">Requires Action</Badge>
+							<Clock size={18} className="text-amber-500" />
 						</div>
-					)}
-				</Card>
+						{countsLoading ? (
+							<div className="flex items-baseline justify-between pt-1">
+								<Skeleton className="h-7 w-24" />
+								<Skeleton className="h-5 w-16" />
+							</div>
+						) : (
+							<div className="flex items-baseline justify-between">
+								<Text variant="h4" weight="bold">
+									{summaryCounts?.pendingDiscrepancies ??
+										discrepancies?.summary?.byStatus?.pending ??
+										0}{" "}
+									Pending
+								</Text>
+								<Badge variant="warning">Requires Action</Badge>
+							</div>
+						)}
+					</Card>
 
-				{/* Card 4: Unreported Session Flags */}
-				<Card className="p-4 space-y-2 border-l-4 border-danger/20 border-l-danger">
-					<div className="flex items-center justify-between text-text-muted">
-						<Text variant="overline" className="text-[11px]">
-							Unreported Sessions
-						</Text>
-						<AlertTriangle size={18} className="text-danger" />
-					</div>
-					{countsLoading ? (
-						<div className="flex items-baseline justify-between pt-1">
-							<Skeleton className="h-7 w-24" />
-							<Skeleton className="h-5 w-16" />
-						</div>
-					) : (
-						<div className="flex items-baseline justify-between">
-							<Text variant="h4" weight="bold">
-								{summaryCounts?.unreportedFlags ?? 0} Unresolved
+					{/* Card 4: Unreported Session Flags */}
+					<Card className="p-4 space-y-2 border-l-4 border-danger/20 border-l-danger">
+						<div className="flex items-center justify-between text-text-muted">
+							<Text variant="overline" className="text-[11px]">
+								Unreported Sessions
 							</Text>
-							<Badge variant="danger">Flagged</Badge>
+							<AlertTriangle size={18} className="text-danger" />
 						</div>
-					)}
-				</Card>
-			</div>
+						{countsLoading ? (
+							<div className="flex items-baseline justify-between pt-1">
+								<Skeleton className="h-7 w-24" />
+								<Skeleton className="h-5 w-16" />
+							</div>
+						) : (
+							<div className="flex items-baseline justify-between">
+								<Text variant="h4" weight="bold">
+									{summaryCounts?.unreportedFlags ?? 0} Unresolved
+								</Text>
+								<Badge variant="danger">Flagged</Badge>
+							</div>
+						)}
+					</Card>
+				</div>
+			)}
 
 			{/* Scope-Level Aware Filter Bar */}
 			<DashboardScopeFilterBar
