@@ -52,11 +52,13 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Timetables",
 				icon: <Calendar size={18} />,
 				to: "/schedules",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Exam Timetable",
 				icon: <GraduationCap size={18} />,
 				to: "/exams",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Sessions & Semesters",
@@ -68,6 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Venues & Facilities",
 				icon: <MapPin size={18} />,
 				to: "/venues",
+				adminLevels: ["school", "faculty", "department"],
 			},
 		],
 	},
@@ -83,16 +86,19 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Courses & Sharing",
 				icon: <BookOpen size={18} />,
 				to: "/courses",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Discrepancy Requests",
 				icon: <AlertTriangle size={18} />,
 				to: "/requests",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Class Rep Reports",
 				icon: <ClipboardList size={18} />,
 				to: "/reports",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Students",
@@ -113,6 +119,7 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Audit Logs",
 				icon: <ShieldCheck size={18} />,
 				to: "/audit-logs",
+				adminLevels: ["system"],
 			},
 			{
 				label: "Notifications",

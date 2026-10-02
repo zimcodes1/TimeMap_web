@@ -34,14 +34,17 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
-	const scopeLevel = rawProfile?.scope_level;
+	const rawScopeLevel = rawProfile?.scope_level;
+	const scopeLevel = (rawScopeLevel === "university" || (!rawScopeLevel && rawUser.is_superuser))
+		? "system"
+		: rawScopeLevel;
 	const scopeId = rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined;
 	const scopeName = rawProfile?.scope_name;
 	return {
 		id: String(rawUser.id),
 		isActive: rawUser.is_active,
 		identifier: rawUser.identifier,
-		name: rawProfile?.full_name || rawUser.identifier,
+		name: rawProfile?.full_name || (rawUser.is_superuser ? `System Administrator (${rawUser.identifier})` : rawUser.identifier),
 		email: rawProfile?.email || "",
 		role: rawUser.role,
 		staffId: rawProfile?.staff_id || rawUser.identifier,
@@ -52,9 +55,9 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
 		facultyName: scopeLevel === "faculty" ? scopeName : undefined,
 		schoolId: scopeLevel === "school" ? scopeId : undefined,
 		schoolName: scopeLevel === "school" ? scopeName : undefined,
-		adminLevel: scopeLevel as User["adminLevel"],
+		adminLevel: (scopeLevel || (rawUser.is_superuser ? "system" : undefined)) as User["adminLevel"],
 		adminScopeId: scopeId,
-		adminScopeName: scopeName,
+		adminScopeName: scopeName || (rawUser.is_superuser ? "System Scope" : undefined),
 		level: rawProfile?.level,
 		isClassRep: rawProfile?.is_class_rep,
 		requiresPasswordReset: rawUser.requires_password_reset,

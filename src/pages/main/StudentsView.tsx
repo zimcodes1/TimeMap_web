@@ -218,21 +218,6 @@ export default function StudentsView({
 					automatic scheduling.
 				</p>
 			</div>
-			{isDepartmentAdmin && ownDepartmentId && (
-				<StudentCountEditor
-					departmentName={
-						user?.adminScopeName ||
-						ownCounts[0]?.departmentName ||
-						"your department"
-					}
-					programs={programs.filter(
-						(p) => String(p.departmentId) === String(ownDepartmentId),
-					)}
-					counts={ownCounts}
-					onSave={onSave}
-					saving={saving}
-				/>
-			)}
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				<Metric
 					icon={<GraduationCap />}
@@ -278,6 +263,21 @@ export default function StudentsView({
 					/>
 				)}
 			</div>
+			{isDepartmentAdmin && ownDepartmentId && (
+				<StudentCountEditor
+					departmentName={
+						user?.adminScopeName ||
+						ownCounts[0]?.departmentName ||
+						"your department"
+					}
+					programs={programs.filter(
+						(p) => String(p.departmentId) === String(ownDepartmentId),
+					)}
+					counts={ownCounts}
+					onSave={onSave}
+					saving={saving}
+				/>
+			)}
 			<Card>
 				<CardContent className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
 					{canFilterSchools && (

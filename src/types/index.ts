@@ -1,6 +1,6 @@
 // User & Hierarchy Types
 export type UserRole = 'admin' | 'lecturer' | 'student';
-export type AdminLevel = 'university' | 'school' | 'faculty' | 'department';
+export type AdminLevel = 'system' | 'university' | 'school' | 'faculty' | 'department';
 
 export interface User {
   id: string;

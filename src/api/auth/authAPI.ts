@@ -7,6 +7,7 @@ export interface ApiUserRaw {
   role: UserRole;
   requires_password_reset: boolean;
   is_active: boolean;
+  is_superuser?: boolean;
   last_login_at?: string | null;
   created_at?: string;
 }
@@ -18,7 +19,7 @@ export interface ApiProfileRaw {
   full_name?: string;
   department?: number;
   department_name?: string;
-  scope_level?: "department" | "faculty" | "school" | "university";
+  scope_level?: "department" | "faculty" | "school" | "university" | "system";
   scope_id?: number;
   scope_name?: string;
   level?: number;

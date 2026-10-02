@@ -125,7 +125,7 @@ export default function CreateUserModal({
 
 			const defaultRole: UserRole | "" = isDeptAdmin
 				? "student"
-				: isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university"
+				: isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university" || currentAdminLevel === "system" || !currentAdminLevel
 					? "admin"
 					: "";
 			setRole(initialData?.role || defaultRole);
@@ -134,7 +134,7 @@ export default function CreateUserModal({
 				? "department"
 				: isSchoolAdmin
 					? "faculty"
-					: currentAdminLevel === "university"
+					: currentAdminLevel === "university" || currentAdminLevel === "system" || !currentAdminLevel
 						? "school"
 						: "";
 			setAdminLevel(initialData?.adminLevel || defaultAdminLevel);
@@ -153,7 +153,7 @@ export default function CreateUserModal({
 			} else if (isSchoolAdmin && scopedFacs.length > 0 && !matchedScopeId) {
 				matchedScopeId = scopedFacs[0].id;
 			} else if (
-				currentAdminLevel === "university" &&
+				(currentAdminLevel === "university" || currentAdminLevel === "system" || !currentAdminLevel) &&
 				scopedSchs.length > 0 &&
 				!matchedScopeId
 			) {
@@ -377,7 +377,7 @@ export default function CreateUserModal({
 	};
 
 	const roleSelectOptions =
-		isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university"
+		isFacultyAdmin || isSchoolAdmin || currentAdminLevel === "university" || currentAdminLevel === "system" || !currentAdminLevel
 			? [{ value: "admin", label: "Admin Officer" }]
 			: isDeptAdmin
 				? [
@@ -395,7 +395,7 @@ export default function CreateUserModal({
 		? [{ value: "department", label: "Department Admin" }]
 		: isSchoolAdmin
 			? [{ value: "faculty", label: "Faculty Admin" }]
-			: currentAdminLevel === "university"
+			: currentAdminLevel === "university" || currentAdminLevel === "system" || !currentAdminLevel
 				? [{ value: "school", label: "School Admin" }]
 				: [
 						{ value: "", label: "-- Select Scope Level --", disabled: true },

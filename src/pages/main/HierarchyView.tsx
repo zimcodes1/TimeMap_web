@@ -74,7 +74,7 @@ export default function HierarchyView({
 	const adminLevel = currentUser?.adminLevel;
 	const isSuperuser =
 		currentUser?.role === "admin" &&
-		(!adminLevel || adminLevel === "university");
+		(!adminLevel || adminLevel === "university" || adminLevel === "system");
 	const isUniversityAdmin = isSuperuser;
 	const isSchoolAdmin =
 		currentUser?.role === "admin" && adminLevel === "school";

@@ -88,9 +88,10 @@ export default function SideNav({
 				{NAV_GROUPS.map((group) => {
 					const visibleItems = group.items.filter((item) => {
 						if (item.adminLevels && item.adminLevels.length > 0) {
+							const effectiveLevel = user?.adminLevel === "university" ? "system" : user?.adminLevel;
 							if (
-								!user?.adminLevel ||
-								!item.adminLevels.includes(user.adminLevel)
+								!effectiveLevel ||
+								!item.adminLevels.includes(effectiveLevel)
 							) {
 								return false;
 							}

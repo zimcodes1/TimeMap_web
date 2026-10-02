@@ -6,12 +6,13 @@ import type { User, Department, Faculty, School, GeneratedAssignment } from "@/t
  */
 export function getAdminLevelRank(role?: string, adminLevel?: string): number {
   if (role === "student" || role === "lecturer") return 0;
-  if (!adminLevel) return 4; // superuser/system user
+  if (!adminLevel || adminLevel === "system" || adminLevel === "university") return 4;
   const ranks: Record<string, number> = {
     department: 1,
     faculty: 2,
     school: 3,
     university: 4,
+    system: 4,
   };
   return ranks[adminLevel] ?? 1;
 }
@@ -321,11 +322,11 @@ export function getAdminScopeLabel(
   }
 
   return {
-    title: "University Scope",
+    title: "System Scope",
     subtitle: selectedFacultyId && selectedFacultyId !== "ALL"
       ? `Filtered to: ${faculties.find((f) => String(f.id) === String(selectedFacultyId))?.name || "Faculty"}`
-      : "Full Access",
-    level: "University Admin",
+      : "System Wide Access",
+    level: "System Administrator",
   };
 }
 
