@@ -26,6 +26,7 @@ import VenueUtilizationCard from "@/components/dashboard/VenueUtilizationCard";
 import DashboardScopeFilterBar from "@/components/dashboard/DashboardScopeFilterBar";
 import DetailedAnalyticsBanner from "@/components/dashboard/DetailedAnalyticsBanner";
 import RoleBasedStatCards from "@/components/dashboard/RoleBasedStatCards";
+import useAuth from "@/hooks/useAuth";
 
 interface DashboardViewProps {
 	holdRate?: HoldRateAnalytics;
@@ -115,6 +116,7 @@ export default function DashboardView({
 		(d) => String(d.id) === String(selectedDepartmentId),
 	);
 
+	const { user } = useAuth();
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -301,71 +303,75 @@ export default function DashboardView({
 				/>
 
 				{/* 3. Discrepancy Resolution Breakdown */}
-				<Card className="p-5 space-y-4 lg:col-span-2">
-					<div>
-						{discrepanciesLoading ? (
-							<div className="space-y-1">
-								<Skeleton className="h-6 w-56" />
-								<Skeleton className="h-4 w-40" />
-							</div>
-						) : (
-							<>
-								<Text variant="h6" weight="bold">
-									Discrepancy Resolution Breakdown (
-									{discrepancies?.summary?.totalDiscrepancies ?? 0} Total)
-								</Text>
-								<Text variant="caption" color="muted">
-									Approved: {discrepancies?.summary?.byStatus?.approved ?? 0} |
-									Rejected: {discrepancies?.summary?.byStatus?.rejected ?? 0} |
-									Pending: {discrepancies?.summary?.byStatus?.pending ?? 0} |
-									Withdrawn: {discrepancies?.summary?.byStatus?.withdrawn ?? 0}
-								</Text>
-							</>
-						)}
-					</div>
-					<div className="h-64 flex items-center justify-center">
-						{discrepanciesLoading ? (
-							<div className="h-full w-full flex items-center justify-center">
-								<Skeleton className="w-36 h-36 rounded-full" />
-							</div>
-						) : totalPieValues > 0 ? (
-							<ResponsiveContainer width="100%" height="100%">
-								<PieChart>
-									<Pie
-										data={pieData}
-										cx="50%"
-										cy="50%"
-										innerRadius={45}
-										outerRadius={80}
-										paddingAngle={5}
-										dataKey="value"
-										label={({
-											name,
-											percent,
-										}: {
-											name?: string;
-											percent?: number;
-										}) =>
-											`${name ?? ""}: ${((percent ?? 0) * 100).toFixed(0)}%`
-										}
-									>
-										{pieData.map((_, index) => (
-											<Cell
-												key={`cell-${index}`}
-												fill={PIE_COLORS[index % PIE_COLORS.length]}
-											/>
-										))}
-									</Pie>
-									<Tooltip />
-								</PieChart>
-							</ResponsiveContainer>
-						) : (
-							<div className="h-full w-full flex items-center justify-center text-text-subtle text-xs border border-dashed border-border/50 rounded-xl p-4 text-center">
-								No discrepancy requests submitted in this period.
-							</div>
-						)}
-					</div>
-				</Card>
+				{user?.adminLevel == "department" && (
+					<Card className="p-5 space-y-4 lg:col-span-2">
+						<div>
+							{discrepanciesLoading ? (
+								<div className="space-y-1">
+									<Skeleton className="h-6 w-56" />
+									<Skeleton className="h-4 w-40" />
+								</div>
+							) : (
+								<>
+									<Text variant="h6" weight="bold">
+										Discrepancy Resolution Breakdown (
+										{discrepancies?.summary?.totalDiscrepancies ?? 0} Total)
+									</Text>
+									<Text variant="caption" color="muted">
+										Approved: {discrepancies?.summary?.byStatus?.approved ?? 0}{" "}
+										| Rejected:{" "}
+										{discrepancies?.summary?.byStatus?.rejected ?? 0} | Pending:{" "}
+										{discrepancies?.summary?.byStatus?.pending ?? 0} |
+										Withdrawn:{" "}
+										{discrepancies?.summary?.byStatus?.withdrawn ?? 0}
+									</Text>
+								</>
+							)}
+						</div>
+						<div className="h-64 flex items-center justify-center">
+							{discrepanciesLoading ? (
+								<div className="h-full w-full flex items-center justify-center">
+									<Skeleton className="w-36 h-36 rounded-full" />
+								</div>
+							) : totalPieValues > 0 ? (
+								<ResponsiveContainer width="100%" height="100%">
+									<PieChart>
+										<Pie
+											data={pieData}
+											cx="50%"
+											cy="50%"
+											innerRadius={45}
+											outerRadius={80}
+											paddingAngle={5}
+											dataKey="value"
+											label={({
+												name,
+												percent,
+											}: {
+												name?: string;
+												percent?: number;
+											}) =>
+												`${name ?? ""}: ${((percent ?? 0) * 100).toFixed(0)}%`
+											}
+										>
+											{pieData.map((_, index) => (
+												<Cell
+													key={`cell-${index}`}
+													fill={PIE_COLORS[index % PIE_COLORS.length]}
+												/>
+											))}
+										</Pie>
+										<Tooltip />
+									</PieChart>
+								</ResponsiveContainer>
+							) : (
+								<div className="h-full w-full flex items-center justify-center text-text-subtle text-xs border border-dashed border-border/50 rounded-xl p-4 text-center">
+									No discrepancy requests submitted in this period.
+								</div>
+							)}
+						</div>
+					</Card>
+				)}
 			</div>
 
 			{/* Link to Detailed Analytics */}

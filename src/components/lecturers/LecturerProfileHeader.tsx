@@ -84,7 +84,7 @@ export const LecturerProfileHeader: React.FC<LecturerProfileHeaderProps> = ({
 					{/* Left: Avatar & Info */}
 					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
 						{/* Big Avatar */}
-						<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 border-2 border-primary/30 text-primary flex items-center justify-center font-bold text-3xl sm:text-4xl shadow-inner shrink-0">
+						<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary border-2 border-primary/30 text-white flex items-center justify-center font-bold text-3xl sm:text-4xl shadow-inner shrink-0">
 							{initials}
 						</div>
 

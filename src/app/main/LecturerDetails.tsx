@@ -15,7 +15,14 @@ import {
 import { getCoursesList } from "@/api/main/coursesAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { getLectureHoldRateAnalytics } from "@/api/main/dashboardAPI";
-import type { User, Course, Semester, Department, Faculty, School } from "@/types";
+import type {
+	User,
+	Course,
+	Semester,
+	Department,
+	Faculty,
+	School,
+} from "@/types";
 import LecturerDetailsView from "@/pages/main/LecturerDetailsView";
 import EditUserModal from "@/components/modals/EditUserModal";
 import ResetPasswordModal from "@/components/modals/ResetPasswordModal";
@@ -37,10 +44,7 @@ export default function LecturerDetailsContainer() {
 	const [selectedCourseId, setSelectedCourseId] = useState<string>("");
 
 	// 1. Fetch Lecturer Profile
-	const {
-		data: lecturer,
-		isLoading: lecturerLoading,
-	} = useQuery<User>({
+	const { data: lecturer, isLoading: lecturerLoading } = useQuery<User>({
 		queryKey: ["auth", "lecturer", lecturerId],
 		queryFn: () => getLecturerDetailAPI(lecturerId),
 		enabled: Boolean(lecturerId),
@@ -115,7 +119,9 @@ export default function LecturerDetailsContainer() {
 			}),
 		onSuccess: () => {
 			toast.success("Lecturer profile updated successfully");
-			queryClient.invalidateQueries({ queryKey: ["auth", "lecturer", lecturerId] });
+			queryClient.invalidateQueries({
+				queryKey: ["auth", "lecturer", lecturerId],
+			});
 			queryClient.invalidateQueries({ queryKey: ["auth", "lecturers"] });
 			setIsEditOpen(false);
 		},
@@ -128,7 +134,9 @@ export default function LecturerDetailsContainer() {
 		mutationFn: () => resetLecturerPasswordAPI(lecturerId),
 		onSuccess: () => {
 			toast.success("Forced password reset flag issued");
-			queryClient.invalidateQueries({ queryKey: ["auth", "lecturer", lecturerId] });
+			queryClient.invalidateQueries({
+				queryKey: ["auth", "lecturer", lecturerId],
+			});
 			setIsResetPasswordOpen(false);
 		},
 		onError: (err: any) => {
@@ -142,7 +150,9 @@ export default function LecturerDetailsContainer() {
 			toast.success(
 				`Lecturer account ${updated.isActive ? "activated" : "deactivated"} successfully`,
 			);
-			queryClient.invalidateQueries({ queryKey: ["auth", "lecturer", lecturerId] });
+			queryClient.invalidateQueries({
+				queryKey: ["auth", "lecturer", lecturerId],
+			});
 			queryClient.invalidateQueries({ queryKey: ["auth", "lecturers"] });
 			setIsToggleStatusOpen(false);
 		},
@@ -154,9 +164,12 @@ export default function LecturerDetailsContainer() {
 	// Permission checks
 	const canManage = useMemo(() => {
 		if (!currentUser) return false;
-		if (currentUser.adminLevel === "system" || currentUser.adminLevel === "university") return true;
-		if (currentUser.adminLevel === "school")
+		if (
+			currentUser.adminLevel === "system" ||
+			currentUser.adminLevel === "university"
+		)
 			return true;
+		if (currentUser.adminLevel === "school") return true;
 		if (currentUser.adminLevel === "faculty") return true;
 		if (currentUser.adminLevel === "department") {
 			// Department admin can manage lecturers in their department

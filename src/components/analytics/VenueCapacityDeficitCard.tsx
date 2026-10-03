@@ -3,12 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	Users,
-	AlertTriangle,
-	CheckCircle2,
-	Building2,
-} from "lucide-react";
+import { Users, AlertTriangle, CheckCircle2, Building2 } from "lucide-react";
 import type { CapacityDeficitAnalytics } from "@/types";
 
 interface VenueCapacityDeficitCardProps {
@@ -16,10 +11,9 @@ interface VenueCapacityDeficitCardProps {
 	isLoading?: boolean;
 }
 
-export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> = ({
-	data,
-	isLoading = false,
-}) => {
+export const VenueCapacityDeficitCard: React.FC<
+	VenueCapacityDeficitCardProps
+> = ({ data, isLoading = false }) => {
 	if (isLoading) {
 		return (
 			<Card className="p-5 space-y-4 border-l-4 border-l-muted">
@@ -42,7 +36,8 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 		return null;
 	}
 
-	const isOptimal = data.status_variant === "success" || data.average_deficit === 0;
+	const isOptimal =
+		data.status_variant === "success" || data.average_deficit === 0;
 	const isModerate = data.status_variant === "warning";
 
 	const borderAccent = isOptimal
@@ -66,36 +61,60 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 	const calloutBg = isOptimal
 		? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
 		: isModerate
-			? "bg-amber-500/10 border-amber-500/30 text-amber-200"
+			? "border-amber-500/30 text-amber-500"
 			: "bg-rose-500/10 border-rose-500/30 text-rose-200";
 
 	const CalloutIcon = isOptimal ? CheckCircle2 : AlertTriangle;
 
 	return (
-		<Card className={`p-5 space-y-4 border-l-4 ${borderAccent} transition-all duration-200 shadow-sm`}>
+		<Card
+			className={`p-5 space-y-4 border-l-4 ${borderAccent} transition-all duration-200 shadow-sm`}
+		>
 			{/* Top Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-3">
 				<div className="flex items-center gap-2.5">
 					<div className="w-8 h-8 rounded-lg bg-surface-raised flex items-center justify-center border border-border">
-						<Users size={16} className={isOptimal ? "text-emerald-500" : isModerate ? "text-amber-500" : "text-rose-500"} />
+						<Users
+							size={16}
+							className={
+								isOptimal
+									? "text-emerald-500"
+									: isModerate
+										? "text-amber-500"
+										: "text-rose-500"
+							}
+						/>
 					</div>
 					<div>
-						<Text variant="body-sm" weight="bold" className="text-text-main text-base">
+						<Text
+							variant="body-sm"
+							weight="bold"
+							className="text-text-main text-base"
+						>
 							Average Venue Capacity Deficit
 						</Text>
 						<Text variant="caption" color="muted" className="text-xs">
-							Cohort enrollment vs. assigned venue seating capacity across {data.scope_name || "scope"}
+							Cohort enrollment vs. assigned venue seating capacity across{" "}
+							{data.scope_name || "scope"}
 						</Text>
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
 					{data.scope_name && (
-						<Badge variant="secondary" size="sm" className="font-medium text-xs">
+						<Badge
+							variant="secondary"
+							size="sm"
+							className="font-medium text-xs"
+						>
 							<Building2 size={12} className="mr-1" />
 							{data.scope_name}
 						</Badge>
 					)}
-					<Badge variant={badgeVariant} size="sm" className="font-semibold text-xs">
+					<Badge
+						variant={badgeVariant}
+						size="sm"
+						className="font-semibold text-xs"
+					>
 						{badgeLabel}
 					</Badge>
 				</div>
@@ -105,14 +124,31 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 				{/* Avg Deficit */}
 				<div className="p-3.5 rounded-xl bg-surface-raised/80 border border-border space-y-1">
-					<Text variant="overline" className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
+					<Text
+						variant="overline"
+						className="text-[10px] text-text-muted uppercase tracking-wider font-semibold"
+					>
 						Average Seat Deficit
 					</Text>
 					<div className="flex items-baseline gap-1.5">
-						<Text variant="h3" weight="bold" className={isOptimal ? "text-emerald-500" : isModerate ? "text-amber-500" : "text-rose-500"}>
+						<Text
+							variant="h3"
+							weight="bold"
+							className={
+								isOptimal
+									? "text-emerald-500"
+									: isModerate
+										? "text-amber-500"
+										: "text-rose-500"
+							}
+						>
 							{data.average_deficit ?? 0}
 						</Text>
-						<Text variant="caption" color="muted" className="text-xs font-medium">
+						<Text
+							variant="caption"
+							color="muted"
+							className="text-xs font-medium"
+						>
 							seats / session
 						</Text>
 					</div>
@@ -120,14 +156,21 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 
 				{/* Peak Deficit */}
 				<div className="p-3.5 rounded-xl bg-surface-raised/80 border border-border space-y-1">
-					<Text variant="overline" className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
+					<Text
+						variant="overline"
+						className="text-[10px] text-text-muted uppercase tracking-wider font-semibold"
+					>
 						Peak Shortfall
 					</Text>
 					<div className="flex items-baseline gap-1.5">
 						<Text variant="h3" weight="bold" className="text-text-main">
 							{data.peak_deficit ?? 0}
 						</Text>
-						<Text variant="caption" color="muted" className="text-xs font-medium">
+						<Text
+							variant="caption"
+							color="muted"
+							className="text-xs font-medium"
+						>
 							seats max deficit
 						</Text>
 					</div>
@@ -135,15 +178,23 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 
 				{/* Overcrowded Rate */}
 				<div className="p-3.5 rounded-xl bg-surface-raised/80 border border-border space-y-1">
-					<Text variant="overline" className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">
+					<Text
+						variant="overline"
+						className="text-[10px] text-text-muted uppercase tracking-wider font-semibold"
+					>
 						Overcrowded Sessions
 					</Text>
 					<div className="flex items-baseline gap-1.5">
 						<Text variant="h3" weight="bold" className="text-text-main">
 							{data.overcrowded_sessions_count ?? 0}
 						</Text>
-						<Text variant="caption" color="muted" className="text-xs font-medium">
-							of {data.total_sessions_analyzed ?? 0} ({data.overcrowding_percentage ?? 0}%)
+						<Text
+							variant="caption"
+							color="muted"
+							className="text-xs font-medium"
+						>
+							of {data.total_sessions_analyzed ?? 0} (
+							{data.overcrowding_percentage ?? 0}%)
 						</Text>
 					</div>
 				</div>
@@ -151,10 +202,15 @@ export const VenueCapacityDeficitCard: React.FC<VenueCapacityDeficitCardProps> =
 
 			{/* Case-Aware Remark Callout */}
 			{data.case_aware_remark && (
-				<div className={`flex items-start gap-3 p-3.5 rounded-xl border ${calloutBg}`}>
+				<div
+					className={`flex items-start gap-3 p-3.5 rounded-xl border ${calloutBg}`}
+				>
 					<CalloutIcon size={18} className="shrink-0 mt-0.5" />
 					<div className="flex-1">
-						<Text variant="body-sm" className="font-semibold text-xs leading-relaxed text-inherit">
+						<Text
+							variant="body-sm"
+							className="font-semibold text-xs leading-relaxed text-inherit"
+						>
 							{data.case_aware_remark}
 						</Text>
 					</div>

@@ -10,6 +10,7 @@ import {
 	Settings,
 	Building2,
 	Users,
+	UserShield,
 	ShieldCheck,
 	Bell,
 } from "lucide-react";
@@ -98,7 +99,7 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Class Rep Reports",
 				icon: <ClipboardList size={18} />,
 				to: "/reports",
-				adminLevels: ["school", "faculty", "department"],
+				adminLevels: ["department"],
 			},
 			{
 				label: "Students",
@@ -107,7 +108,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			{
 				label: "Staff Directory",
-				icon: <Users size={18} />,
+				icon: <UserShield size={18} />,
 				to: "/users",
 			},
 		],

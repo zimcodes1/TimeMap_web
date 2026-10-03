@@ -23,8 +23,7 @@ export function GenerationPermissionsModal({
 	schoolId,
 }: GenerationPermissionsModalProps) {
 	const { user } = useAuth();
-	const isSuperuser =
-		user?.role === "admin" && user?.adminLevel === "university";
+	const isSchoolAdmin = user?.role === "admin" && user?.adminLevel === "school";
 	const queryClient = useQueryClient();
 
 	const { data: permission, isLoading } = useQuery<GenerationScopePermission>({
@@ -80,11 +79,11 @@ export function GenerationPermissionsModal({
 			size="md"
 		>
 			<div className="space-y-4 pt-1">
-				{!isSuperuser && (
+				{!isSchoolAdmin && (
 					<div className="p-3 rounded-xl bg-surface-raised border border-border text-text-muted text-xs flex items-center gap-2">
 						<Lock size={14} className="shrink-0" />
 						<span>
-							View-only mode. Only University System Administrators can modify
+							View-only mode. Only School Administrators can modify
 							scope generation policies.
 						</span>
 					</div>
@@ -111,7 +110,7 @@ export function GenerationPermissionsModal({
 								type="checkbox"
 								checked={allowFaculty}
 								onChange={(e) => setAllowFaculty(e.target.checked)}
-								disabled={!isSuperuser || updateMutation.isPending}
+								disabled={!isSchoolAdmin || updateMutation.isPending}
 								className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
 							/>
 						</div>
@@ -131,7 +130,7 @@ export function GenerationPermissionsModal({
 								type="checkbox"
 								checked={allowDept}
 								onChange={(e) => setAllowDept(e.target.checked)}
-								disabled={!isSuperuser || updateMutation.isPending}
+								disabled={!isSchoolAdmin || updateMutation.isPending}
 								className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
 							/>
 						</div>
@@ -145,10 +144,10 @@ export function GenerationPermissionsModal({
 						onClick={onClose}
 						className="cursor-pointer text-xs h-8"
 					>
-						{isSuperuser ? "Cancel" : "Close"}
+						{isSchoolAdmin ? "Cancel" : "Close"}
 					</Button>
 
-					{isSuperuser && (
+					{isSchoolAdmin && (
 						<Button
 							variant="primary"
 							size="sm"
