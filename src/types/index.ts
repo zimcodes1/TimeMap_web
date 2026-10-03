@@ -579,7 +579,36 @@ export interface GenerationScopePermission {
   schoolName?: string;
   allowFacultyGeneration: boolean;
   allowDepartmentGeneration: boolean;
+  allowFacultyExamPeriod?: boolean;
   updatedAt?: string;
+}
+
+export interface FacultyExamPeriod {
+  id: string;
+  semesterId: string;
+  semesterName?: string;
+  facultyId: string;
+  facultyName?: string;
+  facultyCode?: string;
+  startDate: string;
+  endDate: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EffectiveExamPeriod {
+  semesterId: string;
+  schoolId?: string;
+  schoolExamStartDate?: string;
+  schoolExamEndDate?: string;
+  allowFacultyExamPeriod: boolean;
+  effectiveStartDate?: string;
+  effectiveEndDate?: string;
+  source: 'faculty' | 'school' | 'none';
+  isSet: boolean;
+  facultyId?: string;
+  facultyName?: string;
 }
 
 export interface GenerateTimetablePayload {

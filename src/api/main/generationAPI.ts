@@ -41,6 +41,7 @@ interface RawGenerationScopePermission {
   school_name?: string;
   allow_faculty_generation: boolean;
   allow_department_generation: boolean;
+  allow_faculty_exam_period?: boolean;
   updated_at?: string;
 }
 
@@ -119,6 +120,7 @@ export function mapRawPermissionToPermission(
     schoolName: raw.school_name,
     allowFacultyGeneration: Boolean(raw.allow_faculty_generation),
     allowDepartmentGeneration: Boolean(raw.allow_department_generation),
+    allowFacultyExamPeriod: Boolean(raw.allow_faculty_exam_period),
     updatedAt: raw.updated_at,
   };
 }
@@ -235,6 +237,7 @@ export async function updateGenerationPermissions(payload: {
   school: string | number;
   allow_faculty_generation?: boolean;
   allow_department_generation?: boolean;
+  allow_faculty_exam_period?: boolean;
 }): Promise<GenerationScopePermission> {
   const response = await apiClient.patch<RawGenerationScopePermission>(
     "/scheduling/generate/permissions/",
@@ -242,6 +245,7 @@ export async function updateGenerationPermissions(payload: {
       school: Number(payload.school),
       allow_faculty_generation: payload.allow_faculty_generation,
       allow_department_generation: payload.allow_department_generation,
+      allow_faculty_exam_period: payload.allow_faculty_exam_period,
     }
   );
   return mapRawPermissionToPermission(response.data);

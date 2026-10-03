@@ -14,7 +14,9 @@ interface ScheduleEntryModalProps {
 	venues?: Venue[];
 	semesters?: Semester[];
 	programs?: Program[];
+	defaultEntryType?: SessionType;
 	defaultDay?: string;
+	defaultDate?: string;
 	defaultStartTime?: string;
 	defaultEndTime?: string;
 }
@@ -27,11 +29,13 @@ export default function ScheduleEntryModal({
 	venues = [],
 	semesters = [],
 	programs = [],
+	defaultEntryType = "lecture",
 	defaultDay,
+	defaultDate,
 	defaultStartTime,
 	defaultEndTime,
 }: ScheduleEntryModalProps) {
-	const [entryType, setEntryType] = useState<SessionType>("lecture");
+	const [entryType, setEntryType] = useState<SessionType>(defaultEntryType);
 	const [title, setTitle] = useState("");
 	const [courseId, setCourseId] = useState<string>(courses[0]?.id || "");
 	const [venueId, setVenueId] = useState<string>(venues[0]?.id || "");
@@ -41,24 +45,42 @@ export default function ScheduleEntryModal({
 	const [recurrenceRule] = useState("weekly");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
+	const [examDate, setExamDate] = useState(defaultDate || "");
 	const [semesterId, setSemesterId] = useState("");
 	const [targetProgramId, setTargetProgramId] = useState("");
 
 	useEffect(() => {
+		if (defaultEntryType) setEntryType(defaultEntryType);
 		if (defaultDay) setDayOfWeek(defaultDay);
+		if (defaultDate) setExamDate(defaultDate);
 		if (defaultStartTime) setStartTime(defaultStartTime);
 		if (defaultEndTime) setEndTime(defaultEndTime);
-	}, [defaultDay, defaultStartTime, defaultEndTime]);
+	}, [defaultEntryType, defaultDay, defaultDate, defaultStartTime, defaultEndTime]);
+
+	const selectedSemester = semesters.find((s) => s.id === semesterId);
 
 	useEffect(() => {
 		if (!semesterId && semesters.length > 0) {
 			const active = semesters.find((s) => s.isActive);
 			const targetSem = active || semesters[0];
 			setSemesterId(targetSem.id);
-			if (targetSem.startDate) setStartDate(targetSem.startDate);
-			if (targetSem.endDate) setEndDate(targetSem.endDate);
+			if (entryType === "lecture") {
+				setStartDate(targetSem.lectureStartDate || targetSem.startDate || "");
+				setEndDate(targetSem.lectureEndDate || targetSem.endDate || "");
+			} else if (entryType === "exam") {
+				if (targetSem.examStartDate) {
+					setExamDate((prev) => prev || targetSem.examStartDate || "");
+				}
+			}
+		} else if (selectedSemester) {
+			if (entryType === "lecture") {
+				setStartDate(selectedSemester.lectureStartDate || selectedSemester.startDate || "");
+				setEndDate(selectedSemester.lectureEndDate || selectedSemester.endDate || "");
+			} else if (entryType === "exam" && !examDate && selectedSemester.examStartDate) {
+				setExamDate(selectedSemester.examStartDate);
+			}
 		}
-	}, [semesters, semesterId]);
+	}, [semesters, semesterId, entryType, selectedSemester, examDate]);
 
 	useEffect(() => {
 		if (courseId) {
@@ -69,10 +91,27 @@ export default function ScheduleEntryModal({
 		}
 	}, [courseId, courses]);
 
+	const handleExamDateChange = (val: string) => {
+		setExamDate(val);
+		if (val) {
+			const dt = new Date(`${val}T00:00:00`);
+			const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+			const dName = days[dt.getDay()];
+			if (dName) setDayOfWeek(dName);
+		}
+	};
+
+	const hasExamPeriod = Boolean(selectedSemester?.examStartDate && selectedSemester?.examEndDate);
+	const isExamBlocked = entryType === "exam" && !hasExamPeriod;
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		if (isExamBlocked) return;
 		const selectedCourse = courses.find((c) => c.id === courseId);
 		const selectedVenue = venues.find((v) => v.id === venueId);
+
+		const effectiveStartDate = entryType === "exam" ? (examDate || startDate) : startDate;
+		const effectiveEndDate = entryType === "exam" ? (examDate || endDate) : endDate;
 
 		onSubmit({
 			entry_type: entryType,
@@ -84,9 +123,9 @@ export default function ScheduleEntryModal({
 			day_of_week: dayOfWeek,
 			start_time: startTime,
 			end_time: endTime,
-			recurrence_rule: recurrenceRule,
-			recurrence_start_date: startDate || undefined,
-			recurrence_end_date: endDate || undefined,
+			recurrence_rule: entryType === "lecture" ? recurrenceRule : undefined,
+			recurrence_start_date: effectiveStartDate || undefined,
+			recurrence_end_date: effectiveEndDate || undefined,
 			semester: semesterId || undefined,
 			target_program: targetProgramId || undefined,
 		});
@@ -112,6 +151,7 @@ export default function ScheduleEntryModal({
 					<Button
 						variant="primary"
 						onClick={handleSubmit}
+						disabled={isExamBlocked}
 						className="cursor-pointer"
 					>
 						Submit Schedule Entry
@@ -255,13 +295,18 @@ export default function ScheduleEntryModal({
 
 				{entryType === "lecture" && (
 					<div className="p-3 bg-surface-raised rounded-xl border border-border space-y-3">
-						<Text variant="caption" className="font-bold text-text-main block">
-							Lecture Recurrence Schedule
-						</Text>
+						<div className="flex items-center justify-between">
+							<Text variant="caption" className="font-bold text-text-main block">
+								Lecture Teaching Period
+							</Text>
+							<span className="text-[10px] text-text-muted">
+								Sessions will only be materialized within this period
+							</span>
+						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 							<div>
 								<Text variant="caption" className="text-xs mb-1 block">
-									Semester Start Date
+									Lecture Start Date
 								</Text>
 								<Input
 									type="date"
@@ -271,7 +316,7 @@ export default function ScheduleEntryModal({
 							</div>
 							<div>
 								<Text variant="caption" className="text-xs mb-1 block">
-									Semester End Date
+									Lecture End Date
 								</Text>
 								<Input
 									type="date"
@@ -280,6 +325,48 @@ export default function ScheduleEntryModal({
 								/>
 							</div>
 						</div>
+					</div>
+				)}
+
+				{entryType === "exam" && (
+					<div className="p-3 bg-surface-raised rounded-xl border border-border space-y-3">
+						<div className="flex items-center justify-between">
+							<Text variant="caption" className="font-bold text-text-main block">
+								Exam Sitting Schedule
+							</Text>
+							{hasExamPeriod ? (
+								<span className="text-[10px] text-primary font-medium">
+									Exam Period: {selectedSemester?.examStartDate} to {selectedSemester?.examEndDate}
+								</span>
+							) : (
+								<span className="text-[10px] text-danger font-semibold">
+									No Exam Period Defined
+								</span>
+							)}
+						</div>
+
+						{isExamBlocked ? (
+							<div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs">
+								An examination period must be defined for this semester before exams can be scheduled. Please contact your school or faculty administrator.
+							</div>
+						) : (
+							<div>
+								<Text variant="caption" className="text-xs mb-1 block">
+									Exam Sitting Date <span className="text-danger">*</span>
+								</Text>
+								<Input
+									type="date"
+									value={examDate}
+									min={selectedSemester?.examStartDate}
+									max={selectedSemester?.examEndDate}
+									onChange={(e) => handleExamDateChange(e.target.value)}
+									required
+								/>
+								<span className="text-[11px] text-text-muted mt-1 block">
+									Selected day of week: {dayOfWeek}
+								</span>
+							</div>
+						)}
 					</div>
 				)}
 			</form>

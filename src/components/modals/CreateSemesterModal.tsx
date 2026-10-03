@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import type { AcademicSession } from "@/types";
+import { toast } from "sonner";
 
 interface CreateSemesterModalProps {
 	isOpen: boolean;
@@ -16,8 +17,8 @@ interface CreateSemesterModalProps {
 		end_date: string;
 		duration_type: "weeks" | "months" | "fixed";
 		duration_value?: number;
-		lecture_start_date?: string;
-		lecture_end_date?: string;
+		lecture_start_date: string;
+		lecture_end_date: string;
 		exam_start_date?: string;
 		exam_end_date?: string;
 		is_active: boolean;
@@ -82,7 +83,42 @@ export default function CreateSemesterModal({
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		const activeSessionId = sessionId || sessions[0]?.id || "";
-		if (!activeSessionId || !startDate || !endDate) return;
+		if (
+			!activeSessionId ||
+			!startDate ||
+			!endDate ||
+			!lectureStartDate ||
+			!lectureEndDate
+		) {
+			toast.error("Please fill in all required fields including the lecture start and end dates.");
+			return;
+		}
+
+		if (lectureStartDate >= lectureEndDate) {
+			toast.error("Lecture start date must be before lecture end date.");
+			return;
+		}
+
+		if (lectureStartDate < startDate) {
+			toast.error("Lecture start date cannot be before semester start date.");
+			return;
+		}
+
+		if (lectureEndDate > endDate) {
+			toast.error("Lecture end date cannot be after semester end date.");
+			return;
+		}
+
+		if (examStartDate && examEndDate) {
+			if (examStartDate >= examEndDate) {
+				toast.error("Exam start date must be before exam end date.");
+				return;
+			}
+			if (examStartDate < startDate || examEndDate > endDate) {
+				toast.error("Exam period dates must fall within the semester timeline.");
+				return;
+			}
+		}
 
 		onSubmit({
 			session: activeSessionId,
@@ -92,8 +128,8 @@ export default function CreateSemesterModal({
 			duration_type: durationType,
 			duration_value:
 				durationType !== "fixed" ? Number(durationValue) : undefined,
-			lecture_start_date: lectureStartDate || undefined,
-			lecture_end_date: lectureEndDate || undefined,
+			lecture_start_date: lectureStartDate,
+			lecture_end_date: lectureEndDate,
 			exam_start_date: examStartDate || undefined,
 			exam_end_date: examEndDate || undefined,
 			is_active: isActive,
@@ -251,32 +287,39 @@ export default function CreateSemesterModal({
 
 				{/* Lecture Periods */}
 				<div className="p-3 bg-surface-raised border border-border rounded-xl space-y-3">
-					<Text
-						variant="caption"
-						weight="bold"
-						className="text-text-main block"
-					>
-						Lecture Schedule (Optional)
-					</Text>
+					<div className="flex items-center justify-between">
+						<Text
+							variant="caption"
+							weight="bold"
+							className="text-text-main block"
+						>
+							Lecture Schedule
+						</Text>
+						<span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+							Required for Timetabling
+						</span>
+					</div>
 					<div className="grid grid-cols-2 gap-3">
 						<div>
 							<Text variant="caption" className="text-text-muted mb-1 block">
-								Lecture Start Date
+								Lecture Start Date <span className="text-danger">*</span>
 							</Text>
 							<Input
 								type="date"
 								value={lectureStartDate}
 								onChange={(e) => setLectureStartDate(e.target.value)}
+								required
 							/>
 						</div>
 						<div>
 							<Text variant="caption" className="text-text-muted mb-1 block">
-								Lecture End Date
+								Lecture End Date <span className="text-danger">*</span>
 							</Text>
 							<Input
 								type="date"
 								value={lectureEndDate}
 								onChange={(e) => setLectureEndDate(e.target.value)}
+								required
 							/>
 						</div>
 					</div>

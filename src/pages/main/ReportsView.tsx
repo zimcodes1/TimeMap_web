@@ -13,7 +13,6 @@ import {
 	CheckCircle,
 	RefreshCw,
 	Eye,
-	MessageSquare,
 	AlertCircle,
 } from "lucide-react";
 import type { ClassRepReport, UnreportedSessionFlag } from "@/types";
@@ -25,7 +24,7 @@ interface ReportsViewProps {
 	isRefetching?: boolean;
 	onRefresh?: () => void;
 	onOpenReportDetail: (rep: ClassRepReport) => void;
-	onOpenDisputeResponse: (rep: ClassRepReport) => void;
+	onOpenDisputeResponse?: (rep: ClassRepReport) => void;
 	onAcknowledgeFlagTrigger: (flag: UnreportedSessionFlag) => void;
 	onTriggerSweep: () => void;
 }
@@ -37,7 +36,7 @@ export default function ReportsView({
 	isRefetching = false,
 	onRefresh,
 	onOpenReportDetail,
-	onOpenDisputeResponse,
+	onOpenDisputeResponse: _onOpenDisputeResponse,
 	onAcknowledgeFlagTrigger,
 	onTriggerSweep,
 }: ReportsViewProps) {
