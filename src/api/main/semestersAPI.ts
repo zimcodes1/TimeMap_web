@@ -106,6 +106,15 @@ export async function updateAcademicSession(
   return mapRawAcademicSession(response.data);
 }
 
+export async function setCurrentAcademicSession(id: string | number): Promise<AcademicSession> {
+  const response = await apiClient.post<RawAcademicSession>(`/scheduling/academic-sessions/${id}/set-current/`);
+  return mapRawAcademicSession(response.data);
+}
+
+export async function deleteAcademicSession(id: string | number): Promise<void> {
+  await apiClient.delete(`/scheduling/academic-sessions/${id}/`);
+}
+
 export async function getSemesters(params?: {
   session?: string | number;
   school?: string | number;

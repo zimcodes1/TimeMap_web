@@ -174,11 +174,7 @@ export default function SchedulesContainer() {
 
 	// Identify current active academic session set by school/system admin
 	const currentAcademicSession = useMemo(() => {
-		return (
-			academicSessionsData.find((s) => s.isCurrent) ||
-			academicSessionsData[0] ||
-			null
-		);
+		return academicSessionsData.find((s) => s.isCurrent) || null;
 	}, [academicSessionsData]);
 
 	// Identify active semester belonging to the active academic session
@@ -199,8 +195,12 @@ export default function SchedulesContainer() {
 		);
 		if (activeInSchool) return activeInSchool;
 
-		return semestersData.find((s) => s.isActive) || semestersData[0];
+		return semestersData.find((s) => s.isActive) || null;
 	}, [semestersData, currentAcademicSession, userSchoolId]);
+
+	const isSemesterConfigured = Boolean(
+		currentAcademicSession && activeSemester?.isActive,
+	);
 
 	// Compute semester timeline relative to the active semester (never counting a full calendar year)
 	const semesterTimeline = useMemo(() => {
@@ -591,6 +591,8 @@ export default function SchedulesContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
+				currentAcademicSession={currentAcademicSession}
+				isSemesterConfigured={isSemesterConfigured}
 				conflictReport={activeConflictReport}
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
@@ -612,7 +614,7 @@ export default function SchedulesContainer() {
 				onClose={() => setIsGenerateModalOpen(false)}
 				onGenerationComplete={handleGenerationCompleted}
 				semesters={semestersData}
-				activeSemester={activeSemester}
+				activeSemester={activeSemester || undefined}
 				schools={schoolsData}
 				faculties={facultiesData}
 				departments={departmentsData}
