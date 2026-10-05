@@ -22,6 +22,8 @@ export interface CreateScheduleEntryPayload {
   academic_session?: string;
   semester?: string | number;
   program?: string | number;
+  target_program?: string | number;
+  target_level?: number;
 }
 
 export interface CreateEntrySuccessResponse {
@@ -88,6 +90,7 @@ interface RawTimetableEntry {
   target_program?: number | string | null;
   target_program_id?: number | string | null;
   target_program_name?: string;
+  target_level?: number;
   recurrence_rule?: string;
   recurrence_start_date?: string;
   recurrence_end_date?: string;
@@ -103,6 +106,7 @@ interface RawLectureSession {
   course_code?: string;
   course_title?: string;
   course_level?: number;
+  target_level?: number;
   course_type?: string;
   department_id?: number | string;
   department_name?: string;
@@ -179,9 +183,10 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     title: raw.title || raw.course_title || "Timetable Entry",
     type: raw.entry_type || raw.type || "lecture",
     courseId: raw.course ? String(raw.course) : undefined,
-    courseCode: raw.course_code || "CSC301",
+    courseCode: raw.course_code || (raw.entry_type === "event" ? (raw.title || "EVENT") : "CSC301"),
     courseTitle: raw.course_title || raw.title || "Course",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
+    targetLevel: raw.target_level ? Number(raw.target_level) : undefined,
     courseType: raw.course_type,
     departmentId: raw.department_id ? String(raw.department_id) : undefined,
     departmentName: raw.department_name,
@@ -218,10 +223,13 @@ function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
     id: String(raw.id),
     entryId: entryId,
     timetableEntryId: entryId || undefined,
+    timetableEntryTitle: raw.timetable_entry_title,
+    title: raw.timetable_entry_title,
     entryType: raw.entry_type || "lecture",
-    courseCode: raw.course_code || "CSC301",
+    courseCode: raw.course_code || (raw.entry_type === "event" ? (raw.timetable_entry_title || "EVENT") : "CSC301"),
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
+    targetLevel: raw.target_level ? Number(raw.target_level) : undefined,
     courseType: raw.course_type,
     departmentId: raw.department_id ? String(raw.department_id) : undefined,
     departmentName: raw.department_name,
@@ -395,6 +403,20 @@ export async function updateLectureSessionAPI(
   const response = await apiClient.patch<RawLectureSession>(
     `/scheduling/sessions/${id}/`,
     payload
+  );
+  return mapRawSessionToSession(response.data);
+}
+
+/**
+ * POST /api/scheduling/sessions/{id}/cancel/
+ */
+export async function cancelLectureSessionAPI(
+  id: string | number,
+  reason?: string
+): Promise<LectureSession> {
+  const response = await apiClient.post<RawLectureSession>(
+    `/scheduling/sessions/${id}/cancel/`,
+    { reason }
   );
   return mapRawSessionToSession(response.data);
 }

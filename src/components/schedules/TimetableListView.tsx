@@ -131,22 +131,27 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 											session.reportStatus === "not_held" ||
 											session.status === "not_held";
 										const isCancelled = session.status === "cancelled";
+										const isEvent = session.entryType === "event";
 
 										return (
 											<div
 												key={session.id}
 												onClick={() => handleCardClick(session)}
 												className={`p-3 rounded-xl space-y-2 border transition-all shadow-2xs cursor-pointer ${
-													hasConflict
-														? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 text-text-main"
-														: isPastSession
-															? "bg-surface-raised/40 border-border/60 hover:border-border hover:bg-surface-raised/60 opacity-85 text-text-muted"
-															: "bg-surface-raised border-border hover:border-primary/50 hover:bg-surface-raised/80 text-text-main"
+													isEvent
+														? "bg-purple-500/10 border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/15 text-text-main"
+														: hasConflict
+															? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 text-text-main"
+															: isPastSession
+																? "bg-surface-raised/40 border-border/60 hover:border-border hover:bg-surface-raised/60 opacity-85 text-text-muted"
+																: "bg-surface-raised border-border hover:border-primary/50 hover:bg-surface-raised/80 text-text-main"
 												}`}
 												title={
-													isPastSession
-														? "Past lecture session (cannot be shifted). Click to view details."
-														: "Click to view lecture details or reschedule."
+													isEvent
+														? `Academic Event: ${session.courseTitle}. Click to view details.`
+														: isPastSession
+															? "Past lecture session (cannot be shifted). Click to view details."
+															: "Click to view lecture details or reschedule."
 												}
 											>
 												<div className="flex items-start justify-between gap-2">
@@ -154,15 +159,25 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 														<div className="flex items-center gap-1.5">
 															<span
 																className={`font-extrabold text-sm ${
-																	hasConflict
-																		? "text-red-400"
-																		: isPastSession
-																			? "text-text-muted"
-																			: "text-primary"
+																	isEvent
+																		? "text-purple-300"
+																		: hasConflict
+																			? "text-red-400"
+																			: isPastSession
+																				? "text-text-muted"
+																				: "text-primary"
 																}`}
 															>
 																{session.courseCode}
 															</span>
+															{isEvent && (
+																<Badge
+																	variant="secondary"
+																	className="text-[9px] py-0 px-1 bg-purple-500/20 text-purple-300 border-purple-500/40"
+																>
+																	Event
+																</Badge>
+															)}
 															{isPractical && (
 																<Badge
 																	variant="secondary"

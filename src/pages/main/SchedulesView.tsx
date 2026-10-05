@@ -10,6 +10,7 @@ import {
 	Sparkles,
 	ShieldCheck,
 	Lock,
+	Calendar,
 } from "lucide-react";
 import type {
 	TimetableEntry,
@@ -76,7 +77,9 @@ interface SchedulesViewProps {
 		defaultDate?: string,
 		isSlotClick?: boolean,
 	) => void;
+	onOpenScheduleEvent?: () => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
+	onCancelSessionTrigger?: (session: LectureSession) => void;
 	onOpenPermissions?: () => void;
 	onOpenGenerator?: () => void;
 	onOpenHistory?: () => void;
@@ -121,7 +124,9 @@ export default function SchedulesView({
 	isSemesterConfigured = true,
 	conflictReport,
 	onOpenScheduleEntry,
+	onOpenScheduleEvent,
 	onShiftSessionTrigger,
+	onCancelSessionTrigger,
 	onOpenPermissions,
 	canGenerate = false,
 	canConfigurePermissions = false,
@@ -228,6 +233,28 @@ export default function SchedulesView({
 						<Plus size={15} />
 						<span>Schedule Lecture</span>
 					</Button>
+
+					{onOpenScheduleEvent && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onOpenScheduleEvent}
+							disabled={!isSemesterConfigured}
+							className={
+								!isSemesterConfigured
+									? "h-9 gap-1.5 text-xs opacity-50 cursor-not-allowed"
+									: "h-9 gap-1.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10 cursor-pointer"
+							}
+							title={
+								!isSemesterConfigured
+									? "Semester not configured - event scheduling locked"
+									: undefined
+							}
+						>
+							<Calendar size={14} className="text-purple-400" />
+							<span>Schedule Event</span>
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -345,6 +372,7 @@ export default function SchedulesView({
 								conflictReport={conflictReport}
 								weekDayDates={weekDayDates}
 								onShiftSessionTrigger={onShiftSessionTrigger}
+								onCancelSessionTrigger={onCancelSessionTrigger}
 								onOpenCreateEntry={(defaultDay, defaultSlot, defaultDate) =>
 									onOpenScheduleEntry(
 										defaultDay,

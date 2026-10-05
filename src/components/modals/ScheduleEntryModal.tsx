@@ -5,7 +5,7 @@ import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CalendarClock, Repeat, Sparkles } from "lucide-react";
+import { CalendarClock, Repeat } from "lucide-react";
 import apiClient from "@/api/apiClient";
 import { mapRawVenueToVenue } from "@/api/main/venuesAPI";
 import { TimeSlotPicker } from "@/components/schedules/TimeSlotPicker";

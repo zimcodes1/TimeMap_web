@@ -2,12 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { Clock, Check, AlertCircle, Ban } from "lucide-react";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
-import { getVenueAvailabilityAPI, type VenueAvailabilityResponse } from "@/api/main/venuesAPI";
+import {
+	getVenueAvailabilityAPI,
+	type VenueAvailabilityResponse,
+} from "@/api/main/venuesAPI";
 
 export interface TimeSlotItem {
 	periodIndex: number;
 	start: string; // "08:00:00"
-	end: string;   // "10:00:00"
+	end: string; // "10:00:00"
 	label: string; // "8:00 AM - 10:00 AM"
 	isAvailable: boolean;
 	isJummat?: boolean;
@@ -24,11 +27,36 @@ interface TimeSlotPickerProps {
 }
 
 const STANDARD_PERIODS = [
-	{ periodIndex: 0, start: "08:00:00", end: "10:00:00", label: "8:00 AM - 10:00 AM" },
-	{ periodIndex: 1, start: "10:00:00", end: "12:00:00", label: "10:00 AM - 12:00 PM" },
-	{ periodIndex: 2, start: "12:00:00", end: "14:00:00", label: "12:00 PM - 2:00 PM" },
-	{ periodIndex: 3, start: "14:00:00", end: "16:00:00", label: "2:00 PM - 4:00 PM" },
-	{ periodIndex: 4, start: "16:00:00", end: "18:00:00", label: "4:00 PM - 6:00 PM" },
+	{
+		periodIndex: 0,
+		start: "08:00:00",
+		end: "10:00:00",
+		label: "8:00 AM - 10:00 AM",
+	},
+	{
+		periodIndex: 1,
+		start: "10:00:00",
+		end: "12:00:00",
+		label: "10:00 AM - 12:00 PM",
+	},
+	{
+		periodIndex: 2,
+		start: "12:00:00",
+		end: "14:00:00",
+		label: "12:00 PM - 2:00 PM",
+	},
+	{
+		periodIndex: 3,
+		start: "14:00:00",
+		end: "16:00:00",
+		label: "2:00 PM - 4:00 PM",
+	},
+	{
+		periodIndex: 4,
+		start: "16:00:00",
+		end: "18:00:00",
+		label: "4:00 PM - 6:00 PM",
+	},
 ];
 
 export function TimeSlotPicker({
@@ -40,7 +68,8 @@ export function TimeSlotPicker({
 	selectedEndTime,
 	onSelectSlot,
 }: TimeSlotPickerProps) {
-	const [availability, setAvailability] = useState<VenueAvailabilityResponse | null>(null);
+	const [availability, setAvailability] =
+		useState<VenueAvailabilityResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +134,8 @@ export function TimeSlotPicker({
 				(s) => s.start === std.start && s.end === std.end,
 			);
 
-			const isAvailable = !isBooked && (availableSlots.length > 0 ? inAvailableList : !isBooked);
+			const isAvailable =
+				!isBooked && (availableSlots.length > 0 ? inAvailableList : !isBooked);
 
 			return {
 				...std,
@@ -128,7 +158,8 @@ export function TimeSlotPicker({
 	}, [selectedStartTime, selectedEndTime, periods]);
 
 	const handleSlotClick = (period: TimeSlotItem) => {
-		if (!period.isAvailable || period.isJummat) return;
+		if (period.isJummat) return;
+		if (!isEvent && !period.isAvailable) return;
 
 		if (!isEvent) {
 			// Single slot selection for lectures
@@ -152,14 +183,18 @@ export function TimeSlotPicker({
 			if (currentIndices.length === 1) {
 				onSelectSlot("", "");
 			} else if (targetIndex === minIndex) {
-				const nextPeriod = periods.find((p) => p.periodIndex === currentIndices[1]);
+				const nextPeriod = periods.find(
+					(p) => p.periodIndex === currentIndices[1],
+				);
 				const lastPeriod = periods.find((p) => p.periodIndex === maxIndex);
 				if (nextPeriod && lastPeriod) {
 					onSelectSlot(nextPeriod.start, lastPeriod.end);
 				}
 			} else if (targetIndex === maxIndex) {
 				const firstPeriod = periods.find((p) => p.periodIndex === minIndex);
-				const prevPeriod = periods.find((p) => p.periodIndex === currentIndices[currentIndices.length - 2]);
+				const prevPeriod = periods.find(
+					(p) => p.periodIndex === currentIndices[currentIndices.length - 2],
+				);
 				if (firstPeriod && prevPeriod) {
 					onSelectSlot(firstPeriod.start, prevPeriod.end);
 				}
@@ -170,20 +205,20 @@ export function TimeSlotPicker({
 			return;
 		}
 
-		// Expanding range: Check if all intermediate slots between current range and target are available
+		// Expanding range: Check if all intermediate slots between current range and target are allowed
 		const newMin = Math.min(minIndex, targetIndex);
 		const newMax = Math.max(maxIndex, targetIndex);
 
-		let allAvailable = true;
+		let allAllowed = true;
 		for (let i = newMin; i <= newMax; i++) {
 			const p = periods.find((slot) => slot.periodIndex === i);
-			if (!p || !p.isAvailable || p.isJummat) {
-				allAvailable = false;
+			if (!p || p.isJummat || (!isEvent && !p.isAvailable)) {
+				allAllowed = false;
 				break;
 			}
 		}
 
-		if (allAvailable) {
+		if (allAllowed) {
 			const firstP = periods.find((p) => p.periodIndex === newMin);
 			const lastP = periods.find((p) => p.periodIndex === newMax);
 			if (firstP && lastP) {
@@ -216,13 +251,14 @@ export function TimeSlotPicker({
 					</Text>
 					{isEvent && (
 						<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
-							Consecutive Selection Enabled
+							Consecutive Selection & Preemption Enabled
 						</Badge>
 					)}
 				</div>
 				{selectedIndices.size > 0 && (
 					<span className="text-[11px] font-medium text-primary">
-						{selectedIndices.size * 2} hrs ({selectedStartTime?.slice(0, 5)} - {selectedEndTime?.slice(0, 5)})
+						{selectedIndices.size * 2} hrs ({selectedStartTime?.slice(0, 5)} -{" "}
+						{selectedEndTime?.slice(0, 5)})
 					</span>
 				)}
 			</div>
@@ -242,20 +278,25 @@ export function TimeSlotPicker({
 					{periods.map((period) => {
 						const isSelected = selectedIndices.has(period.periodIndex);
 						const isJummat = period.isJummat;
-						const isBlocked = !period.isAvailable && !isJummat;
+						const isBooked = !period.isAvailable && !isJummat;
+						const isDisabled = isJummat || (!isEvent && isBooked);
 
 						return (
 							<button
 								key={period.periodIndex}
 								type="button"
 								onClick={() => handleSlotClick(period)}
-								disabled={!period.isAvailable || isJummat}
+								disabled={isDisabled}
 								className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
 									isSelected
 										? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary"
-										: period.isAvailable
-											? "border-border bg-surface-raised hover:border-primary/40 hover:bg-surface-raised/80 cursor-pointer"
-											: "border-border/40 bg-surface/30 opacity-55 cursor-not-allowed"
+										: isJummat
+											? "border-border/40 bg-surface/30 opacity-55 cursor-not-allowed"
+											: isBooked
+												? isEvent
+													? "border-amber-500/40 bg-amber-500/10 hover:border-amber-500 hover:bg-amber-500/15 cursor-pointer"
+													: "border-border/40 bg-surface/30 opacity-55 cursor-not-allowed"
+												: "border-border bg-surface-raised hover:border-emerald-500/50 hover:bg-surface-raised/80 cursor-pointer"
 								}`}
 							>
 								<div className="space-y-0.5 min-w-0 pr-1">
@@ -265,32 +306,46 @@ export function TimeSlotPicker({
 											className={
 												isSelected
 													? "text-primary"
-													: period.isAvailable
-														? "text-text-muted"
-														: "text-text-subtle"
+													: isBooked && isEvent
+														? "text-amber-400"
+														: period.isAvailable
+															? "text-emerald-400"
+															: "text-text-subtle"
 											}
 										/>
 										<span
 											className={`text-xs font-semibold truncate ${
-												isSelected ? "text-primary" : "text-text-main"
+												isSelected
+													? "text-primary"
+													: isBooked && isEvent
+														? "text-amber-300"
+														: "text-text-main"
 											}`}
 										>
 											{period.label}
 										</span>
 									</div>
-									<div className="text-[10px] text-text-muted">
+									<div className="text-[10px]">
 										{isJummat ? (
-											<span className="text-amber-400 font-medium flex items-center gap-1">
+											<span className="text-black font-medium flex items-center gap-1">
 												<Ban size={10} /> Jummat Break (Prohibited)
 											</span>
-										) : isBlocked ? (
-											<span className="text-danger/80 font-medium">
-												Unavailable / Booked
-											</span>
+										) : isBooked ? (
+											isEvent ? (
+												<span className="text-amber-400 font-medium">
+													Occupied - Overrides Booking
+												</span>
+											) : (
+												<span className="text-danger/80 font-medium">
+													Unavailable / Booked
+												</span>
+											)
 										) : isSelected ? (
 											<span className="text-primary font-medium">Selected</span>
 										) : (
-											<span className="text-emerald-400 font-medium">Available</span>
+											<span className="text-emerald-400 font-medium">
+												Available
+											</span>
 										)}
 									</div>
 								</div>

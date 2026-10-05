@@ -56,8 +56,25 @@ export function filterDepartmentsByScope(
   if (adminLevel === "department") {
     // Scope = exactly one department
     const myDeptId = currentUser.adminScopeId || currentUser.departmentId;
-    if (!myDeptId) return [];
-    return departments.filter((d) => String(d.id) === String(myDeptId));
+    if (myDeptId) {
+      const byId = departments.filter((d) => String(d.id) === String(myDeptId));
+      if (byId.length > 0) return byId;
+      const byNameOrCode = departments.filter(
+        (d) =>
+          d.name.toLowerCase() === String(myDeptId).toLowerCase() ||
+          d.code.toLowerCase() === String(myDeptId).toLowerCase(),
+      );
+      if (byNameOrCode.length > 0) return byNameOrCode;
+    }
+    if (currentUser.departmentName) {
+      const byName = departments.filter(
+        (d) =>
+          d.name.toLowerCase() === currentUser.departmentName!.toLowerCase() ||
+          d.code.toLowerCase() === currentUser.departmentName!.toLowerCase(),
+      );
+      if (byName.length > 0) return byName;
+    }
+    return [];
   }
 
   if (adminLevel === "faculty") {

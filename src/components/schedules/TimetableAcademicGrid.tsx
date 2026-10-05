@@ -57,6 +57,7 @@ interface TimetableAcademicGridProps {
 		conflicts: AssociatedConflict[],
 	) => void;
 	onShiftSessionTrigger?: (session: LectureSession) => void;
+	onCancelSessionTrigger?: (session: LectureSession) => void;
 }
 
 export function TimetableAcademicGrid({
@@ -70,6 +71,7 @@ export function TimetableAcademicGrid({
 	onOpenCreateEntry,
 	onSelectEntry,
 	onShiftSessionTrigger,
+	onCancelSessionTrigger,
 }: TimetableAcademicGridProps) {
 	// Selected entry and session for modal view
 	const [activeModalEntry, setActiveModalEntry] =
@@ -94,8 +96,11 @@ export function TimetableAcademicGrid({
 	// Filter entries by department, program, level, and search query
 	const displayedEntries = useMemo(() => {
 		return entries.filter((entry) => {
-			// Level filter
+			const isEvent = entry.entryType === "event" || entry.type === "event";
+
+			// Level filter (events are visible to everyone)
 			if (
+				!isEvent &&
 				selectedLevel &&
 				entry.courseLevel &&
 				entry.courseLevel !== selectedLevel
@@ -103,8 +108,8 @@ export function TimetableAcademicGrid({
 				return false;
 			}
 
-			// Program filter
-			if (selectedProgramId && selectedProgramId !== "ALL") {
+			// Program filter (events are visible to everyone)
+			if (!isEvent && selectedProgramId && selectedProgramId !== "ALL") {
 				if (
 					entry.targetProgramId &&
 					String(entry.targetProgramId) !== String(selectedProgramId)
@@ -118,7 +123,7 @@ export function TimetableAcademicGrid({
 			if (searchQuery.trim()) {
 				const q = searchQuery.toLowerCase();
 				const matchCode = entry.courseCode?.toLowerCase().includes(q);
-				const matchTitle = entry.courseTitle?.toLowerCase().includes(q);
+				const matchTitle = (entry.title || entry.courseTitle)?.toLowerCase().includes(q);
 				const matchVenue = entry.venueName?.toLowerCase().includes(q);
 				const matchLecturer = entry.lecturerName?.toLowerCase().includes(q);
 				if (!matchCode && !matchTitle && !matchVenue && !matchLecturer) {
@@ -243,14 +248,28 @@ export function TimetableAcademicGrid({
 
 										// 2. Base entries scheduled for this day of the week in this slot
 										const templateEntriesInSlot = displayedEntries.filter(
-											(e) =>
-												e.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
-												isOverlapping(
-													e.startTime,
-													e.endTime,
-													slot.start,
-													slot.end,
-												),
+											(e) => {
+												if (e.entryType === "event") {
+													return (
+														Boolean(dateStr && e.recurrenceStartDate === dateStr) &&
+														isOverlapping(
+															e.startTime,
+															e.endTime,
+															slot.start,
+															slot.end,
+														)
+													);
+												}
+												return (
+													e.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
+													isOverlapping(
+														e.startTime,
+														e.endTime,
+														slot.start,
+														slot.end,
+													)
+												);
+											},
 										);
 
 										// Entries whose session on this date was shifted away from this slot
@@ -380,6 +399,10 @@ export function TimetableAcademicGrid({
 
 																const isShifted =
 																	matchingSession?.status === "shifted";
+																const isEvent =
+																	entry.entryType === "event" ||
+																	entry.type === "event" ||
+																	matchingSession?.entryType === "event";
 
 																// Session date & time for past calculation
 																const sessionDate =
@@ -408,45 +431,56 @@ export function TimetableAcademicGrid({
 																			)
 																		}
 																		className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
-																			hasHard
-																				? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
-																				: hasSoft
-																					? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
-																					: isShifted
-																						? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
-																						: isPastLecture
-																							? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
-																							: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																			isEvent
+																				? "bg-purple-500/15 border-purple-500/40 hover:border-purple-500 hover:bg-purple-500/25 ring-1 ring-purple-500/30 text-text-main"
+																				: hasHard
+																					? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
+																					: hasSoft
+																						? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
+																						: isShifted
+																							? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
+																							: isPastLecture
+																								? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
+																								: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
 																		}`}
 																		title={
-																			isShifted
-																				? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
-																				: isPastLecture
-																					? "Past lecture session (cannot be shifted). Click to view details."
-																					: hasHard
-																						? "Hard timetable conflict! Click to inspect diagnostics."
-																						: hasSoft
-																							? "Capacity or soft notice. Click to inspect details."
-																							: "Optimal schedule. Click to inspect details."
+																			isEvent
+																				? `Academic Event: ${entry.title || entry.courseTitle} at ${matchingSession?.venueName || entry.venueName}. Click to inspect details.`
+																				: isShifted
+																					? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
+																					: isPastLecture
+																						? "Past lecture session (cannot be shifted). Click to view details."
+																						: hasHard
+																							? "Hard timetable conflict! Click to inspect diagnostics."
+																							: hasSoft
+																								? "Capacity or soft notice. Click to inspect details."
+																								: "Optimal schedule. Click to inspect details."
 																		}
 																	>
 																		<div className="flex items-center justify-between gap-1">
 																			<div className="flex items-center gap-1.5 min-w-0">
 																				<span
 																					className={`font-extrabold tracking-tight truncate ${
-																						hasHard
-																							? "text-red-400"
-																							: hasSoft
-																								? "text-amber-400"
-																								: isShifted
-																									? "text-amber-300"
-																									: isPastLecture
-																										? "text-text-muted"
-																										: "text-primary"
+																						isEvent
+																							? "text-purple-300"
+																							: hasHard
+																								? "text-red-400"
+																								: hasSoft
+																									? "text-amber-400"
+																									: isShifted
+																										? "text-amber-300"
+																										: isPastLecture
+																											? "text-text-muted"
+																											: "text-primary"
 																					}`}
 																				>
-																					{entry.courseCode}
+																					{isEvent ? (entry.title || entry.courseTitle || "Event") : entry.courseCode}
 																				</span>
+																				{isEvent && (
+																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+																						Event
+																					</span>
+																				)}
 																				{isShifted && (
 																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
 																						Shifted
@@ -473,9 +507,11 @@ export function TimetableAcademicGrid({
 
 																		<div
 																			className="text-[11px] font-medium text-text-main truncate"
-																			title={entry.courseTitle}
+																			title={isEvent ? (entry.title || entry.courseTitle) : entry.courseTitle}
 																		>
-																			{entry.courseTitle}
+																			{isEvent
+																				? (entry.targetProgramName ? `${entry.targetProgramName} ${entry.targetLevel ? `• ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : `${entry.targetLevel}L`}` : ""}` : `All Programs • ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : entry.targetLevel ? `${entry.targetLevel}L` : "General"}`)
+																				: entry.courseTitle}
 																		</div>
 
 																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
@@ -646,13 +682,45 @@ export function TimetableAcademicGrid({
 				isPast={activeModalIsPast}
 				date={activeModalDate}
 				canShift={
-					activeModalSession
-						? activeModalSession.canShift !== false
-						: !activeModalIsPast
+					(activeModalSession || activeModalEntry)
+						? (activeModalSession?.canShift !== false && !activeModalIsPast)
+						: false
 				}
 				onShiftClick={
-					activeModalSession && onShiftSessionTrigger
-						? () => onShiftSessionTrigger(activeModalSession)
+					onShiftSessionTrigger
+						? () => {
+								const targetSession =
+									activeModalSession ||
+									sessions.find(
+										(s) =>
+											s.entryId === activeModalEntry?.id ||
+											s.timetableEntryId === activeModalEntry?.id,
+									);
+								if (targetSession) {
+									onShiftSessionTrigger(targetSession);
+								}
+							}
+						: undefined
+				}
+				canCancel={
+					(activeModalSession || activeModalEntry)
+						? (activeModalSession?.status !== "cancelled" && !activeModalIsPast)
+						: false
+				}
+				onCancelClick={
+					onCancelSessionTrigger
+						? () => {
+								const targetSession =
+									activeModalSession ||
+									sessions.find(
+										(s) =>
+											s.entryId === activeModalEntry?.id ||
+											s.timetableEntryId === activeModalEntry?.id,
+									);
+								if (targetSession) {
+									onCancelSessionTrigger(targetSession);
+								}
+							}
 						: undefined
 				}
 			/>

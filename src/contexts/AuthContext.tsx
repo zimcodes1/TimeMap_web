@@ -40,6 +40,48 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
 		: rawScopeLevel;
 	const scopeId = rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined;
 	const scopeName = rawProfile?.scope_name;
+
+	// Resolve department ID: prioritize numeric ID fields over raw name string
+	const resolvedDeptId =
+		rawProfile?.department_id !== undefined && rawProfile?.department_id !== null && rawProfile?.department_id !== ""
+			? String(rawProfile.department_id)
+			: rawProfile?.scope_department_id !== undefined && rawProfile?.scope_department_id !== null && rawProfile?.scope_department_id !== ""
+				? String(rawProfile.scope_department_id)
+				: scopeLevel === "department" && scopeId
+					? scopeId
+					: rawProfile?.department && !isNaN(Number(rawProfile.department))
+						? String(rawProfile.department)
+						: undefined;
+
+	const resolvedDeptName =
+		rawProfile?.department_name ||
+		(scopeLevel === "department" ? scopeName : undefined) ||
+		(typeof rawProfile?.department === "string" ? rawProfile.department : undefined);
+
+	const resolvedFacultyId =
+		rawProfile?.faculty_id !== undefined && rawProfile?.faculty_id !== null && rawProfile?.faculty_id !== ""
+			? String(rawProfile.faculty_id)
+			: rawProfile?.scope_faculty_id !== undefined && rawProfile?.scope_faculty_id !== null && rawProfile?.scope_faculty_id !== ""
+				? String(rawProfile.scope_faculty_id)
+				: scopeLevel === "faculty" && scopeId
+					? scopeId
+					: undefined;
+
+	const resolvedFacultyName =
+		rawProfile?.faculty_name || (scopeLevel === "faculty" ? scopeName : undefined);
+
+	const resolvedSchoolId =
+		rawProfile?.school_id !== undefined && rawProfile?.school_id !== null && rawProfile?.school_id !== ""
+			? String(rawProfile.school_id)
+			: rawProfile?.scope_school_id !== undefined && rawProfile?.scope_school_id !== null && rawProfile?.scope_school_id !== ""
+				? String(rawProfile.scope_school_id)
+				: scopeLevel === "school" && scopeId
+					? scopeId
+					: undefined;
+
+	const resolvedSchoolName =
+		rawProfile?.school_name || (scopeLevel === "school" ? scopeName : undefined);
+
 	return {
 		id: String(rawUser.id),
 		isActive: rawUser.is_active,
@@ -49,12 +91,12 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
 		role: rawUser.role,
 		staffId: rawProfile?.staff_id || rawUser.identifier,
 		matricNumber: rawProfile?.matric_number,
-		departmentId: rawProfile?.department ? String(rawProfile.department) : (scopeLevel === "department" ? scopeId : undefined),
-		departmentName: rawProfile?.department_name || (scopeLevel === "department" ? scopeName : undefined),
-		facultyId: scopeLevel === "faculty" ? scopeId : undefined,
-		facultyName: scopeLevel === "faculty" ? scopeName : undefined,
-		schoolId: scopeLevel === "school" ? scopeId : undefined,
-		schoolName: scopeLevel === "school" ? scopeName : undefined,
+		departmentId: resolvedDeptId,
+		departmentName: resolvedDeptName,
+		facultyId: resolvedFacultyId,
+		facultyName: resolvedFacultyName,
+		schoolId: resolvedSchoolId,
+		schoolName: resolvedSchoolName,
 		adminLevel: (scopeLevel || (rawUser.is_superuser ? "system" : undefined)) as User["adminLevel"],
 		adminScopeId: scopeId,
 		adminScopeName: scopeName || (rawUser.is_superuser ? "System Scope" : undefined),

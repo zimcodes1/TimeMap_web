@@ -216,6 +216,7 @@ export interface TimetableEntry {
   programScope?: 'general' | 'program';
   targetProgramId?: string;
   targetProgramName?: string;
+  targetLevel?: number;
   academicSession?: string;
   academicSessionId?: string;
   recurrenceRule?: string;
@@ -231,10 +232,13 @@ export interface LectureSession {
   id: string;
   entryId: string;
   timetableEntryId?: string;
+  timetableEntryTitle?: string;
+  title?: string;
   entryType?: SessionType;
   courseCode: string;
   courseTitle: string;
   courseLevel?: number;
+  targetLevel?: number;
   courseType?: string;
   departmentId?: string | number;
   departmentName?: string;

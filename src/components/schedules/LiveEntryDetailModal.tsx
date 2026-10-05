@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ interface LiveEntryDetailModalProps {
 	date?: string;
 	canShift?: boolean;
 	onShiftClick?: () => void;
+	canCancel?: boolean;
+	onCancelClick?: () => void;
 }
 
 export function LiveEntryDetailModal({
@@ -40,12 +43,28 @@ export function LiveEntryDetailModal({
 	date,
 	canShift,
 	onShiftClick,
+	canCancel,
+	onCancelClick,
 }: LiveEntryDetailModalProps) {
+	const [confirmCancel, setConfirmCancel] = useState(false);
+
+	useEffect(() => {
+		if (isOpen) {
+			setConfirmCancel(false);
+		}
+	}, [isOpen]);
+
 	if (!entry && !session) return null;
+
+	const isEvent =
+		entry?.entryType === "event" ||
+		entry?.type === "event" ||
+		session?.entryType === "event";
 
 	// Extract unified attributes across entry and session
 	const courseCode = session?.courseCode || entry?.courseCode || "";
 	const courseTitle = session?.courseTitle || entry?.courseTitle || "";
+	const eventTitle = entry?.title || session?.timetableEntryTitle || courseTitle || "Academic Event";
 	const courseLevel = session?.courseLevel || entry?.courseLevel;
 	const courseType = session?.courseType || entry?.courseType || "";
 	const isPractical = (courseType || "").toLowerCase() === "practical";
@@ -122,16 +141,20 @@ export function LiveEntryDetailModal({
 				<div className="flex items-center gap-2.5">
 					<div
 						className={`p-2 rounded-xl flex items-center justify-center ${
-							hasHardConflicts
-								? "bg-red-500/10 text-red-400"
-								: hasConflicts
-									? "bg-amber-500/10 border border-amber-500/20 text-amber-300"
-									: calculatedIsPast
-										? "bg-surface-raised border border-border text-text-muted"
-										: "bg-emerald-500/20 border border-primary/10 text-primary"
+							isEvent
+								? "bg-purple-500/15 border border-purple-500/30 text-purple-400"
+								: hasHardConflicts
+									? "bg-red-500/10 text-red-400"
+									: hasConflicts
+										? "bg-amber-500/10 border border-amber-500/20 text-amber-300"
+										: calculatedIsPast
+											? "bg-surface-raised border border-border text-text-muted"
+											: "bg-emerald-500/20 border border-primary/10 text-primary"
 						}`}
 					>
-						{hasHardConflicts ? (
+						{isEvent ? (
+							<Building2 size={20} />
+						) : hasHardConflicts ? (
 							<ShieldAlert size={20} />
 						) : hasConflicts ? (
 							<AlertTriangle size={20} />
@@ -144,9 +167,17 @@ export function LiveEntryDetailModal({
 					<div>
 						<div className="flex items-center gap-2 flex-wrap">
 							<span className="text-base font-extrabold text-text-main">
-								{courseCode}
+								{isEvent ? eventTitle : courseCode}
 							</span>
-							{isPractical && (
+							{isEvent && (
+								<Badge
+									variant="secondary"
+									className="text-[10px] py-0 px-1.5 bg-purple-500/20 text-purple-300 border-purple-500/40"
+								>
+									Academic Event
+								</Badge>
+							)}
+							{!isEvent && isPractical && (
 								<Badge
 									variant="secondary"
 									className="text-[10px] py-0 px-1.5 bg-amber-500/5 text-amber-300 border-amber-500/30"
@@ -156,7 +187,7 @@ export function LiveEntryDetailModal({
 							)}
 							{courseLevel && (
 								<Badge variant="outline" className="text-[10px] py-0 px-1.5">
-									{courseLevel} Level
+									{courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : `${courseLevel} Level`}
 								</Badge>
 							)}
 							{calculatedIsPast && (
@@ -164,7 +195,7 @@ export function LiveEntryDetailModal({
 									variant="outline"
 									className="text-[10px] py-0 px-1.5 text-text-subtle border-border/80"
 								>
-									Past Lecture
+									Past {isEvent ? "Event" : "Lecture"}
 								</Badge>
 							)}
 							{isCancelled || isShifted ? (
@@ -207,24 +238,55 @@ export function LiveEntryDetailModal({
 							)}
 						</div>
 						<div className="text-xs text-text-muted font-normal mt-0.5 line-clamp-1">
-							{courseTitle}
+							{isEvent
+								? (entry?.targetProgramName ? `Target Cohort: ${entry.targetProgramName}` : "Target Audience: All Programs • General")
+								: courseTitle}
 						</div>
 					</div>
 				</div>
 			}
 			description={
-				calculatedIsPast
-					? "Past lecture schedule details and attendance reporting record."
-					: "Detailed live lecture schedule details and conflict diagnostics."
+				isEvent
+					? calculatedIsPast
+						? "Past academic event record and details."
+						: "Live academic event schedule details."
+					: calculatedIsPast
+						? "Past lecture schedule details and attendance reporting record."
+						: "Detailed live lecture schedule details and conflict diagnostics."
 			}
 			footer={
 				<div className="flex items-center justify-between w-full">
 					{calculatedIsPast ? (
 						<span className="text-[11px] text-text-subtle italic">
-							Past lectures cannot be shifted.
+							Past {isEvent ? "events" : "lectures"} cannot be shifted or cancelled.
 						</span>
+					) : confirmCancel ? (
+						<div className="flex items-center gap-2">
+							<span className="text-xs text-danger font-medium">
+								Confirm cancellation of this {isEvent ? "event" : "session"}?
+							</span>
+							<Button
+								variant="danger"
+								size="sm"
+								onClick={() => {
+									onClose();
+									onCancelClick?.();
+								}}
+								className="cursor-pointer text-xs"
+							>
+								Yes, Cancel
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setConfirmCancel(false)}
+								className="cursor-pointer text-xs"
+							>
+								Back
+							</Button>
+						</div>
 					) : (
-						<div>
+						<div className="flex items-center gap-2">
 							{isShiftAllowed && (
 								<Button
 									variant="primary"
@@ -239,16 +301,29 @@ export function LiveEntryDetailModal({
 									Shift / Reschedule
 								</Button>
 							)}
+							{canCancel !== false && Boolean(onCancelClick) && !isCancelled && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setConfirmCancel(true)}
+									className="cursor-pointer text-xs gap-1.5 text-danger border-danger/40 hover:bg-danger/10 hover:border-danger"
+								>
+									<Ban size={12} />
+									Cancel {isEvent ? "Event" : "Session"}
+								</Button>
+							)}
 						</div>
 					)}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onClose}
-						className="cursor-pointer text-xs"
-					>
-						Close
-					</Button>
+					{!confirmCancel && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onClose}
+							className="cursor-pointer text-xs"
+						>
+							Close
+						</Button>
+					)}
 				</div>
 			}
 		>
@@ -398,10 +473,10 @@ export function LiveEntryDetailModal({
 					</div>
 				)}
 
-				{/* Lecture Details Grid */}
+				{/* Lecture / Event Details Grid */}
 				<div className="space-y-2 pt-1">
 					<div className="text-xs font-bold uppercase tracking-wider text-text-muted">
-						Lecture Schedule Details
+						{isEvent ? "Event Schedule Details" : "Lecture Schedule Details"}
 					</div>
 
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -412,7 +487,7 @@ export function LiveEntryDetailModal({
 								<span>Time & Day</span>
 							</div>
 							<div className="font-bold text-text-main flex items-center gap-1.5">
-								<span>{dayOfWeek || "Weekly Lecture"}</span>
+								<span>{isEvent ? "Scheduled Event" : (dayOfWeek || "Weekly Lecture")}</span>
 								{dateStr && (
 									<span className="text-[10px] font-mono text-text-subtle">
 										({dateStr})
@@ -442,21 +517,39 @@ export function LiveEntryDetailModal({
 							</div>
 						</div>
 
-						{/* Lecturers */}
-						<div className="p-2.5 rounded-xl bg-surface-raised border border-border space-y-1">
-							<div className="flex items-center gap-1.5 text-text-muted text-[11px] font-medium">
-								<User size={13} className="text-primary" />
-								<span>Assigned Lecturer(s)</span>
+						{/* Lecturers / Event Scope */}
+						{isEvent ? (
+							<div className="p-2.5 rounded-xl bg-surface-raised border border-border space-y-1">
+								<div className="flex items-center gap-1.5 text-text-muted text-[11px] font-medium">
+									<Building2 size={13} className="text-purple-400" />
+									<span>Event Scope & Target</span>
+								</div>
+								<div className="font-bold text-text-main truncate">
+									{cohortName}
+								</div>
+								<div className="text-[11px] text-text-muted flex items-center gap-1">
+									<Users size={11} />
+									<span>
+										Level: {courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : courseLevel ? `${courseLevel}L` : "All Levels"}
+									</span>
+								</div>
 							</div>
-							<div className="font-bold text-text-main truncate">
-								{lecturersList.length > 0
-									? lecturersList.join(", ")
-									: "No Lecturer Assigned"}
+						) : (
+							<div className="p-2.5 rounded-xl bg-surface-raised border border-border space-y-1">
+								<div className="flex items-center gap-1.5 text-text-muted text-[11px] font-medium">
+									<User size={13} className="text-primary" />
+									<span>Assigned Lecturer(s)</span>
+								</div>
+								<div className="font-bold text-text-main truncate">
+									{lecturersList.length > 0
+										? lecturersList.join(", ")
+										: "No Lecturer Assigned"}
+								</div>
+								<div className="text-[11px] text-text-muted">
+									Staff allocation count: {lecturersList.length}
+								</div>
 							</div>
-							<div className="text-[11px] text-text-muted">
-								Staff allocation count: {lecturersList.length}
-							</div>
-						</div>
+						)}
 
 						{/* Cohort & Department */}
 						<div className="p-2.5 rounded-xl bg-surface-raised border border-border space-y-1">
@@ -470,7 +563,7 @@ export function LiveEntryDetailModal({
 							<div className="text-[11px] text-text-muted flex items-center gap-1">
 								<Users size={11} />
 								<span>
-									Level: {courseLevel ? `${courseLevel}L` : "All"}
+									Level: {courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : courseLevel ? `${courseLevel}L` : "All"}
 									{expectedStudents ? ` • ${expectedStudents} students` : ""}
 								</span>
 							</div>

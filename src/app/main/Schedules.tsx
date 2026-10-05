@@ -9,6 +9,7 @@ import {
 	getVenuesOptions,
 	createTimetableEntry,
 	updateLectureSessionAPI,
+	cancelLectureSessionAPI,
 	type CreateScheduleEntryPayload,
 } from "@/api/main/schedulesAPI";
 import { getPrograms } from "@/api/main/programsAPI";
@@ -50,6 +51,7 @@ import {
 import type { DepartmentOption } from "@/components/schedules/generator/DepartmentLoopBar";
 import SchedulesView from "@/pages/main/SchedulesView";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
+import { ScheduleEventModal } from "@/components/modals/ScheduleEventModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
 import { GenerateTimetableModal } from "@/components/schedules/GenerateTimetableModal";
@@ -79,6 +81,7 @@ export default function SchedulesContainer() {
 
 	// Modals state
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
+	const [isScheduleEventOpen, setIsScheduleEventOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
 
@@ -303,6 +306,17 @@ export default function SchedulesContainer() {
 		}
 	}, [departmentPrograms, selectedProgramId]);
 
+	// Ensure selectedLevel does not exceed active program's maxLevel
+	useEffect(() => {
+		const currentProgram = departmentPrograms.find(
+			(p) => String(p.id) === String(selectedProgramId),
+		);
+		const maxLvl = currentProgram?.maxLevel || 400;
+		if (selectedLevel > maxLvl) {
+			setSelectedLevel(100);
+		}
+	}, [selectedProgramId, departmentPrograms, selectedLevel]);
+
 	// Sync currentWeek with defaultCurrentWeek when semester is detected
 	useEffect(() => {
 		if (defaultCurrentWeek) {
@@ -385,7 +399,7 @@ export default function SchedulesContainer() {
 						? selectedProgramId
 						: undefined,
 				level: selectedLevel || undefined,
-				entry_type: "lecture",
+				entry_type: "lecture,event",
 			}),
 	});
 
@@ -418,7 +432,7 @@ export default function SchedulesContainer() {
 				level: selectedLevel || undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
-				entry_type: "lecture",
+				entry_type: "lecture,event",
 			}),
 	});
 
@@ -431,10 +445,13 @@ export default function SchedulesContainer() {
 		onSuccess: (result, variables) => {
 			if (result.outcome === "PROCEED") {
 				setIsScheduleEntryOpen(false);
+				setIsScheduleEventOpen(false);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 
-				if (variables.recurrence_rule) {
+				if (variables.entry_type === "event") {
+					toast.success(`Event "${variables.title || "Academic Event"}" scheduled successfully!`);
+				} else if (variables.recurrence_rule) {
 					const selCourse = coursesData.find(
 						(c) => String(c.id) === String(variables.course),
 					);
@@ -461,7 +478,8 @@ export default function SchedulesContainer() {
 				}
 			} else if (result.outcome === "ROUTE_APPROVAL") {
 				setIsScheduleEntryOpen(false);
-				if (variables.recurrence_rule) {
+				setIsScheduleEventOpen(false);
+				if (variables.entry_type !== "event" && variables.recurrence_rule) {
 					const selCourse = coursesData.find(
 						(c) => String(c.id) === String(variables.course),
 					);
@@ -493,6 +511,7 @@ export default function SchedulesContainer() {
 					setIsConflictModalOpen(true);
 				}
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 			} else if (result.outcome === "HARD_REJECT") {
 				setConflictOutcome("HARD_REJECT");
 				setConflictDetailMsg(result.detail);
@@ -514,32 +533,50 @@ export default function SchedulesContainer() {
 		},
 	});
 
-	// Mutation: Shift a single session instance
+	// Mutation: Shift / Reschedule a single session instance
 	const shiftSessionMutation = useMutation({
 		mutationFn: ({
 			id,
 			venue,
+			date,
 			startTime,
 			endTime,
 		}: {
 			id: string;
 			venue?: string;
+			date?: string;
 			startTime?: string;
 			endTime?: string;
 		}) =>
 			updateLectureSessionAPI(id, {
 				venue: venue ? Number(venue) : undefined,
+				session_date: date,
 				session_start_time: startTime,
 				session_end_time: endTime,
 				status: "shifted",
 			}),
 		onSuccess: () => {
-			toast.success("Session instance shifted successfully.");
+			toast.success("Session shifted / rescheduled successfully.");
 			setSelectedSessionForShift(null);
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to shift session.");
+		},
+	});
+
+	// Mutation: Cancel a single session instance
+	const cancelSessionMutation = useMutation({
+		mutationFn: ({ id, reason }: { id: string | number; reason?: string }) =>
+			cancelLectureSessionAPI(id, reason),
+		onSuccess: () => {
+			toast.success("Session cancelled successfully.");
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+		},
+		onError: (error: Error) => {
+			toast.error(error.message || "Failed to cancel session.");
 		},
 	});
 
@@ -625,6 +662,7 @@ export default function SchedulesContainer() {
 
 	const handleShiftSessionSubmit = (data: {
 		venueId: string;
+		date?: string;
 		startTime: string;
 		endTime: string;
 	}) => {
@@ -632,9 +670,14 @@ export default function SchedulesContainer() {
 		shiftSessionMutation.mutate({
 			id: selectedSessionForShift.id,
 			venue: data.venueId,
+			date: data.date,
 			startTime: data.startTime,
 			endTime: data.endTime,
 		});
+	};
+
+	const handleCancelSessionTrigger = (session: LectureSession) => {
+		cancelSessionMutation.mutate({ id: session.id });
 	};
 
 	const handleGenerationCompleted = (run: TimetableGenerationRun) => {
@@ -694,7 +737,9 @@ export default function SchedulesContainer() {
 				conflictReport={activeConflictReport}
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
+				onOpenScheduleEvent={() => setIsScheduleEventOpen(true)}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
+				onCancelSessionTrigger={handleCancelSessionTrigger}
 				onOpenGenerator={() => setIsGenerateModalOpen(true)}
 				onOpenHistory={() => setIsHistoryModalOpen(true)}
 				onOpenPermissions={() => setIsPermissionsModalOpen(true)}
@@ -756,6 +801,20 @@ export default function SchedulesContainer() {
 				userFacultyId={selectedFacultyId}
 				userSchoolId={userSchoolId}
 				isPending={createEntryMutation.isPending}
+			/>
+
+			<ScheduleEventModal
+				isOpen={isScheduleEventOpen}
+				onClose={() => setIsScheduleEventOpen(false)}
+				onSubmit={(payload) => createEntryMutation.mutate(payload)}
+				isPending={createEntryMutation.isPending}
+				venues={venuesData}
+				programs={programsData}
+				departments={departmentsData}
+				faculties={facultiesData}
+				defaultDepartmentId={selectedDepartmentId}
+				activeSemesterId={activeSemester?.id}
+				user={user}
 			/>
 
 			<ApproveRecurringScheduleModal
