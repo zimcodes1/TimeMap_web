@@ -56,6 +56,11 @@ import { GenerateTimetableModal } from "@/components/schedules/GenerateTimetable
 import { GenerationReportModal } from "@/components/schedules/GenerationReportModal";
 import { GenerationHistoryModal } from "@/components/schedules/GenerationHistoryModal";
 import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
+import {
+	ApproveRecurringScheduleModal,
+	type RecurringScheduleApprovalInfo,
+} from "@/components/modals/ApproveRecurringScheduleModal";
+import { approveDiscrepancyAPI } from "@/api/main/discrepanciesAPI";
 
 export default function SchedulesContainer() {
 	const navigate = useNavigate();
@@ -88,9 +93,19 @@ export default function SchedulesContainer() {
 	// Defaults when clicking a slot in the grid
 	const [scheduleEntryDefaults, setScheduleEntryDefaults] = useState<{
 		day?: string;
+		date?: string;
 		startTime?: string;
 		endTime?: string;
+		isSlotClick?: boolean;
 	}>({});
+
+	// Recurring pattern immediate approval modal state
+	const [isRecurringApprovalOpen, setIsRecurringApprovalOpen] = useState(false);
+	const [pendingApprovalInfo, setPendingApprovalInfo] =
+		useState<RecurringScheduleApprovalInfo | null>(null);
+	const [lastSubmittedEntryDetails, setLastSubmittedEntryDetails] =
+		useState<Record<string, any> | null>(null);
+	const [isApprovingRecurring, setIsApprovingRecurring] = useState(false);
 
 	// Conflict modal state
 	const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
@@ -413,18 +428,70 @@ export default function SchedulesContainer() {
 	const createEntryMutation = useMutation({
 		mutationFn: (payload: CreateScheduleEntryPayload) =>
 			createTimetableEntry(payload),
-		onSuccess: (result) => {
+		onSuccess: (result, variables) => {
 			if (result.outcome === "PROCEED") {
-				toast.success("Schedule entry created successfully!");
 				setIsScheduleEntryOpen(false);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+
+				if (variables.recurrence_rule) {
+					const selCourse = coursesData.find(
+						(c) => String(c.id) === String(variables.course),
+					);
+					const selVenue = venuesData.find(
+						(v) => String(v.id) === String(variables.venue),
+					);
+					setPendingApprovalInfo({
+						courseCode: selCourse?.code,
+						courseTitle: selCourse?.title,
+						venueName: selVenue?.name,
+						venueCapacity: selVenue?.capacity,
+						dayOfWeek:
+							lastSubmittedEntryDetails?.day_of_week ||
+							scheduleEntryDefaults.day,
+						startTime: variables.start_time,
+						endTime: variables.end_time,
+						semesterName: activeSemester?.displayName || activeSemester?.name,
+						lectureStartDate: activeSemester?.lectureStartDate,
+						lectureEndDate: activeSemester?.lectureEndDate,
+					});
+					setIsRecurringApprovalOpen(true);
+				} else {
+					toast.success("Schedule entry created successfully!");
+				}
 			} else if (result.outcome === "ROUTE_APPROVAL") {
 				setIsScheduleEntryOpen(false);
-				setConflictOutcome("ROUTE_APPROVAL");
-				setConflictDetailMsg(result.message);
-				setConflictsList([]);
-				setIsConflictModalOpen(true);
+				if (variables.recurrence_rule) {
+					const selCourse = coursesData.find(
+						(c) => String(c.id) === String(variables.course),
+					);
+					const selVenue = venuesData.find(
+						(v) => String(v.id) === String(variables.venue),
+					);
+					setPendingApprovalInfo({
+						discrepancyId: result.discrepancy_request_id
+							? String(result.discrepancy_request_id)
+							: undefined,
+						courseCode: selCourse?.code,
+						courseTitle: selCourse?.title,
+						venueName: selVenue?.name,
+						venueCapacity: selVenue?.capacity,
+						dayOfWeek:
+							lastSubmittedEntryDetails?.day_of_week ||
+							scheduleEntryDefaults.day,
+						startTime: variables.start_time,
+						endTime: variables.end_time,
+						semesterName: activeSemester?.displayName || activeSemester?.name,
+						lectureStartDate: activeSemester?.lectureStartDate,
+						lectureEndDate: activeSemester?.lectureEndDate,
+					});
+					setIsRecurringApprovalOpen(true);
+				} else {
+					setConflictOutcome("ROUTE_APPROVAL");
+					setConflictDetailMsg(result.message);
+					setConflictsList([]);
+					setIsConflictModalOpen(true);
+				}
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 			} else if (result.outcome === "HARD_REJECT") {
 				setConflictOutcome("HARD_REJECT");
@@ -500,29 +567,60 @@ export default function SchedulesContainer() {
 	const handleOpenScheduleEntry = (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
+		defaultDate?: string,
+		isSlotClick?: boolean,
 	) => {
 		setScheduleEntryDefaults({
 			day: defaultDay,
+			date: defaultDate,
 			startTime: defaultSlot?.start,
 			endTime: defaultSlot?.end,
+			isSlotClick: isSlotClick ?? Boolean(defaultSlot),
 		});
 		setIsScheduleEntryOpen(true);
 	};
 
 	const handleCreateScheduleEntrySubmit = (data: Record<string, any>) => {
+		setLastSubmittedEntryDetails(data);
 		createEntryMutation.mutate({
-			entry_type: (data.entryType as "lecture" | "exam" | "event") || "lecture",
+			entry_type: (data.entry_type || data.entryType || "lecture") as
+				"lecture" | "event",
 			title: data.title as string | undefined,
-			course: data.courseId as string,
-			venue: data.venueId as string,
-			start_time: data.startTime as string,
-			end_time: data.endTime as string,
-			recurrence_rule: data.recurrenceRule as string | undefined,
-			recurrence_start_date: data.startDate as string | undefined,
-			recurrence_end_date: data.endDate as string | undefined,
-			semester: data.semesterId as string | undefined,
-			program: data.targetProgramId as string | undefined,
+			course: data.course || data.courseId,
+			venue: (data.venue || data.venueId) as string,
+			start_time: (data.start_time || data.startTime) as string,
+			end_time: (data.end_time || data.endTime) as string,
+			recurrence_rule: data.recurrence_rule || data.recurrenceRule,
+			recurrence_start_date: data.recurrence_start_date || data.startDate,
+			recurrence_end_date: data.recurrence_end_date || data.endDate,
+			semester: (data.semester || data.semesterId || activeSemester?.id) as
+				string | undefined,
 		});
+	};
+
+	const handleApproveRecurring = async () => {
+		setIsApprovingRecurring(true);
+		try {
+			if (pendingApprovalInfo?.discrepancyId) {
+				await approveDiscrepancyAPI(pendingApprovalInfo.discrepancyId);
+			}
+			toast.success(
+				"Recurring schedule approved and applied across the timetable!",
+			);
+			setIsRecurringApprovalOpen(false);
+			setPendingApprovalInfo(null);
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["discrepancies"] });
+		} catch (err: any) {
+			const msg =
+				err?.response?.data?.detail ||
+				err?.message ||
+				"Failed to approve recurring schedule.";
+			toast.error(msg);
+		} finally {
+			setIsApprovingRecurring(false);
+		}
 	};
 
 	const handleShiftSessionSubmit = (data: {
@@ -648,11 +746,27 @@ export default function SchedulesContainer() {
 				onSubmit={handleCreateScheduleEntrySubmit}
 				courses={coursesData}
 				venues={venuesData}
-				semesters={semestersData}
-				programs={programsData}
+				activeSemester={activeSemester}
 				defaultDay={scheduleEntryDefaults.day}
+				defaultDate={scheduleEntryDefaults.date}
 				defaultStartTime={scheduleEntryDefaults.startTime}
 				defaultEndTime={scheduleEntryDefaults.endTime}
+				isSlotClick={scheduleEntryDefaults.isSlotClick}
+				userDepartmentId={selectedDepartmentId}
+				userFacultyId={selectedFacultyId}
+				userSchoolId={userSchoolId}
+				isPending={createEntryMutation.isPending}
+			/>
+
+			<ApproveRecurringScheduleModal
+				isOpen={isRecurringApprovalOpen}
+				onClose={() => {
+					setIsRecurringApprovalOpen(false);
+					setPendingApprovalInfo(null);
+				}}
+				onApprove={handleApproveRecurring}
+				info={pendingApprovalInfo}
+				isPending={isApprovingRecurring}
 			/>
 
 			<SessionShiftModal

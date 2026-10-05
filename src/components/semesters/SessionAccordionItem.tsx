@@ -6,7 +6,6 @@ import {
 	Edit2,
 	Trash2,
 	CheckCircle,
-	Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,17 +175,6 @@ export function SessionAccordionItem({
 									({semesters.length})
 								</span>
 							</div>
-
-							{canManage && semesters.length > 0 && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => onOpenCreateSemester(session.id)}
-									className="h-7 px-2 text-xs text-primary hover:bg-primary/10 border-primary/30 cursor-pointer"
-								>
-									<Plus size={12} className="mr-1" /> Add Semester
-								</Button>
-							)}
 						</div>
 
 						{semesters.length === 0 ? (

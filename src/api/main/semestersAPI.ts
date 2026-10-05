@@ -7,7 +7,7 @@ export interface RawSemester {
   session_label?: string;
   school_id?: number | string;
   school_name?: string;
-  name: 'first' | 'second';
+  name: 'first' | 'second' | 'third' | 'fourth' | string;
   display_name?: string;
   start_date: string;
   end_date: string;
@@ -31,6 +31,7 @@ export interface RawAcademicSession {
   label: string;
   start_date: string;
   end_date: string;
+  max_semesters?: number;
   is_current: boolean;
   semesters?: RawSemester[];
   created_at?: string;
@@ -68,6 +69,7 @@ export function mapRawAcademicSession(raw: RawAcademicSession): AcademicSession 
     label: raw.label,
     startDate: raw.start_date,
     endDate: raw.end_date,
+    maxSemesters: raw.max_semesters ?? 2,
     isCurrent: Boolean(raw.is_current),
     semesters: raw.semesters ? raw.semesters.map(mapRawSemester) : [],
     createdAt: raw.created_at,
@@ -87,6 +89,7 @@ export async function createAcademicSession(data: {
   label: string;
   start_date: string;
   end_date: string;
+  max_semesters?: number;
   is_current?: boolean;
 }): Promise<AcademicSession> {
   const response = await apiClient.post<RawAcademicSession>("/scheduling/academic-sessions/", data);
@@ -99,6 +102,7 @@ export async function updateAcademicSession(
     label: string;
     start_date: string;
     end_date: string;
+    max_semesters: number;
     is_current: boolean;
   }>
 ): Promise<AcademicSession> {
@@ -126,7 +130,7 @@ export async function getSemesters(params?: {
 
 export async function createSemester(data: {
   session: string | number;
-  name: 'first' | 'second';
+  name: 'first' | 'second' | 'third' | 'fourth' | string;
   start_date: string;
   end_date: string;
   duration_type?: 'weeks' | 'months' | 'fixed';
@@ -144,7 +148,7 @@ export async function createSemester(data: {
 export async function updateSemester(
   id: string | number,
   data: Partial<{
-    name: 'first' | 'second';
+    name: 'first' | 'second' | 'third' | 'fourth' | string;
     start_date: string;
     end_date: string;
     duration_type: 'weeks' | 'months' | 'fixed';

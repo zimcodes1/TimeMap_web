@@ -13,7 +13,7 @@ interface EditSemesterModalProps {
 	onSubmit: (
 		id: string,
 		data: {
-			name: "first" | "second";
+			name: "first" | "second" | "third" | "fourth" | string;
 			start_date: string;
 			end_date: string;
 			duration_type?: "weeks" | "months" | "fixed";
@@ -36,7 +36,7 @@ export default function EditSemesterModal({
 	semester,
 	isPending = false,
 }: EditSemesterModalProps) {
-	const [name, setName] = useState<"first" | "second">("first");
+	const [name, setName] = useState<string>("first");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [durationType, setDurationType] = useState<
@@ -174,10 +174,12 @@ export default function EditSemesterModal({
 					</Text>
 					<Select
 						value={name}
-						onChange={(e) => setName(e.target.value as "first" | "second")}
+						onChange={(e) => setName(e.target.value)}
 						options={[
 							{ value: "first", label: "First Semester" },
 							{ value: "second", label: "Second Semester" },
+							{ value: "third", label: "Third Semester" },
+							{ value: "fourth", label: "Fourth Semester" },
 						]}
 					/>
 				</div>

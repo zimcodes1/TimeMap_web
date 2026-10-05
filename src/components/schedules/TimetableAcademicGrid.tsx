@@ -25,6 +25,7 @@ export interface TimeSlot {
 	end: string;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const TIME_SLOTS: TimeSlot[] = [
 	{ id: "slot-1", label: "08:00 - 10:00", start: "08:00:00", end: "10:00:00" },
 	{ id: "slot-2", label: "10:00 - 12:00", start: "10:00:00", end: "12:00:00" },
@@ -46,7 +47,11 @@ interface TimetableAcademicGridProps {
 	searchQuery?: string;
 	conflictReport?: GenerationConflictReport;
 	weekDayDates?: WeekDayInfo[];
-	onOpenCreateEntry?: (defaultDay?: string, defaultSlot?: TimeSlot) => void;
+	onOpenCreateEntry?: (
+		defaultDay?: string,
+		defaultSlot?: TimeSlot,
+		defaultDate?: string,
+	) => void;
 	onSelectEntry?: (
 		entry: TimetableEntry,
 		conflicts: AssociatedConflict[],
@@ -57,7 +62,6 @@ interface TimetableAcademicGridProps {
 export function TimetableAcademicGrid({
 	entries,
 	sessions = [],
-	selectedDepartmentId,
 	selectedProgramId,
 	selectedLevel,
 	searchQuery = "",
@@ -124,13 +128,7 @@ export function TimetableAcademicGrid({
 
 			return true;
 		});
-	}, [
-		entries,
-		selectedDepartmentId,
-		selectedProgramId,
-		selectedLevel,
-		searchQuery,
-	]);
+	}, [entries, selectedProgramId, selectedLevel, searchQuery]);
 
 	// Helper to test if entry overlaps a 2-hour slot
 	const isOverlapping = (
@@ -186,7 +184,7 @@ export function TimetableAcademicGrid({
 		<div className="space-y-4">
 			{/* Timetable Academic Matrix Table */}
 			<div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-xs scrollbar-thin">
-				<table className="w-full border-collapse text-left min-w-[960px]">
+				<table className="w-full border-collapse text-left min-w-240">
 					<thead>
 						<tr className="border-b border-border bg-surface-raised/60">
 							<th className="p-3.5 text-xs font-bold uppercase tracking-wider text-text-muted w-44 border-r border-border">
@@ -195,7 +193,7 @@ export function TimetableAcademicGrid({
 							{TIME_SLOTS.map((slot) => (
 								<th
 									key={slot.id}
-									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-[165px]"
+									className="p-3.5 text-xs font-bold text-center text-text-main border-r border-border last:border-r-0 min-w-41.25"
 								>
 									<div className="font-extrabold text-xs">{slot.label}</div>
 								</th>
@@ -235,7 +233,12 @@ export function TimetableAcademicGrid({
 											: [];
 
 										const sessionsInSlot = sessionsOnDate.filter((s) =>
-											isOverlapping(s.startTime, s.endTime, slot.start, slot.end),
+											isOverlapping(
+												s.startTime,
+												s.endTime,
+												slot.start,
+												slot.end,
+											),
 										);
 
 										// 2. Base entries scheduled for this day of the week in this slot
@@ -297,7 +300,8 @@ export function TimetableAcademicGrid({
 													e.id === s.entryId || e.id === s.timetableEntryId,
 											);
 											const entry = matchingEntry || {
-												id: s.entryId || s.timetableEntryId || `session-${s.id}`,
+												id:
+													s.entryId || s.timetableEntryId || `session-${s.id}`,
 												entryType: s.entryType || "lecture",
 												title: s.courseTitle,
 												type: s.entryType || "lecture",
@@ -314,6 +318,7 @@ export function TimetableAcademicGrid({
 												venueId: s.venueId,
 												venueName: s.venueName,
 												venueCapacity: s.venueCapacity,
+												// eslint-disable-next-line @typescript-eslint/no-explicit-any
 												dayOfWeek: dayName as any,
 												startTime: s.startTime,
 												endTime: s.endTime,
@@ -348,207 +353,209 @@ export function TimetableAcademicGrid({
 										return (
 											<td
 												key={slot.id}
-												className="p-2 border-r border-border last:border-r-0 align-top min-h-[7rem] h-28"
+												className="p-2 border-r border-border last:border-r-0 align-top min-h-28 h-28"
 											>
 												{hasAnyContent ? (
 													<div className="space-y-1.5 h-full">
 														{/* Active items in this slot */}
-														{activeSlotItems.map(({ key, entry, session: matchingSession }) => {
-															const matchingEntriesForConflicts =
-																activeSlotItems.map((item) => item.entry);
-															const conflicts = resolveLiveEntryConflicts(
-																entry,
-																displayedEntries,
-																conflictReport,
-																matchingEntriesForConflicts,
-															);
-															const hasHard = conflicts.some(
-																(c) => c.severity === "hard",
-															);
-															const hasSoft = conflicts.some(
-																(c) => c.severity === "soft",
-															);
-															const isPractical =
-																(entry.courseType || "").toLowerCase() ===
-																"practical";
+														{activeSlotItems.map(
+															({ key, entry, session: matchingSession }) => {
+																const matchingEntriesForConflicts =
+																	activeSlotItems.map((item) => item.entry);
+																const conflicts = resolveLiveEntryConflicts(
+																	entry,
+																	displayedEntries,
+																	conflictReport,
+																	matchingEntriesForConflicts,
+																);
+																const hasHard = conflicts.some(
+																	(c) => c.severity === "hard",
+																);
+																const hasSoft = conflicts.some(
+																	(c) => c.severity === "soft",
+																);
+																const isPractical =
+																	(entry.courseType || "").toLowerCase() ===
+																	"practical";
 
-															const isShifted =
-																matchingSession?.status === "shifted";
+																const isShifted =
+																	matchingSession?.status === "shifted";
 
-															// Session date & time for past calculation
-															const sessionDate =
-																matchingSession?.date || dateStr;
-															const sessionEndTime =
-																matchingSession?.endTime || entry.endTime;
-															const isPastLecture =
-																Boolean(sessionDate) &&
-																(sessionDate < todayDateStr ||
-																	(sessionDate === todayDateStr &&
-																		Boolean(
-																			sessionEndTime &&
+																// Session date & time for past calculation
+																const sessionDate =
+																	matchingSession?.date || dateStr;
+																const sessionEndTime =
+																	matchingSession?.endTime || entry.endTime;
+																const isPastLecture =
+																	Boolean(sessionDate) &&
+																	(sessionDate < todayDateStr ||
+																		(sessionDate === todayDateStr &&
+																			Boolean(
+																				sessionEndTime &&
 																				sessionEndTime < currentTimeStr,
-																		)));
+																			)));
 
-															return (
-																<div
-																	key={key}
-																	onClick={() =>
-																		handleCardClick(
-																			entry,
-																			conflicts,
-																			isPastLecture,
-																			dateStr,
-																			matchingSession,
-																		)
-																	}
-																	className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
-																		hasHard
-																			? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
-																			: hasSoft
-																				? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
-																				: isShifted
-																					? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
-																					: isPastLecture
-																						? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
-																						: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
-																	}`}
-																	title={
-																		isShifted
-																			? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
-																			: isPastLecture
-																				? "Past lecture session (cannot be shifted). Click to view details."
-																				: hasHard
-																					? "Hard timetable conflict! Click to inspect diagnostics."
-																					: hasSoft
-																						? "Capacity or soft notice. Click to inspect details."
-																						: "Optimal schedule. Click to inspect details."
-																	}
-																>
-																	<div className="flex items-center justify-between gap-1">
-																		<div className="flex items-center gap-1.5 min-w-0">
-																			<span
-																				className={`font-extrabold tracking-tight truncate ${
-																					hasHard
-																						? "text-red-400"
-																						: hasSoft
-																							? "text-amber-400"
-																							: isShifted
-																								? "text-amber-300"
-																								: isPastLecture
-																									? "text-text-muted"
-																									: "text-primary"
-																				}`}
-																			>
-																				{entry.courseCode}
-																			</span>
-																			{isShifted && (
-																				<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-																					Shifted
-																				</span>
-																			)}
-																			{isPastLecture && (
-																				<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-surface-raised text-text-subtle border border-border/60">
-																					Past
-																				</span>
-																			)}
-																		</div>
-																		{hasHard ? (
-																			<ShieldAlert
-																				size={13}
-																				className="text-red-400 shrink-0"
-																			/>
-																		) : hasSoft ? (
-																			<AlertTriangle
-																				size={13}
-																				className="text-amber-400 shrink-0"
-																			/>
-																		) : null}
-																	</div>
-
+																return (
 																	<div
-																		className="text-[11px] font-medium text-text-main truncate"
-																		title={entry.courseTitle}
+																		key={key}
+																		onClick={() =>
+																			handleCardClick(
+																				entry,
+																				conflicts,
+																				isPastLecture,
+																				dateStr,
+																				matchingSession,
+																			)
+																		}
+																		className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
+																			hasHard
+																				? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
+																				: hasSoft
+																					? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
+																					: isShifted
+																						? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
+																						: isPastLecture
+																							? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
+																							: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																		}`}
+																		title={
+																			isShifted
+																				? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
+																				: isPastLecture
+																					? "Past lecture session (cannot be shifted). Click to view details."
+																					: hasHard
+																						? "Hard timetable conflict! Click to inspect diagnostics."
+																						: hasSoft
+																							? "Capacity or soft notice. Click to inspect details."
+																							: "Optimal schedule. Click to inspect details."
+																		}
 																	>
-																		{entry.courseTitle}
-																	</div>
-
-																	<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
-																		<MapPin
-																			size={10}
-																			className={`shrink-0 ${isShifted ? "text-amber-400" : "text-text-subtle"}`}
-																		/>
-																		<span
-																			className={`truncate ${isShifted ? "text-amber-300 font-medium" : ""}`}
-																		>
-																			{matchingSession?.venueName ||
-																				entry.venueName}
-																		</span>
-																	</div>
-
-																	{matchingSession &&
-																		(isShifted ||
-																			(matchingSession.startTime &&
-																				matchingSession.startTime !==
-																					entry.startTime)) && (
-																			<div className="flex items-center gap-1 text-[10px] text-amber-400 font-medium truncate">
-																				<Clock
-																					size={10}
-																					className="shrink-0"
+																		<div className="flex items-center justify-between gap-1">
+																			<div className="flex items-center gap-1.5 min-w-0">
+																				<span
+																					className={`font-extrabold tracking-tight truncate ${
+																						hasHard
+																							? "text-red-400"
+																							: hasSoft
+																								? "text-amber-400"
+																								: isShifted
+																									? "text-amber-300"
+																									: isPastLecture
+																										? "text-text-muted"
+																										: "text-primary"
+																					}`}
+																				>
+																					{entry.courseCode}
+																				</span>
+																				{isShifted && (
+																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+																						Shifted
+																					</span>
+																				)}
+																				{isPastLecture && (
+																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-surface-raised text-text-subtle border border-border/60">
+																						Past
+																					</span>
+																				)}
+																			</div>
+																			{hasHard ? (
+																				<ShieldAlert
+																					size={13}
+																					className="text-red-400 shrink-0"
 																				/>
-																				<span>
-																					{matchingSession.startTime.slice(
-																						0,
-																						5,
-																					)}{" "}
-																					-{" "}
-																					{matchingSession.endTime.slice(
-																						0,
-																						5,
-																					)}
+																			) : hasSoft ? (
+																				<AlertTriangle
+																					size={13}
+																					className="text-amber-400 shrink-0"
+																				/>
+																			) : null}
+																		</div>
+
+																		<div
+																			className="text-[11px] font-medium text-text-main truncate"
+																			title={entry.courseTitle}
+																		>
+																			{entry.courseTitle}
+																		</div>
+
+																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																			<MapPin
+																				size={10}
+																				className={`shrink-0 ${isShifted ? "text-amber-400" : "text-text-subtle"}`}
+																			/>
+																			<span
+																				className={`truncate ${isShifted ? "text-amber-300 font-medium" : ""}`}
+																			>
+																				{matchingSession?.venueName ||
+																					entry.venueName}
+																			</span>
+																		</div>
+
+																		{matchingSession &&
+																			(isShifted ||
+																				(matchingSession.startTime &&
+																					matchingSession.startTime !==
+																						entry.startTime)) && (
+																				<div className="flex items-center gap-1 text-[10px] text-amber-400 font-medium truncate">
+																					<Clock
+																						size={10}
+																						className="shrink-0"
+																					/>
+																					<span>
+																						{matchingSession.startTime.slice(
+																							0,
+																							5,
+																						)}{" "}
+																						-{" "}
+																						{matchingSession.endTime.slice(
+																							0,
+																							5,
+																						)}
+																					</span>
+																				</div>
+																			)}
+
+																		{(matchingSession?.lecturerName ||
+																			entry.lecturerName) && (
+																			<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																				<User
+																					size={10}
+																					className="shrink-0 text-text-subtle"
+																				/>
+																				<span className="truncate">
+																					{matchingSession?.lecturerName ||
+																						entry.lecturerName}
 																				</span>
 																			</div>
 																		)}
 
-																	{(matchingSession?.lecturerName ||
-																		entry.lecturerName) && (
-																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
-																			<User
-																				size={10}
-																				className="shrink-0 text-text-subtle"
-																			/>
-																			<span className="truncate">
-																				{matchingSession?.lecturerName ||
-																					entry.lecturerName}
-																			</span>
+																		<div className="flex items-center gap-1 pt-0.5">
+																			{entry.courseLevel && (
+																				<span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-surface-raised border border-border text-text-muted">
+																					{entry.courseLevel}L
+																				</span>
+																			)}
+																			{isPractical && (
+																				<Badge
+																					variant="secondary"
+																					className="text-[9px] py-0 px-1 bg-amber-500/5 text-amber-300 border-amber-500/30"
+																				>
+																					Lab
+																				</Badge>
+																			)}
+																			{entry.targetProgramName && (
+																				<Badge
+																					variant="primary"
+																					className="text-[9px] py-0 px-1 truncate max-w-27.5"
+																				>
+																					{entry.targetProgramName}
+																				</Badge>
+																			)}
 																		</div>
-																	)}
-
-																	<div className="flex items-center gap-1 pt-0.5">
-																		{entry.courseLevel && (
-																			<span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-surface-raised border border-border text-text-muted">
-																				{entry.courseLevel}L
-																			</span>
-																		)}
-																		{isPractical && (
-																			<Badge
-																				variant="secondary"
-																				className="text-[9px] py-0 px-1 bg-amber-500/5 text-amber-300 border-amber-500/30"
-																			>
-																				Lab
-																			</Badge>
-																		)}
-																		{entry.targetProgramName && (
-																			<Badge
-																				variant="primary"
-																				className="text-[9px] py-0 px-1 truncate max-w-[110px]"
-																			>
-																				{entry.targetProgramName}
-																			</Badge>
-																		)}
 																	</div>
-																</div>
-															);
-														})}
+																);
+															},
+														)}
 
 														{/* Vacated notices for entries shifted to another slot */}
 														{entriesShiftedAwayFromSlot.map(
@@ -590,7 +597,7 @@ export function TimetableAcademicGrid({
 														)}
 													</div>
 												) : isFridayJummat ? (
-													<div className="h-full min-h-[5rem] rounded-xl border border-dashed border-border/60 bg-surface-raised/20 flex flex-col items-center justify-center p-2 text-center">
+													<div className="h-full min-h-20 rounded-xl border border-dashed border-border/60 bg-surface-raised/20 flex flex-col items-center justify-center p-2 text-center">
 														<Clock
 															size={13}
 															className="text-text-muted mb-0.5"
@@ -605,8 +612,8 @@ export function TimetableAcademicGrid({
 												) : (
 													<button
 														type="button"
-														onClick={() => onOpenCreateEntry?.(dayName, slot)}
-														className="w-full h-full min-h-[5rem] rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
+														onClick={() => onOpenCreateEntry?.(dayName, slot, dateStr)}
+														className="w-full h-full min-h-20 rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
 														title={`Schedule entry for ${dayName} ${slot.label}`}
 													>
 														<Plus

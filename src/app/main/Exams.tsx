@@ -612,8 +612,7 @@ export default function ExamsContainer() {
 				onSubmit={handleCreateScheduleEntrySubmit}
 				courses={coursesData}
 				venues={venuesData}
-				semesters={semestersData}
-				programs={programsData}
+				activeSemester={activeSemester}
 				defaultEntryType="exam"
 				defaultDay={scheduleEntryDefaults.day}
 				defaultDate={scheduleEntryDefaults.date}

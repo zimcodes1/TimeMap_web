@@ -315,6 +315,7 @@ export default function SemestersContainer() {
 				}}
 				onSubmit={(data) => createSemesterMutation.mutate(data)}
 				sessions={sessions}
+				existingSemesters={semesters}
 				defaultSessionId={selectedSessionIdForSemester}
 				isPending={createSemesterMutation.isPending}
 			/>

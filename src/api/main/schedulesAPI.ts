@@ -12,7 +12,7 @@ import { AxiosError } from "axios";
 export interface CreateScheduleEntryPayload {
   entry_type?: "lecture" | "exam" | "event";
   title?: string;
-  course: string | number;
+  course?: string | number;
   venue: string | number;
   start_time: string;
   end_time: string;
@@ -464,6 +464,10 @@ export async function getVenuesOptions(): Promise<Venue[]> {
       capacity: Number(v.capacity || 0),
       examCapacity: Number(v.exam_capacity || 0),
       owningLevel: (v.owning_level as Venue["owningLevel"]) || "department",
+      owningDepartmentId: v.owning_department ? String(v.owning_department) : undefined,
+      owningDepartmentName: v.owning_department_name ? String(v.owning_department_name) : undefined,
+      owningFacultyId: v.owning_faculty ? String(v.owning_faculty) : undefined,
+      owningSchoolId: v.owning_school ? String(v.owning_school) : undefined,
       facilities: [],
       isAvailable: Boolean(v.is_active ?? true),
     }));

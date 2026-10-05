@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { toast } from "sonner";
 import type { AcademicSession } from "@/types";
@@ -16,6 +17,7 @@ interface EditAcademicSessionModalProps {
 			label: string;
 			start_date: string;
 			end_date: string;
+			max_semesters: number;
 			is_current: boolean;
 		},
 	) => void;
@@ -32,6 +34,7 @@ export default function EditAcademicSessionModal({
 	const [label, setLabel] = useState("");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
+	const [maxSemesters, setMaxSemesters] = useState(2);
 	const [isCurrent, setIsCurrent] = useState(false);
 
 	useEffect(() => {
@@ -39,6 +42,7 @@ export default function EditAcademicSessionModal({
 			setLabel(session.label || "");
 			setStartDate(session.startDate || "");
 			setEndDate(session.endDate || "");
+			setMaxSemesters(session.maxSemesters || 2);
 			setIsCurrent(Boolean(session.isCurrent));
 		}
 	}, [session]);
@@ -62,10 +66,18 @@ export default function EditAcademicSessionModal({
 			return;
 		}
 
+		if (session.semesters && session.semesters.length > maxSemesters) {
+			toast.error(
+				`Cannot set max semesters to ${maxSemesters} because this session already contains ${session.semesters.length} semesters.`,
+			);
+			return;
+		}
+
 		onSubmit(session.id, {
 			label: label.trim(),
 			start_date: startDate,
 			end_date: endDate,
+			max_semesters: maxSemesters,
 			is_current: isCurrent,
 		});
 	};
@@ -75,7 +87,7 @@ export default function EditAcademicSessionModal({
 			isOpen={isOpen}
 			onClose={onClose}
 			title="Edit Academic Session"
-			description="Update academic session dates and status."
+			description="Update academic session dates, semester capacity, and status."
 			footer={
 				<>
 					<Button
@@ -133,6 +145,25 @@ export default function EditAcademicSessionModal({
 							required
 						/>
 					</div>
+				</div>
+
+				<div>
+					<Text variant="caption" className="font-semibold mb-1 block">
+						Semesters in this Session
+					</Text>
+					<Select
+						value={String(maxSemesters)}
+						onChange={(e) => setMaxSemesters(Number(e.target.value))}
+						options={[
+							{ value: "1", label: "1 Semester" },
+							{ value: "2", label: "2 Semesters (Standard: First & Second)" },
+							{ value: "3", label: "3 Semesters (Trimester: First, Second & Third)" },
+							{ value: "4", label: "4 Semesters (Quarter System)" },
+						]}
+					/>
+					<Text variant="caption" color="muted" className="mt-1 block">
+						Controls the allowed semester names (First, Second, Third...) and total capacity.
+					</Text>
 				</div>
 
 				<div className="flex items-center gap-2 pt-1">

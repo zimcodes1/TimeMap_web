@@ -80,6 +80,7 @@ export interface AcademicSession {
   label: string;
   startDate: string;
   endDate: string;
+  maxSemesters?: number;
   isCurrent: boolean;
   semesters?: Semester[];
   createdAt?: string;
@@ -91,7 +92,7 @@ export interface Semester {
   sessionLabel?: string;
   schoolId?: string;
   schoolName?: string;
-  name: 'first' | 'second';
+  name: 'first' | 'second' | 'third' | 'fourth' | string;
   displayName?: string;
   startDate: string;
   endDate: string;
@@ -126,6 +127,8 @@ export interface Venue {
   owningLevel: AdminLevel;
   owningDepartmentId?: string;
   owningDepartmentName?: string;
+  owningFacultyId?: string;
+  owningSchoolId?: string;
   facilities: Facility[];
   isAvailable: boolean;
 }

@@ -143,10 +143,16 @@ export interface VenueAvailabilityResponse {
 
 export const getVenueAvailabilityAPI = async (
   venueId: string,
-  date?: string
+  options?: string | { date?: string; weekday?: string }
 ): Promise<VenueAvailabilityResponse> => {
   try {
-    const params = date ? { date } : {};
+    const params: Record<string, string> = {};
+    if (typeof options === "string") {
+      params.date = options;
+    } else if (options) {
+      if (options.date) params.date = options.date;
+      if (options.weekday) params.weekday = options.weekday;
+    }
     const response = await apiClient.get<VenueAvailabilityResponse>(
       `/venues/venues/${venueId}/availability/`,
       { params }
@@ -157,14 +163,16 @@ export const getVenueAvailabilityAPI = async (
     return {
       venue_id: venueId,
       venue_name: "Selected Venue",
-      date: date || new Date().toISOString().split("T")[0],
-      operating_hours: "8:00 AM - 6:00 PM",
-      available_time_ranges: "Available time: 8:00 AM - 10:00 AM, 12:00 PM - 6:00 PM",
+      date: typeof options === "string" ? options : options?.date || new Date().toISOString().split("T")[0],
+      operating_hours: "8:00 AM - 6:00 PM (Mon-Fri)",
+      available_time_ranges: "Available standard slots",
       slots: [
         { start: "08:00:00", end: "10:00:00", label: "8:00 AM - 10:00 AM" },
-        { start: "12:00:00", end: "18:00:00", label: "12:00 PM - 6:00 PM" },
+        { start: "10:00:00", end: "12:00:00", label: "10:00 AM - 12:00 PM" },
+        { start: "14:00:00", end: "16:00:00", label: "2:00 PM - 4:00 PM" },
+        { start: "16:00:00", end: "18:00:00", label: "4:00 PM - 6:00 PM" },
       ],
-      booked_slots: [{ start: "10:00:00", end: "12:00:00" }],
+      booked_slots: [],
     };
   }
 };

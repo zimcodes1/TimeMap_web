@@ -73,6 +73,8 @@ interface SchedulesViewProps {
 	onOpenScheduleEntry: (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
+		defaultDate?: string,
+		isSlotClick?: boolean,
 	) => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
 	onOpenPermissions?: () => void;
@@ -343,12 +345,14 @@ export default function SchedulesView({
 								conflictReport={conflictReport}
 								weekDayDates={weekDayDates}
 								onShiftSessionTrigger={onShiftSessionTrigger}
-								onOpenCreateEntry={(defaultDay, defaultSlot) =>
+								onOpenCreateEntry={(defaultDay, defaultSlot, defaultDate) =>
 									onOpenScheduleEntry(
 										defaultDay,
 										defaultSlot
 											? { start: defaultSlot.start, end: defaultSlot.end }
 											: undefined,
+										defaultDate,
+										true,
 									)
 								}
 							/>

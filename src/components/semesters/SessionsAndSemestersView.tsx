@@ -168,11 +168,6 @@ export function SessionsAndSemestersView({
 							<Text variant="body" weight="bold" className="text-text-main">
 								{currentSession ? currentSession.label : "None Active"}
 							</Text>
-							{currentSession && (
-								<div className="text-[11px] text-text-subtle mt-0.5">
-									{currentSession.startDate} &rarr; {currentSession.endDate}
-								</div>
-							)}
 						</div>
 					</div>
 					{currentSession ? (
@@ -207,12 +202,6 @@ export function SessionsAndSemestersView({
 											: "Second Semester")
 									: "No Active Semester"}
 							</Text>
-							{activeSemester && (
-								<div className="text-[11px] text-text-subtle mt-0.5">
-									{activeSemester.sessionLabel || "Session"} &bull;{" "}
-									{activeSemester.startDate} &rarr; {activeSemester.endDate}
-								</div>
-							)}
 						</div>
 					</div>
 					{activeSemester ? (
@@ -245,9 +234,6 @@ export function SessionsAndSemestersView({
 								{semesters.length}{" "}
 								{semesters.length === 1 ? "Semester" : "Semesters"}
 							</Text>
-							<div className="text-[11px] text-text-subtle mt-0.5">
-								Click any session to view its semesters
-							</div>
 						</div>
 					</div>
 					<Badge variant="secondary" className="text-xs">
@@ -286,21 +272,12 @@ export function SessionsAndSemestersView({
 					{canManage && (
 						<>
 							<Button
-								variant="outline"
+								variant="primary"
 								size="sm"
 								onClick={onOpenCreateSession}
 								className="cursor-pointer"
 							>
 								<Plus size={15} className="mr-1" /> Add Session
-							</Button>
-							<Button
-								variant="primary"
-								size="sm"
-								onClick={() => onOpenCreateSemester()}
-								disabled={sessions.length === 0}
-								className="cursor-pointer"
-							>
-								<Plus size={15} className="mr-1" /> Add Semester
 							</Button>
 						</>
 					)}
