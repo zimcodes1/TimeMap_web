@@ -306,16 +306,22 @@ export default function SchedulesContainer() {
 		}
 	}, [departmentPrograms, selectedProgramId]);
 
+	// Active degree program object
+	const activeProgram = useMemo(() => {
+		return (
+			departmentPrograms.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			) || departmentPrograms[0]
+		);
+	}, [departmentPrograms, selectedProgramId]);
+
 	// Ensure selectedLevel does not exceed active program's maxLevel
 	useEffect(() => {
-		const currentProgram = departmentPrograms.find(
-			(p) => String(p.id) === String(selectedProgramId),
-		);
-		const maxLvl = currentProgram?.maxLevel || 400;
+		const maxLvl = activeProgram?.maxLevel || 400;
 		if (selectedLevel > maxLvl) {
 			setSelectedLevel(100);
 		}
-	}, [selectedProgramId, departmentPrograms, selectedLevel]);
+	}, [activeProgram, selectedLevel]);
 
 	// Sync currentWeek with defaultCurrentWeek when semester is detected
 	useEffect(() => {
@@ -632,6 +638,8 @@ export default function SchedulesContainer() {
 			recurrence_end_date: data.recurrence_end_date || data.endDate,
 			semester: (data.semester || data.semesterId || activeSemester?.id) as
 				string | undefined,
+			target_program: data.target_program || (selectedProgramId && selectedProgramId !== "ALL" ? String(selectedProgramId) : undefined),
+			target_level: data.target_level !== undefined ? Number(data.target_level) : (selectedLevel ? Number(selectedLevel) : undefined),
 		});
 	};
 
@@ -800,6 +808,9 @@ export default function SchedulesContainer() {
 				userDepartmentId={selectedDepartmentId}
 				userFacultyId={selectedFacultyId}
 				userSchoolId={userSchoolId}
+				programId={selectedProgramId}
+				programName={activeProgram?.name}
+				level={selectedLevel}
 				isPending={createEntryMutation.isPending}
 			/>
 

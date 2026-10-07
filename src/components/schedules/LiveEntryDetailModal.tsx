@@ -64,7 +64,11 @@ export function LiveEntryDetailModal({
 	// Extract unified attributes across entry and session
 	const courseCode = session?.courseCode || entry?.courseCode || "";
 	const courseTitle = session?.courseTitle || entry?.courseTitle || "";
-	const eventTitle = entry?.title || session?.timetableEntryTitle || courseTitle || "Academic Event";
+	const eventTitle =
+		entry?.title ||
+		session?.timetableEntryTitle ||
+		courseTitle ||
+		"Academic Event";
 	const courseLevel = session?.courseLevel || entry?.courseLevel;
 	const courseType = session?.courseType || entry?.courseType || "";
 	const isPractical = (courseType || "").toLowerCase() === "practical";
@@ -172,7 +176,7 @@ export function LiveEntryDetailModal({
 							{isEvent && (
 								<Badge
 									variant="secondary"
-									className="text-[10px] py-0 px-1.5 bg-purple-500/20 text-purple-300 border-purple-500/40"
+									className="text-[10px] py-0 px-1.5 bg-purple-500/10 text-purple-300"
 								>
 									Academic Event
 								</Badge>
@@ -187,7 +191,9 @@ export function LiveEntryDetailModal({
 							)}
 							{courseLevel && (
 								<Badge variant="outline" className="text-[10px] py-0 px-1.5">
-									{courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : `${courseLevel} Level`}
+									{courseLevel === 999 || String(courseLevel) === "999"
+										? "Final Year"
+										: `${courseLevel} Level`}
 								</Badge>
 							)}
 							{calculatedIsPast && (
@@ -239,7 +245,9 @@ export function LiveEntryDetailModal({
 						</div>
 						<div className="text-xs text-text-muted font-normal mt-0.5 line-clamp-1">
 							{isEvent
-								? (entry?.targetProgramName ? `Target Cohort: ${entry.targetProgramName}` : "Target Audience: All Programs • General")
+								? entry?.targetProgramName
+									? `Target Cohort: ${entry.targetProgramName}`
+									: "Target Audience: All Programs • General"
 								: courseTitle}
 						</div>
 					</div>
@@ -258,7 +266,8 @@ export function LiveEntryDetailModal({
 				<div className="flex items-center justify-between w-full">
 					{calculatedIsPast ? (
 						<span className="text-[11px] text-text-subtle italic">
-							Past {isEvent ? "events" : "lectures"} cannot be shifted or cancelled.
+							Past {isEvent ? "events" : "lectures"} cannot be shifted or
+							cancelled.
 						</span>
 					) : confirmCancel ? (
 						<div className="flex items-center gap-2">
@@ -301,17 +310,19 @@ export function LiveEntryDetailModal({
 									Shift / Reschedule
 								</Button>
 							)}
-							{canCancel !== false && Boolean(onCancelClick) && !isCancelled && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setConfirmCancel(true)}
-									className="cursor-pointer text-xs gap-1.5 text-danger border-danger/40 hover:bg-danger/10 hover:border-danger"
-								>
-									<Ban size={12} />
-									Cancel {isEvent ? "Event" : "Session"}
-								</Button>
-							)}
+							{canCancel !== false &&
+								Boolean(onCancelClick) &&
+								!isCancelled && (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => setConfirmCancel(true)}
+										className="cursor-pointer text-xs gap-1.5 text-danger border-danger/40 hover:bg-danger/10 hover:border-danger"
+									>
+										<Ban size={12} />
+										Cancel {isEvent ? "Event" : "Session"}
+									</Button>
+								)}
 						</div>
 					)}
 					{!confirmCancel && (
@@ -487,7 +498,9 @@ export function LiveEntryDetailModal({
 								<span>Time & Day</span>
 							</div>
 							<div className="font-bold text-text-main flex items-center gap-1.5">
-								<span>{isEvent ? "Scheduled Event" : (dayOfWeek || "Weekly Lecture")}</span>
+								<span>
+									{isEvent ? "Scheduled Event" : dayOfWeek || "Weekly Lecture"}
+								</span>
 								{dateStr && (
 									<span className="text-[10px] font-mono text-text-subtle">
 										({dateStr})
@@ -530,7 +543,12 @@ export function LiveEntryDetailModal({
 								<div className="text-[11px] text-text-muted flex items-center gap-1">
 									<Users size={11} />
 									<span>
-										Level: {courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : courseLevel ? `${courseLevel}L` : "All Levels"}
+										Level:{" "}
+										{courseLevel === 999 || String(courseLevel) === "999"
+											? "Final Year"
+											: courseLevel
+												? `${courseLevel}L`
+												: "All Levels"}
 									</span>
 								</div>
 							</div>
@@ -563,7 +581,12 @@ export function LiveEntryDetailModal({
 							<div className="text-[11px] text-text-muted flex items-center gap-1">
 								<Users size={11} />
 								<span>
-									Level: {courseLevel === 999 || String(courseLevel) === "999" ? "Final Year" : courseLevel ? `${courseLevel}L` : "All"}
+									Level:{" "}
+									{courseLevel === 999 || String(courseLevel) === "999"
+										? "Final Year"
+										: courseLevel
+											? `${courseLevel}L`
+											: "All"}
 									{expectedStudents ? ` • ${expectedStudents} students` : ""}
 								</span>
 							</div>

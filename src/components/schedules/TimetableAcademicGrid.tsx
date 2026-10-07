@@ -123,7 +123,9 @@ export function TimetableAcademicGrid({
 			if (searchQuery.trim()) {
 				const q = searchQuery.toLowerCase();
 				const matchCode = entry.courseCode?.toLowerCase().includes(q);
-				const matchTitle = (entry.title || entry.courseTitle)?.toLowerCase().includes(q);
+				const matchTitle = (entry.title || entry.courseTitle)
+					?.toLowerCase()
+					.includes(q);
 				const matchVenue = entry.venueName?.toLowerCase().includes(q);
 				const matchLecturer = entry.lecturerName?.toLowerCase().includes(q);
 				if (!matchCode && !matchTitle && !matchVenue && !matchLecturer) {
@@ -251,7 +253,9 @@ export function TimetableAcademicGrid({
 											(e) => {
 												if (e.entryType === "event") {
 													return (
-														Boolean(dateStr && e.recurrenceStartDate === dateStr) &&
+														Boolean(
+															dateStr && e.recurrenceStartDate === dateStr,
+														) &&
 														isOverlapping(
 															e.startTime,
 															e.endTime,
@@ -261,7 +265,8 @@ export function TimetableAcademicGrid({
 													);
 												}
 												return (
-													e.dayOfWeek?.toLowerCase() === dayName.toLowerCase() &&
+													e.dayOfWeek?.toLowerCase() ===
+														dayName.toLowerCase() &&
 													isOverlapping(
 														e.startTime,
 														e.endTime,
@@ -432,7 +437,7 @@ export function TimetableAcademicGrid({
 																		}
 																		className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
 																			isEvent
-																				? "bg-purple-500/15 border-purple-500/40 hover:border-purple-500 hover:bg-purple-500/25 ring-1 ring-purple-500/30 text-text-main"
+																				? "bg-purple-500/15 border-purple-500/10 hover:border-purple-500 hover:bg-purple-500/25 text-text-main"
 																				: hasHard
 																					? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
 																					: hasSoft
@@ -462,7 +467,7 @@ export function TimetableAcademicGrid({
 																				<span
 																					className={`font-extrabold tracking-tight truncate ${
 																						isEvent
-																							? "text-purple-300"
+																							? "text-purple-400"
 																							: hasHard
 																								? "text-red-400"
 																								: hasSoft
@@ -474,10 +479,14 @@ export function TimetableAcademicGrid({
 																											: "text-primary"
 																					}`}
 																				>
-																					{isEvent ? (entry.title || entry.courseTitle || "Event") : entry.courseCode}
+																					{isEvent
+																						? entry.title ||
+																							entry.courseTitle ||
+																							"Event"
+																						: entry.courseCode}
 																				</span>
 																				{isEvent && (
-																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40">
+																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-500/20 text-purple-500  border-purple-500/40">
 																						Event
 																					</span>
 																				)}
@@ -507,10 +516,16 @@ export function TimetableAcademicGrid({
 
 																		<div
 																			className="text-[11px] font-medium text-text-main truncate"
-																			title={isEvent ? (entry.title || entry.courseTitle) : entry.courseTitle}
+																			title={
+																				isEvent
+																					? entry.title || entry.courseTitle
+																					: entry.courseTitle
+																			}
 																		>
 																			{isEvent
-																				? (entry.targetProgramName ? `${entry.targetProgramName} ${entry.targetLevel ? `• ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : `${entry.targetLevel}L`}` : ""}` : `All Programs • ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : entry.targetLevel ? `${entry.targetLevel}L` : "General"}`)
+																				? entry.targetProgramName
+																					? `${entry.targetProgramName} ${entry.targetLevel ? `• ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : `${entry.targetLevel}L`}` : ""}`
+																					: `All Programs • ${entry.targetLevel === 999 || String(entry.targetLevel) === "999" ? "Final Year" : entry.targetLevel ? `${entry.targetLevel}L` : "General"}`
 																				: entry.courseTitle}
 																		</div>
 
@@ -550,20 +565,20 @@ export function TimetableAcademicGrid({
 																					</span>
 																				</div>
 																			)}
-
-																		{(matchingSession?.lecturerName ||
-																			entry.lecturerName) && (
-																			<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
-																				<User
-																					size={10}
-																					className="shrink-0 text-text-subtle"
-																				/>
-																				<span className="truncate">
-																					{matchingSession?.lecturerName ||
-																						entry.lecturerName}
-																				</span>
-																			</div>
-																		)}
+																		{matchingSession?.entryType !== "event" &&
+																			(matchingSession?.lecturerName ||
+																				entry.lecturerName) && (
+																				<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																					<User
+																						size={10}
+																						className="shrink-0 text-text-subtle"
+																					/>
+																					<span className="truncate">
+																						{matchingSession?.lecturerName ||
+																							entry.lecturerName}
+																					</span>
+																				</div>
+																			)}
 
 																		<div className="flex items-center gap-1 pt-0.5">
 																			{entry.courseLevel && (
@@ -648,9 +663,11 @@ export function TimetableAcademicGrid({
 												) : (
 													<button
 														type="button"
-														onClick={() => onOpenCreateEntry?.(dayName, slot, dateStr)}
+														onClick={() =>
+															onOpenCreateEntry?.(dayName, slot, dateStr)
+														}
 														className="w-full h-full min-h-20 rounded-xl border border-dashed border-border/40 hover:border-primary/40 hover:bg-primary/5 flex items-center justify-center transition-colors cursor-pointer group"
-														title={`Schedule entry for ${dayName} ${slot.label}`}
+														title={`Schedule lecture for ${dayName} ${slot.label}`}
 													>
 														<Plus
 															size={15}
@@ -682,8 +699,8 @@ export function TimetableAcademicGrid({
 				isPast={activeModalIsPast}
 				date={activeModalDate}
 				canShift={
-					(activeModalSession || activeModalEntry)
-						? (activeModalSession?.canShift !== false && !activeModalIsPast)
+					activeModalSession || activeModalEntry
+						? activeModalSession?.canShift !== false && !activeModalIsPast
 						: false
 				}
 				onShiftClick={
@@ -703,8 +720,8 @@ export function TimetableAcademicGrid({
 						: undefined
 				}
 				canCancel={
-					(activeModalSession || activeModalEntry)
-						? (activeModalSession?.status !== "cancelled" && !activeModalIsPast)
+					activeModalSession || activeModalEntry
+						? activeModalSession?.status !== "cancelled" && !activeModalIsPast
 						: false
 				}
 				onCancelClick={

@@ -12,7 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
-import { MultiSelect, type MultiSelectOption } from "@/components/ui/MultiSelect";
+import {
+	MultiSelect,
+	type MultiSelectOption,
+} from "@/components/ui/MultiSelect";
 import { TimeSlotPicker } from "@/components/schedules/TimeSlotPicker";
 import type { Venue, Program, Department, Faculty, User } from "@/types";
 import type { CreateScheduleEntryPayload } from "@/api/main/schedulesAPI";
@@ -30,7 +33,6 @@ interface ScheduleEventModalProps {
 	activeSemesterId?: string;
 	user: User | null;
 }
-
 
 export function ScheduleEventModal({
 	isOpen,
@@ -91,7 +93,11 @@ export function ScheduleEventModal({
 		}
 
 		// 2. Department admin scopeId
-		if (isDeptAdmin && user?.adminScopeId && !isNaN(Number(user.adminScopeId))) {
+		if (
+			isDeptAdmin &&
+			user?.adminScopeId &&
+			!isNaN(Number(user.adminScopeId))
+		) {
 			return String(user.adminScopeId);
 		}
 
@@ -136,7 +142,9 @@ export function ScheduleEventModal({
 		if (isFacultyAdmin) {
 			// Departments in this faculty
 			const facultyDepts = userFacultyId
-				? departments.filter((d) => String(d.facultyId) === String(userFacultyId))
+				? departments.filter(
+						(d) => String(d.facultyId) === String(userFacultyId),
+					)
 				: departments;
 
 			facultyDepts.forEach((d) => {
@@ -180,7 +188,13 @@ export function ScheduleEventModal({
 		}
 
 		return opts;
-	}, [isFacultyAdmin, isSchoolOrSystemAdmin, userFacultyId, departments, faculties]);
+	}, [
+		isFacultyAdmin,
+		isSchoolOrSystemAdmin,
+		userFacultyId,
+		departments,
+		faculties,
+	]);
 
 	// Extract selected department IDs and faculty IDs from multiselect
 	const selectedDepartmentIds = useMemo(() => {
@@ -360,7 +374,9 @@ export function ScheduleEventModal({
 				if (byId.length > 0) return byId;
 			}
 			// Fallback: match by department name if available
-			const deptObj = departments.find((d) => String(d.id) === String(userDeptId));
+			const deptObj = departments.find(
+				(d) => String(d.id) === String(userDeptId),
+			);
 			const deptName = deptObj?.name || user?.departmentName;
 			if (deptName) {
 				const byName = programs.filter(
@@ -394,7 +410,9 @@ export function ScheduleEventModal({
 	const effectiveMaxLevel = useMemo(() => {
 		// 1. If a specific program is selected, cap at that program's maxLevel
 		if (selectedProgramId) {
-			const prog = programs.find((p) => String(p.id) === String(selectedProgramId));
+			const prog = programs.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
 			if (prog?.maxLevel && prog.maxLevel >= 100) {
 				return prog.maxLevel;
 			}
@@ -408,7 +426,9 @@ export function ScheduleEventModal({
 				);
 				if (maxFromProgs >= 100) return maxFromProgs;
 			}
-			const currentDept = departments.find((d) => String(d.id) === String(userDeptId));
+			const currentDept = departments.find(
+				(d) => String(d.id) === String(userDeptId),
+			);
 			if (currentDept?.maxLevel) return currentDept.maxLevel;
 			if (currentDept?.max_level) return currentDept.max_level;
 			return 400;
@@ -463,7 +483,9 @@ export function ScheduleEventModal({
 			{ label: "600 Level", value: "600", num: 600 },
 		];
 
-		const allowed = standardLevels.filter((lvl) => lvl.num <= effectiveMaxLevel);
+		const allowed = standardLevels.filter(
+			(lvl) => lvl.num <= effectiveMaxLevel,
+		);
 
 		return [
 			{ label: "General / All Levels", value: "" },
@@ -542,10 +564,7 @@ export function ScheduleEventModal({
 				<div className="px-6 py-4.5 border-b border-border flex items-center justify-between bg-surface-raised/40">
 					<div>
 						<div className="flex items-center gap-2">
-							<Text
-								variant="h3"
-								className="text-base font-bold text-text-main"
-							>
+							<Text variant="h3" className="text-base font-bold text-text-main">
 								Schedule Academic Event
 							</Text>
 							<Badge
@@ -637,7 +656,8 @@ export function ScheduleEventModal({
 								<option value="">General / All Programs</option>
 								{filteredPrograms.map((p) => (
 									<option key={p.id} value={p.id}>
-										{p.name} ({p.code}){p.maxLevel ? ` — ${p.maxLevel}L max` : ""}
+										{p.name} ({p.code})
+										{p.maxLevel ? ` — ${p.maxLevel}L max` : ""}
 									</option>
 								))}
 							</select>

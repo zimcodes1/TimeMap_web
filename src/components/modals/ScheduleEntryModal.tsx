@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CalendarClock, Repeat } from "lucide-react";
+import { CalendarClock, Repeat, BookOpen } from "lucide-react";
 import apiClient from "@/api/apiClient";
 import { mapRawVenueToVenue } from "@/api/main/venuesAPI";
 import { TimeSlotPicker } from "@/components/schedules/TimeSlotPicker";
@@ -15,7 +15,7 @@ interface ScheduleEntryModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSubmit: (data: {
-		entry_type: "lecture" | "event" | "exam";
+		entry_type: "lecture" | "exam";
 		title: string;
 		course?: string;
 		course_code?: string;
@@ -28,12 +28,14 @@ interface ScheduleEntryModalProps {
 		recurrence_start_date?: string;
 		recurrence_end_date?: string;
 		semester?: string;
+		target_program?: string;
+		target_level?: number;
 		is_recurring?: boolean;
 	}) => void;
 	courses?: Course[];
 	venues?: Venue[];
 	activeSemester?: Semester | null;
-	defaultEntryType?: "lecture" | "event" | "exam";
+	defaultEntryType?: "lecture" | "exam" | string;
 	defaultDay?: string;
 	defaultDate?: string;
 	defaultStartTime?: string;
@@ -42,6 +44,9 @@ interface ScheduleEntryModalProps {
 	userDepartmentId?: string | number;
 	userFacultyId?: string | number;
 	userSchoolId?: string | number;
+	programId?: string | number;
+	programName?: string;
+	level?: number | string;
 	isPending?: boolean;
 }
 
@@ -59,13 +64,14 @@ export default function ScheduleEntryModal({
 	defaultEndTime,
 	isSlotClick = false,
 	userDepartmentId,
-	userFacultyId,
-	userSchoolId,
+	userFacultyId: _userFacultyId,
+	userSchoolId: _userSchoolId,
+	programId,
+	programName,
+	level,
 	isPending = false,
 }: ScheduleEntryModalProps) {
-	const [entryType, setEntryType] = useState<"lecture" | "event" | "exam">(
-		defaultEntryType,
-	);
+	const isExam = defaultEntryType === "exam";
 	const [courseId, setCourseId] = useState<string>("");
 	const [venueId, setVenueId] = useState<string>("");
 	const [dayOfWeek, setDayOfWeek] = useState<string>(defaultDay || "Monday");
@@ -78,140 +84,146 @@ export default function ScheduleEntryModal({
 	const [allowedVenues, setAllowedVenues] = useState<Venue[]>([]);
 	const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(false);
 
+	// Filter courses strictly for the displayed program and level
+	const filteredCourses = useMemo(() => {
+		if (!courses || courses.length === 0) return [];
+
+		return courses.filter((c) => {
+			// 1. LEVEL FILTER: Course level must match the target timetable level so an admin doesn't schedule e.g. a 200L lecture on a 100L timetable
+			if (level !== undefined && level !== null && String(level) !== "") {
+				if (Number(c.level) !== Number(level)) {
+					return false;
+				}
+			}
+
+			// 2. PROGRAM / DEPARTMENT FILTER:
+			// If programId is provided, the course must either:
+			//   a) Be explicitly targeted to this program (c.targetProgramId === programId)
+			//   b) Or have general program scope / no specific target program and belong to this department or higher scope (faculty/school)
+			if (
+				programId &&
+				String(programId) !== "ALL" &&
+				String(programId).trim() !== ""
+			) {
+				if (
+					c.targetProgramId &&
+					String(c.targetProgramId) !== String(programId)
+				) {
+					return false;
+				}
+
+				if (userDepartmentId) {
+					if (
+						c.owningLevel === "department" &&
+						c.departmentId &&
+						String(c.departmentId) !== String(userDepartmentId)
+					) {
+						return false;
+					}
+				}
+			} else if (userDepartmentId) {
+				if (
+					c.owningLevel === "department" &&
+					c.departmentId &&
+					String(c.departmentId) !== String(userDepartmentId)
+				) {
+					return false;
+				}
+			}
+
+			return true;
+		});
+	}, [courses, level, programId, userDepartmentId]);
+
 	// Synchronize defaults on open or prop change
 	useEffect(() => {
 		if (isOpen) {
-			setEntryType(defaultEntryType || "lecture");
 			setDayOfWeek(defaultDay || "Monday");
 			setStartTime(defaultStartTime || "08:00:00");
 			setEndTime(defaultEndTime || "10:00:00");
 			setIsRecurring(!isSlotClick);
-			if (courses.length > 0 && !courseId) {
-				setCourseId(courses[0].id);
-			}
 		}
 	}, [
 		isOpen,
-		defaultEntryType,
 		defaultDay,
 		defaultStartTime,
 		defaultEndTime,
 		isSlotClick,
-		courses,
-		courseId,
 	]);
 
-	// Resolve allowed venues:
-	// - For lectures: Backend course-scope API filter (/api/venues/venues/?course=courseId)
-	// - For department events: Department venues U Faculty venues without department U School venues
+	// Auto-select first filtered course when modal opens or filteredCourses changes
+	useEffect(() => {
+		if (isOpen) {
+			if (filteredCourses.length > 0) {
+				const exists = filteredCourses.some(
+					(c) => String(c.id) === String(courseId),
+				);
+				if (!exists || !courseId) {
+					setCourseId(String(filteredCourses[0].id));
+				}
+			} else {
+				setCourseId("");
+			}
+		}
+	}, [isOpen, filteredCourses, courseId]);
+
+	// Resolve allowed venues based on selected course
 	useEffect(() => {
 		if (!isOpen) return;
 
-		if (entryType === "lecture") {
-			if (!courseId && courses.length > 0) {
-				setCourseId(courses[0].id);
-			}
+		if (!courseId) {
+			setAllowedVenues([]);
+			return;
+		}
 
-			const targetCourseId = courseId || courses[0]?.id;
-			if (!targetCourseId) {
-				setAllowedVenues(venues);
-				return;
-			}
+		let isCurrent = true;
+		setIsLoadingVenues(true);
 
-			let isCurrent = true;
-			setIsLoadingVenues(true);
-
-			apiClient
-				.get<any[]>("/venues/venues/", {
-					params: { course: targetCourseId },
-				})
-				.then((res) => {
-					if (!isCurrent) return;
-					const list = Array.isArray(res.data)
-						? res.data
-						: (res.data as any)?.results || [];
-					const mapped = list.map(mapRawVenueToVenue);
-					setAllowedVenues(mapped.length > 0 ? mapped : venues);
-					setIsLoadingVenues(false);
-				})
-				.catch(() => {
-					if (!isCurrent) return;
-					// Fallback to course-level filtering if API call fails
-					const courseObj = courses.find(
-						(c) => String(c.id) === String(targetCourseId),
-					);
-					const filtered = venues.filter((v) => {
-						if (v.owningLevel === "school") return true;
-						if (
-							v.owningLevel === "faculty" &&
-							courseObj?.owningFaculty &&
-							String(v.owningFacultyId) === String(courseObj.owningFaculty)
-						) {
-							return true;
-						}
-						if (
-							v.owningLevel === "department" &&
-							courseObj?.departmentId &&
-							String(v.owningDepartmentId) === String(courseObj.departmentId)
-						) {
-							return true;
-						}
-						return false;
-					});
-					setAllowedVenues(filtered.length > 0 ? filtered : venues);
-					setIsLoadingVenues(false);
+		apiClient
+			.get<any[]>("/venues/venues/", {
+				params: { course: courseId },
+			})
+			.then((res) => {
+				if (!isCurrent) return;
+				const list = Array.isArray(res.data)
+					? res.data
+					: (res.data as any)?.results || [];
+				const mapped = list.map(mapRawVenueToVenue);
+				setAllowedVenues(mapped.length > 0 ? mapped : venues);
+				setIsLoadingVenues(false);
+			})
+			.catch(() => {
+				if (!isCurrent) return;
+				// Fallback to course-level filtering if API call fails
+				const courseObj = courses.find(
+					(c) => String(c.id) === String(courseId),
+				);
+				const filtered = venues.filter((v) => {
+					if (v.owningLevel === "school") return true;
+					if (
+						v.owningLevel === "faculty" &&
+						courseObj?.owningFaculty &&
+						String(v.owningFacultyId) === String(courseObj.owningFaculty)
+					) {
+						return true;
+					}
+					if (
+						v.owningLevel === "department" &&
+						courseObj?.departmentId &&
+						String(v.owningDepartmentId) === String(courseObj.departmentId)
+					) {
+						return true;
+					}
+					return false;
 				});
-
-			return () => {
-				isCurrent = false;
-			};
-		} else {
-			// Department Event pattern:
-			// Department venues U Faculty venues belonging to no particular department U School venues
-			const filtered = venues.filter((v) => {
-				// 1. Department venues
-				if (
-					v.owningLevel === "department" &&
-					userDepartmentId &&
-					String(v.owningDepartmentId) === String(userDepartmentId)
-				) {
-					return true;
-				}
-				// 2. Faculty venues belonging to no particular department
-				if (
-					v.owningLevel === "faculty" &&
-					(!v.owningDepartmentId || v.owningDepartmentId === "") &&
-					userFacultyId &&
-					String(v.owningFacultyId) === String(userFacultyId)
-				) {
-					return true;
-				}
-				// 3. School venues
-				if (
-					v.owningLevel === "school" &&
-					userSchoolId &&
-					String(v.owningSchoolId) === String(userSchoolId)
-				) {
-					return true;
-				}
-				// Fallback if scopes are not specifically set
-				if (!userDepartmentId && !userFacultyId) return true;
-				return false;
+				setAllowedVenues(filtered.length > 0 ? filtered : venues);
+				setIsLoadingVenues(false);
 			});
 
-			setAllowedVenues(filtered.length > 0 ? filtered : venues);
-			setIsLoadingVenues(false);
-		}
-	}, [
-		isOpen,
-		entryType,
-		courseId,
-		courses,
-		venues,
-		userDepartmentId,
-		userFacultyId,
-		userSchoolId,
-	]);
+		return () => {
+			isCurrent = false;
+		};
+	}, [isOpen, courseId, courses, venues]);
 
 	// Auto-select first allowed venue if current selection is invalid
 	useEffect(() => {
@@ -227,7 +239,9 @@ export default function ScheduleEntryModal({
 		}
 	}, [allowedVenues, venueId]);
 
-	const selectedCourse = courses.find((c) => String(c.id) === String(courseId));
+	const selectedCourse = filteredCourses.find(
+		(c) => String(c.id) === String(courseId),
+	);
 	const selectedVenue = allowedVenues.find(
 		(v) => String(v.id) === String(venueId),
 	);
@@ -239,6 +253,10 @@ export default function ScheduleEntryModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!courseId) {
+			toast.error("Please select a course for the lecture.");
+			return;
+		}
 		if (!venueId) {
 			toast.error("Please select a venue.");
 			return;
@@ -248,10 +266,9 @@ export default function ScheduleEntryModal({
 			return;
 		}
 
-		const derivedTitle =
-			entryType === "event"
-				? "Department Event"
-				: `${selectedCourse?.code || "Course"} Lecture`;
+		const derivedTitle = isExam
+			? `${selectedCourse?.code || "Course"} Examination`
+			: `${selectedCourse?.code || "Course"} Lecture`;
 
 		const dayCodeMap: Record<string, string> = {
 			Monday: "MO",
@@ -274,10 +291,10 @@ export default function ScheduleEntryModal({
 			: recurrenceStartDate;
 
 		onSubmit({
-			entry_type: entryType,
+			entry_type: isExam ? "exam" : "lecture",
 			title: derivedTitle,
-			course: entryType === "lecture" ? courseId : undefined,
-			course_code: entryType === "lecture" ? selectedCourse?.code : undefined,
+			course: courseId,
+			course_code: selectedCourse?.code,
 			venue: venueId,
 			venue_name: selectedVenue?.name,
 			day_of_week: dayOfWeek,
@@ -287,6 +304,8 @@ export default function ScheduleEntryModal({
 			recurrence_start_date: recurrenceStartDate,
 			recurrence_end_date: recurrenceEndDate,
 			semester: activeSemester?.id,
+			target_program: programId ? String(programId) : undefined,
+			target_level: level ? Number(level) : undefined,
 			is_recurring: isRecurring,
 		});
 	};
@@ -295,11 +314,23 @@ export default function ScheduleEntryModal({
 		<Modal
 			isOpen={isOpen}
 			onClose={onClose}
-			title={isSlotClick ? "Schedule for Slot" : "Schedule Lecture / Event"}
+			title={
+				isExam
+					? isSlotClick
+						? "Schedule Exam for Slot"
+						: "Schedule Examination"
+					: isSlotClick
+						? "Schedule Lecture for Slot"
+						: "Schedule Lecture"
+			}
 			description={
-				isSlotClick
-					? "Assign a single one-time lecture or department event to this slot."
-					: "Create a recurring timetable entry. Automatically evaluates venue and lecturer availability."
+				isExam
+					? isSlotClick
+						? `Assign an exam session to ${defaultDay || "this slot"}.`
+						: "Create an exam timetable entry. Automatically evaluates venue availability."
+					: isSlotClick
+						? `Assign a lecture session to ${defaultDay || "this slot"}.`
+						: "Create a recurring timetable entry. Automatically evaluates venue and lecturer availability."
 			}
 			size="lg"
 			footer={
@@ -317,7 +348,7 @@ export default function ScheduleEntryModal({
 						variant="primary"
 						size="sm"
 						onClick={handleSubmit}
-						disabled={isPending || !venueId || !startTime || !endTime}
+						disabled={isPending || !courseId || !venueId || !startTime || !endTime}
 						className="cursor-pointer text-xs gap-1.5"
 					>
 						{isPending ? (
@@ -336,9 +367,33 @@ export default function ScheduleEntryModal({
 				onSubmit={handleSubmit}
 				className="space-y-4 max-h-[75vh] overflow-y-auto pr-1"
 			>
-				{/* 1. Header Information if opened via Grid Slot Click */}
+				{/* 1. Program & Level Target Cohort Banner */}
+				{(programName || level) && (
+					<div className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between">
+						<div className="flex items-center gap-2.5">
+							<BookOpen className="text-primary w-4 h-4 shrink-0" />
+							<div>
+								<span className="text-xs font-bold text-text-main block">
+									{programName ? programName : "Degree Program"}
+									{level ? ` · ${level} Level` : ""}
+								</span>
+								<span className="text-[11px] text-text-muted">
+									Course options are filtered strictly for this {level ? `${level}L ` : ""}program timetable.
+								</span>
+							</div>
+						</div>
+						<Badge
+							variant="primary"
+							className="text-[10px] uppercase font-semibold"
+						>
+							{level ? `${level}L Cohort` : "Cohort"}
+						</Badge>
+					</div>
+				)}
+
+				{/* 2. Slot Click vs Recurring Pattern Banner */}
 				{isSlotClick ? (
-					<div className="p-3.5 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between">
+					<div className="p-3.5 bg-surface-raised border border-border rounded-xl flex items-center justify-between">
 						<div className="flex items-center gap-2.5">
 							<CalendarClock className="text-primary w-5 h-5 shrink-0" />
 							<div>
@@ -359,14 +414,13 @@ export default function ScheduleEntryModal({
 							</div>
 						</div>
 						<Badge
-							variant="primary"
+							variant="secondary"
 							className="text-[10px] uppercase font-semibold"
 						>
-							One-Time Session
+							One-Time Slot
 						</Badge>
 					</div>
 				) : (
-					/* Pattern Type Indicator when opened from top Schedule Lecture button */
 					<div className="flex items-center justify-between p-2.5 bg-surface-raised rounded-xl border border-border">
 						<div className="flex items-center gap-2">
 							<Repeat size={15} className="text-primary" />
@@ -387,29 +441,33 @@ export default function ScheduleEntryModal({
 					</div>
 				)}
 
-				{/* 2. Entry Type Selection */}
+				{/* 3. Entry Type (Disabled indicator) & Day of Week */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
 						<Text variant="caption" className="font-semibold mb-1 block">
 							Entry Type
 						</Text>
-						<Select
-							value={entryType}
-							onChange={(e) =>
-								setEntryType(e.target.value as "lecture" | "event" | "exam")
-							}
-							options={[
-								{ value: "lecture", label: "Lecture Session" },
-								{ value: "event", label: "Department Event" },
-								...(entryType === "exam"
-									? [{ value: "exam", label: "Exam Sitting" }]
-									: []),
-							]}
-						/>
+						<div className="relative">
+							<input
+								type="text"
+								value={isExam ? "Examination Session" : "Lecture Session"}
+								disabled
+								readOnly
+								className="w-full h-10 px-3 rounded-xl bg-surface-raised/40 border border-border text-xs text-text-muted cursor-not-allowed select-none font-medium"
+							/>
+							<div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+								<Badge
+									variant="secondary"
+									className="text-[10px] bg-primary/15 text-primary border-primary/20"
+								>
+									{isExam ? "Exam Only" : "Lecture Only"}
+								</Badge>
+							</div>
+						</div>
 					</div>
 
-					{/* 3. Day of Week Selection (Only shown when not opened via slot click) */}
-					{!isSlotClick && (
+					{/* Day of Week / Assigned Slot info */}
+					{!isSlotClick ? (
 						<div>
 							<Text variant="caption" className="font-semibold mb-1 block">
 								Day of Week
@@ -426,42 +484,61 @@ export default function ScheduleEntryModal({
 								]}
 							/>
 						</div>
+					) : (
+						<div>
+							<Text variant="caption" className="font-semibold mb-1 block">
+								Slot Day & Time
+							</Text>
+							<input
+								type="text"
+								value={`${defaultDay} (${defaultStartTime?.slice(0, 5)} - ${defaultEndTime?.slice(0, 5)})`}
+								disabled
+								readOnly
+								className="w-full h-10 px-3 rounded-xl bg-surface-raised/40 border border-border text-xs text-text-muted cursor-not-allowed select-none font-medium"
+							/>
+						</div>
 					)}
 				</div>
 
-				{/* 4. Course Selection (For Lectures) */}
-				{entryType === "lecture" && (
-					<div>
-						<div className="flex items-center justify-between mb-1">
-							<Text variant="caption" className="font-semibold block">
-								Course
-							</Text>
-							{selectedCourse && (
-								<span className="text-[10px] text-text-muted">
-									Level: {selectedCourse.level}L ·{" "}
-									{selectedCourse.creditUnits || 3} Units
-								</span>
-							)}
+				{/* 4. Course Selection (Filtered strictly for program-level) */}
+				<div>
+					<div className="flex items-center justify-between mb-1">
+						<Text variant="caption" className="font-semibold block">
+							Course {level ? `(${level}L)` : ""}
+						</Text>
+						{selectedCourse && (
+							<span className="text-[10px] text-text-muted">
+								Level: {selectedCourse.level}L ·{" "}
+								{selectedCourse.creditUnits || 3} Units
+							</span>
+						)}
+					</div>
+					{filteredCourses.length === 0 ? (
+						<div className="p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs space-y-1">
+							<p className="font-semibold">
+								No {level ? `${level}L ` : ""}courses found for {programName || "this program"}
+							</p>
+							<p className="text-[11px] opacity-80">
+								Courses must be registered or configured for {programName || "this program"} at {level}L before lectures can be scheduled.
+							</p>
 						</div>
+					) : (
 						<Select
 							value={courseId}
 							onChange={(e) => setCourseId(e.target.value)}
-							options={courses.map((c) => ({
+							options={filteredCourses.map((c) => ({
 								value: c.id,
 								label: `${c.code} - ${c.title} (${c.level}L)`,
 							}))}
 						/>
-					</div>
-				)}
+					)}
+				</div>
 
-				{/* 5. Venue Selection (Resolved according to course scope or event scope) */}
+				{/* 5. Venue Selection (Resolved according to course allowed scope) */}
 				<div>
 					<div className="flex items-center justify-between mb-1">
 						<Text variant="caption" className="font-semibold block">
-							Venue{" "}
-							{entryType === "lecture"
-								? "(Course Allowed Scope)"
-								: "(Department Scope)"}
+							Venue (Course Allowed Scope)
 						</Text>
 						{isLoadingVenues && (
 							<span className="text-[10px] text-primary flex items-center gap-1">
@@ -486,7 +563,7 @@ export default function ScheduleEntryModal({
 						<TimeSlotPicker
 							venueId={venueId}
 							dayOfWeek={dayOfWeek}
-							isEvent={entryType === "event"}
+							isEvent={false}
 							selectedStartTime={startTime}
 							selectedEndTime={endTime}
 							onSelectSlot={handleSlotSelect}
