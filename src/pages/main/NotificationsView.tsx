@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabSwitcher } from "@/components/ui/tabs";
-import { Bell, CheckCheck, Inbox, RefreshCw, AlertCircle } from "lucide-react";
+import { Bell, CheckCheck, Inbox, RefreshCw, AlertCircle, ArrowRight } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import type { NotificationItem } from "@/types";
 
 interface NotificationsViewProps {
@@ -25,7 +26,28 @@ export default function NotificationsView({
   onMarkRead,
   onMarkAllRead,
 }: NotificationsViewProps) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"all" | "unread">("all");
+
+  const handleActionClick = (notif: NotificationItem) => {
+    if (!notif.isRead) {
+      onMarkRead(notif.id);
+    }
+    if (
+      notif.relatedModel === "DiscrepancyRequest" ||
+      notif.notificationType?.toLowerCase().includes("discrepancy")
+    ) {
+      navigate({ to: "/requests" });
+    } else if (
+      notif.relatedModel === "LectureSession" ||
+      notif.relatedModel === "TimetableEntry" ||
+      notif.notificationType?.toLowerCase().includes("session")
+    ) {
+      navigate({ to: "/schedules" });
+    } else if (notif.relatedModel === "Course") {
+      navigate({ to: "/courses" });
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -91,43 +113,93 @@ export default function NotificationsView({
         </div>
       ) : filteredNotifications.length > 0 ? (
         <div className="space-y-3">
-          {filteredNotifications.map((notif) => (
-            <Card
-              key={notif.id}
-              className={`p-4 transition-all ${
-                !notif.isRead
-                  ? "border-l-4 border-l-primary bg-primary-muted/20"
-                  : "bg-surface opacity-80"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
-                    <Bell size={18} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Text variant="caption" className="font-bold text-text-main">
-                        {notif.title}
-                      </Text>
-                      <Badge variant="default" className="text-[10px] capitalize">
-                        {notif.notificationType.replace("_", " ")}
-                      </Badge>
+          {filteredNotifications.map((notif) => {
+            const isDiscrepancy =
+              notif.relatedModel === "DiscrepancyRequest" ||
+              notif.notificationType?.toLowerCase().includes("discrepancy");
+            const isSession =
+              notif.relatedModel === "LectureSession" ||
+              notif.relatedModel === "TimetableEntry" ||
+              notif.notificationType?.toLowerCase().includes("session");
+
+            return (
+              <Card
+                key={notif.id}
+                onClick={() => handleActionClick(notif)}
+                className={`p-4 transition-all cursor-pointer hover:border-primary/50 ${
+                  !notif.isRead
+                    ? "border-l-4 border-l-primary bg-primary-muted/20"
+                    : "bg-surface opacity-85"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                      <Bell size={18} />
                     </div>
-                    <p className="text-sm text-text-main mt-1">{notif.body}</p>
-                    <Text variant="caption" color="muted" className="text-[11px] mt-2 block">
-                      {new Date(notif.createdAt).toLocaleString()}
-                    </Text>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Text variant="caption" className="font-bold text-text-main">
+                          {notif.title}
+                        </Text>
+                        <Badge variant="default" className="text-[10px] capitalize">
+                          {notif.notificationType.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-text-main mt-1 break-words">{notif.body}</p>
+                      <Text variant="caption" color="muted" className="text-[11px] mt-2 block">
+                        {new Date(notif.createdAt).toLocaleString()}
+                      </Text>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {isDiscrepancy ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActionClick(notif);
+                        }}
+                        className="cursor-pointer text-xs gap-1"
+                      >
+                        Review Request
+                        <ArrowRight size={13} />
+                      </Button>
+                    ) : isSession ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleActionClick(notif);
+                        }}
+                        className="cursor-pointer text-xs gap-1"
+                      >
+                        View Timetable
+                        <ArrowRight size={13} />
+                      </Button>
+                    ) : null}
+
+                    {!notif.isRead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkRead(notif.id);
+                        }}
+                        className="cursor-pointer text-xs"
+                      >
+                        Mark Read
+                      </Button>
+                    )}
                   </div>
                 </div>
-                {!notif.isRead && (
-                  <Button variant="ghost" size="sm" onClick={() => onMarkRead(notif.id)} className="cursor-pointer">
-                    Mark Read
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <Card className="p-8 text-center space-y-3">

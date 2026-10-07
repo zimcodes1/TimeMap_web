@@ -233,6 +233,11 @@ export function TimetableAcademicGrid({
 									</td>
 									{TIME_SLOTS.map((slot) => {
 										const isFridayJummat = isFriday && slot.id === "slot-3";
+										const isSlotPast =
+											Boolean(dateStr) &&
+											(dateStr < todayDateStr ||
+												(dateStr === todayDateStr &&
+													Boolean(slot.end && slot.end <= currentTimeStr)));
 
 										// 1. Sessions on this date in this slot
 										const sessionsOnDate = dateStr
@@ -404,6 +409,9 @@ export function TimetableAcademicGrid({
 
 																const isShifted =
 																	matchingSession?.status === "shifted";
+																const isCancelled =
+																	matchingSession?.status === "cancelled" ||
+																	entry.status === "cancelled";
 																const isEvent =
 																	entry.entryType === "event" ||
 																	entry.type === "event" ||
@@ -436,47 +444,53 @@ export function TimetableAcademicGrid({
 																			)
 																		}
 																		className={`p-2.5 rounded-xl text-xs space-y-1 border shadow-2xs transition-all cursor-pointer ${
-																			isEvent
-																				? "bg-purple-500/15 border-purple-500/10 hover:border-purple-500 hover:bg-purple-500/25 text-text-main"
-																				: hasHard
-																					? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
-																					: hasSoft
-																						? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
-																						: isShifted
-																							? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
-																							: isPastLecture
-																								? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
-																								: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
+																			isCancelled
+																				? "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/50 hover:bg-rose-500/15 text-text-muted opacity-80"
+																				: isEvent
+																					? "bg-purple-500/15 border-purple-500/10 hover:border-purple-500 hover:bg-purple-500/25 text-text-main"
+																					: hasHard
+																						? "bg-red-500/15 border-red-500/40 hover:border-red-500 hover:bg-red-500/25 ring-1 ring-red-500/40 text-text-main"
+																						: hasSoft
+																							? "bg-amber-500/15 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/25 ring-1 ring-amber-500/30 text-text-main"
+																							: isShifted
+																								? "bg-amber-500/10 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/20 ring-1 ring-amber-500/30 text-text-main"
+																								: isPastLecture
+																									? "bg-surface-raised/40 border-border/70 hover:border-border hover:bg-surface-raised/60 text-text-muted opacity-80"
+																									: "bg-primary/10 border-primary/20 hover:border-primary/40 hover:bg-primary/15 text-text-main"
 																		}`}
 																		title={
-																			isEvent
-																				? `Academic Event: ${entry.title || entry.courseTitle} at ${matchingSession?.venueName || entry.venueName}. Click to inspect details.`
-																				: isShifted
-																					? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
-																					: isPastLecture
-																						? "Past lecture session (cannot be shifted). Click to view details."
-																						: hasHard
-																							? "Hard timetable conflict! Click to inspect diagnostics."
-																							: hasSoft
-																								? "Capacity or soft notice. Click to inspect details."
-																								: "Optimal schedule. Click to inspect details."
+																			isCancelled
+																				? `Cancelled ${isEvent ? "event" : "session"}: ${entry.title || entry.courseCode || "Schedule"} on this date was cancelled. Click to inspect details.`
+																				: isEvent
+																					? `Academic Event: ${entry.title || entry.courseTitle} at ${matchingSession?.venueName || entry.venueName}. Click to inspect details.`
+																					: isShifted
+																						? `Shifted session: now in ${matchingSession?.venueName || entry.venueName} at ${matchingSession?.startTime?.slice(0, 5)} - ${matchingSession?.endTime?.slice(0, 5)}. Click to inspect details.`
+																						: isPastLecture
+																							? "Past lecture session (cannot be shifted). Click to view details."
+																							: hasHard
+																								? "Hard timetable conflict! Click to inspect diagnostics."
+																								: hasSoft
+																									? "Capacity or soft notice. Click to inspect details."
+																									: "Optimal schedule. Click to inspect details."
 																		}
 																	>
 																		<div className="flex items-center justify-between gap-1">
 																			<div className="flex items-center gap-1.5 min-w-0">
 																				<span
 																					className={`font-extrabold tracking-tight truncate ${
-																						isEvent
-																							? "text-purple-400"
-																							: hasHard
-																								? "text-red-400"
-																								: hasSoft
-																									? "text-amber-400"
-																									: isShifted
-																										? "text-amber-300"
-																										: isPastLecture
-																											? "text-text-muted"
-																											: "text-primary"
+																						isCancelled
+																							? "text-rose-400/80 line-through"
+																							: isEvent
+																								? "text-purple-400"
+																								: hasHard
+																									? "text-red-400"
+																									: hasSoft
+																										? "text-amber-400"
+																										: isShifted
+																											? "text-amber-300"
+																											: isPastLecture
+																												? "text-text-muted"
+																												: "text-primary"
 																					}`}
 																				>
 																					{isEvent
@@ -485,37 +499,43 @@ export function TimetableAcademicGrid({
 																							"Event"
 																						: entry.courseCode}
 																				</span>
+																				{isCancelled && (
+																					<span className="shrink-0 text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
+																						Cancelled
+																					</span>
+																				)}
 																				{isEvent && (
 																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-purple-500/20 text-purple-500  border-purple-500/40">
 																						Event
 																					</span>
 																				)}
-																				{isShifted && (
+																				{isShifted && !isCancelled && (
 																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
 																						Shifted
 																					</span>
 																				)}
-																				{isPastLecture && (
+																				{isPastLecture && !isCancelled && (
 																					<span className="shrink-0 text-[9px] font-semibold px-1 py-0.2 rounded bg-surface-raised text-text-subtle border border-border/60">
 																						Past
 																					</span>
 																				)}
 																			</div>
-																			{hasHard ? (
-																				<ShieldAlert
-																					size={13}
-																					className="text-red-400 shrink-0"
-																				/>
-																			) : hasSoft ? (
-																				<AlertTriangle
-																					size={13}
-																					className="text-amber-400 shrink-0"
-																				/>
-																			) : null}
+																			{!isCancelled &&
+																				(hasHard ? (
+																					<ShieldAlert
+																						size={13}
+																						className="text-red-400 shrink-0"
+																					/>
+																				) : hasSoft ? (
+																					<AlertTriangle
+																						size={13}
+																						className="text-amber-400 shrink-0"
+																					/>
+																				) : null)}
 																		</div>
 
 																		<div
-																			className="text-[11px] font-medium text-text-main truncate"
+																			className={`text-[11px] font-medium truncate ${isCancelled ? "text-text-muted line-through" : "text-text-main"}`}
 																			title={
 																				isEvent
 																					? entry.title || entry.courseTitle
@@ -532,10 +552,10 @@ export function TimetableAcademicGrid({
 																		<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
 																			<MapPin
 																				size={10}
-																				className={`shrink-0 ${isShifted ? "text-amber-400" : "text-text-subtle"}`}
+																				className={`shrink-0 ${isCancelled ? "text-rose-400/60" : isShifted ? "text-amber-400" : "text-text-subtle"}`}
 																			/>
 																			<span
-																				className={`truncate ${isShifted ? "text-amber-300 font-medium" : ""}`}
+																				className={`truncate ${isCancelled ? "line-through text-text-subtle" : isShifted ? "text-amber-300 font-medium" : ""}`}
 																			>
 																				{matchingSession?.venueName ||
 																					entry.venueName}
@@ -543,6 +563,7 @@ export function TimetableAcademicGrid({
 																		</div>
 
 																		{matchingSession &&
+																			!isCancelled &&
 																			(isShifted ||
 																				(matchingSession.startTime &&
 																					matchingSession.startTime !==
@@ -568,7 +589,7 @@ export function TimetableAcademicGrid({
 																		{matchingSession?.entryType !== "event" &&
 																			(matchingSession?.lecturerName ||
 																				entry.lecturerName) && (
-																				<div className="flex items-center gap-1 text-[10px] text-text-muted truncate">
+																				<div className={`flex items-center gap-1 text-[10px] truncate ${isCancelled ? "text-text-subtle line-through" : "text-text-muted"}`}>
 																					<User
 																						size={10}
 																						className="shrink-0 text-text-subtle"
@@ -660,6 +681,15 @@ export function TimetableAcademicGrid({
 															12:00 - 14:00
 														</span>
 													</div>
+												) : isSlotPast ? (
+													<div
+														className="w-full h-full min-h-20 rounded-xl border border-dashed border-border/20 bg-surface-raised/10 flex flex-col items-center justify-center p-2 text-center select-none cursor-not-allowed opacity-40"
+														title={`Past time slot (${dayName} ${slot.label}) cannot be scheduled`}
+													>
+														<span className="text-[10px] text-text-subtle font-medium">
+															Past Slot
+														</span>
+													</div>
 												) : (
 													<button
 														type="button"
@@ -700,13 +730,17 @@ export function TimetableAcademicGrid({
 				date={activeModalDate}
 				canShift={
 					activeModalSession || activeModalEntry
-						? activeModalSession?.canShift !== false && !activeModalIsPast
+						? activeModalSession?.canShift !== false &&
+							activeModalSession?.status !== "cancelled" &&
+							activeModalEntry?.status !== "cancelled" &&
+							!activeModalIsPast
 						: false
 				}
 				onShiftClick={
 					onShiftSessionTrigger
-						? () => {
+						? (modalSession) => {
 								const targetSession =
+									modalSession ||
 									activeModalSession ||
 									sessions.find(
 										(s) =>
@@ -721,13 +755,16 @@ export function TimetableAcademicGrid({
 				}
 				canCancel={
 					activeModalSession || activeModalEntry
-						? activeModalSession?.status !== "cancelled" && !activeModalIsPast
+						? activeModalSession?.status !== "cancelled" &&
+							activeModalEntry?.status !== "cancelled" &&
+							!activeModalIsPast
 						: false
 				}
 				onCancelClick={
 					onCancelSessionTrigger
-						? () => {
+						? (modalSession) => {
 								const targetSession =
+									modalSession ||
 									activeModalSession ||
 									sessions.find(
 										(s) =>

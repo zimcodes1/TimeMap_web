@@ -13,23 +13,27 @@ import {
 	Ban,
 	ShieldAlert,
 } from "lucide-react";
-import type { LectureSession } from "@/types";
+import type { LectureSession, TimetableEntry } from "@/types";
 import type { WeekDayInfo } from "@/utils/semesterWeeks";
 import { LiveEntryDetailModal } from "./LiveEntryDetailModal";
 
 interface TimetableListViewProps {
 	sessions: LectureSession[];
+	entries?: TimetableEntry[];
 	weekDayDates: WeekDayInfo[];
 	todayStr: string;
 	onShiftSessionTrigger?: (session: LectureSession) => void;
+	onCancelSessionTrigger?: (session: LectureSession) => void;
 	isExam?: boolean;
 }
 
 export const TimetableListView: React.FC<TimetableListViewProps> = ({
 	sessions,
+	entries = [],
 	weekDayDates,
 	todayStr,
 	onShiftSessionTrigger,
+	onCancelSessionTrigger,
 	isExam = false,
 }) => {
 	const [activeModalSession, setActiveModalSession] =
@@ -138,20 +142,24 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 												key={session.id}
 												onClick={() => handleCardClick(session)}
 												className={`p-3 rounded-xl space-y-2 border transition-all shadow-2xs cursor-pointer ${
-													isEvent
-														? "bg-purple-500/10 border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/15 text-text-main"
-														: hasConflict
-															? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 text-text-main"
-															: isPastSession
-																? "bg-surface-raised/40 border-border/60 hover:border-border hover:bg-surface-raised/60 opacity-85 text-text-muted"
-																: "bg-surface-raised border-border hover:border-primary/50 hover:bg-surface-raised/80 text-text-main"
+													isCancelled
+														? "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/50 hover:bg-rose-500/15 opacity-80 text-text-muted"
+														: isEvent
+															? "bg-purple-500/10 border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/15 text-text-main"
+															: hasConflict
+																? "bg-red-500/10 border-red-500/30 hover:border-red-500/50 hover:bg-red-500/15 text-text-main"
+																: isPastSession
+																	? "bg-surface-raised/40 border-border/60 hover:border-border hover:bg-surface-raised/60 opacity-85 text-text-muted"
+																	: "bg-surface-raised border-border hover:border-primary/50 hover:bg-surface-raised/80 text-text-main"
 												}`}
 												title={
-													isEvent
-														? `Academic Event: ${session.courseTitle}. Click to view details.`
-														: isPastSession
-															? "Past lecture session (cannot be shifted). Click to view details."
-															: "Click to view lecture details or reschedule."
+													isCancelled
+														? `Cancelled ${isEvent ? "event" : "session"}: ${session.courseTitle}. Click to view details.`
+														: isEvent
+															? `Academic Event: ${session.courseTitle}. Click to view details.`
+															: isPastSession
+																? "Past lecture session (cannot be shifted). Click to view details."
+																: "Click to view lecture details, reschedule, or cancel."
 												}
 											>
 												<div className="flex items-start justify-between gap-2">
@@ -159,13 +167,15 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 														<div className="flex items-center gap-1.5">
 															<span
 																className={`font-extrabold text-sm ${
-																	isEvent
-																		? "text-purple-300"
-																		: hasConflict
-																			? "text-red-400"
-																			: isPastSession
-																				? "text-text-muted"
-																				: "text-primary"
+																	isCancelled
+																		? "text-rose-400/90 line-through"
+																		: isEvent
+																			? "text-purple-300"
+																			: hasConflict
+																				? "text-red-400"
+																				: isPastSession
+																					? "text-text-muted"
+																					: "text-primary"
 																}`}
 															>
 																{session.courseCode}
@@ -194,7 +204,7 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 															)}
 														</div>
 														<div
-															className="text-xs font-medium text-text-main line-clamp-1"
+															className={`text-xs font-medium line-clamp-1 ${isCancelled ? "text-text-muted line-through" : "text-text-main"}`}
 															title={session.courseTitle}
 														>
 															{session.courseTitle}
@@ -317,22 +327,41 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 															)}
 														</div>
 													) : (
-														/* For upcoming/active sessions: show Shift button if authorized */
-														session.canShift &&
-														onShiftSessionTrigger && (
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={(e) => {
-																	e.stopPropagation();
-																	onShiftSessionTrigger(session);
-																}}
-																className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-1 cursor-pointer"
-																title="Shift / Reschedule instance"
-															>
-																<Edit size={11} />
-																<span>Shift</span>
-															</Button>
+														/* For upcoming/active sessions: show Shift and Cancel button if authorized */
+														!isCancelled && (
+															<div className="flex items-center gap-1">
+																{session.canShift &&
+																	onShiftSessionTrigger && (
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			onClick={(e) => {
+																				e.stopPropagation();
+																				onShiftSessionTrigger(session);
+																			}}
+																			className="h-6 px-1.5 text-[10px] text-primary hover:bg-primary/10 gap-1 cursor-pointer"
+																			title="Shift / Reschedule instance"
+																		>
+																			<Edit size={11} />
+																			<span>Shift</span>
+																		</Button>
+																	)}
+																{onCancelSessionTrigger && (
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			handleCardClick(session);
+																		}}
+																		className="h-6 px-1.5 text-[10px] text-danger hover:bg-danger/10 gap-1 cursor-pointer"
+																		title="Cancel session instance"
+																	>
+																		<Ban size={11} />
+																		<span>Cancel</span>
+																	</Button>
+																)}
+															</div>
 														)
 													)}
 												</div>
@@ -350,31 +379,64 @@ export const TimetableListView: React.FC<TimetableListViewProps> = ({
 				})}
 			</div>
 
-			{/* Interactive Session Detail & Shift Modal */}
-			<LiveEntryDetailModal
-				isOpen={isModalOpen}
-				onClose={() => {
-					setIsModalOpen(false);
-					setActiveModalSession(null);
-				}}
-				session={activeModalSession}
-				isPast={
-					activeModalSession
-						? activeModalSession.date < todayStr ||
+			{/* Interactive Session Detail, Shift & Cancel Modal */}
+			{(() => {
+				const matchingEntry =
+					entries.find(
+						(e) =>
+							e.id === activeModalSession?.entryId ||
+							e.id === activeModalSession?.timetableEntryId,
+					) || null;
+				const isModalPast = Boolean(
+					activeModalSession &&
+						(activeModalSession.date < todayStr ||
 							(activeModalSession.date === todayStr &&
 								Boolean(
 									activeModalSession.endTime &&
-									activeModalSession.endTime < currentTimeStr,
-								))
-						: false
-				}
-				canShift={activeModalSession?.canShift !== false}
-				onShiftClick={
-					activeModalSession && onShiftSessionTrigger
-						? () => onShiftSessionTrigger(activeModalSession)
-						: undefined
-				}
-			/>
+										activeModalSession.endTime < currentTimeStr,
+								))),
+				);
+				const isModalCancelled = activeModalSession?.status === "cancelled";
+
+				return (
+					<LiveEntryDetailModal
+						isOpen={isModalOpen}
+						onClose={() => {
+							setIsModalOpen(false);
+							setActiveModalSession(null);
+						}}
+						entry={matchingEntry}
+						session={activeModalSession}
+						date={activeModalSession?.date}
+						isPast={isModalPast}
+						canShift={
+							Boolean(
+								activeModalSession &&
+									activeModalSession.canShift !== false &&
+									!isModalCancelled &&
+									!isModalPast,
+							)
+						}
+						onShiftClick={
+							onShiftSessionTrigger
+								? (s) => onShiftSessionTrigger(s || activeModalSession!)
+								: undefined
+						}
+						canCancel={
+							Boolean(
+								activeModalSession &&
+									!isModalCancelled &&
+									!isModalPast,
+							)
+						}
+						onCancelClick={
+							onCancelSessionTrigger
+								? (s) => onCancelSessionTrigger(s || activeModalSession!)
+								: undefined
+						}
+					/>
+				);
+			})()}
 		</div>
 	);
 };

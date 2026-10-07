@@ -5,7 +5,7 @@ import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CalendarClock, Repeat, BookOpen } from "lucide-react";
+import { CalendarClock, Repeat, BookOpen, AlertCircle } from "lucide-react";
 import apiClient from "@/api/apiClient";
 import { mapRawVenueToVenue } from "@/api/main/venuesAPI";
 import { TimeSlotPicker } from "@/components/schedules/TimeSlotPicker";
@@ -55,7 +55,7 @@ export default function ScheduleEntryModal({
 	onClose,
 	onSubmit,
 	courses = [],
-	venues = [],
+	venues: _venues = [],
 	activeSemester,
 	defaultEntryType = "lecture",
 	defaultDay,
@@ -143,13 +143,7 @@ export default function ScheduleEntryModal({
 			setEndTime(defaultEndTime || "10:00:00");
 			setIsRecurring(!isSlotClick);
 		}
-	}, [
-		isOpen,
-		defaultDay,
-		defaultStartTime,
-		defaultEndTime,
-		isSlotClick,
-	]);
+	}, [isOpen, defaultDay, defaultStartTime, defaultEndTime, isSlotClick]);
 
 	// Auto-select first filtered course when modal opens or filteredCourses changes
 	useEffect(() => {
@@ -167,7 +161,7 @@ export default function ScheduleEntryModal({
 		}
 	}, [isOpen, filteredCourses, courseId]);
 
-	// Resolve allowed venues based on selected course
+	// Resolve allowed venues based on selected course and timeslot availability
 	useEffect(() => {
 		if (!isOpen) return;
 
@@ -179,9 +173,23 @@ export default function ScheduleEntryModal({
 		let isCurrent = true;
 		setIsLoadingVenues(true);
 
+		const params: Record<string, any> = {
+			course: courseId,
+			day_of_week: dayOfWeek,
+			start_time: startTime,
+			end_time: endTime,
+			available_only: "true",
+		};
+		if (isSlotClick && defaultDate) {
+			params.date = defaultDate;
+		}
+		if (activeSemester?.id) {
+			params.semester = String(activeSemester.id);
+		}
+
 		apiClient
 			.get<any[]>("/venues/venues/", {
-				params: { course: courseId },
+				params,
 			})
 			.then((res) => {
 				if (!isCurrent) return;
@@ -189,41 +197,28 @@ export default function ScheduleEntryModal({
 					? res.data
 					: (res.data as any)?.results || [];
 				const mapped = list.map(mapRawVenueToVenue);
-				setAllowedVenues(mapped.length > 0 ? mapped : venues);
+				setAllowedVenues(mapped);
 				setIsLoadingVenues(false);
 			})
 			.catch(() => {
 				if (!isCurrent) return;
-				// Fallback to course-level filtering if API call fails
-				const courseObj = courses.find(
-					(c) => String(c.id) === String(courseId),
-				);
-				const filtered = venues.filter((v) => {
-					if (v.owningLevel === "school") return true;
-					if (
-						v.owningLevel === "faculty" &&
-						courseObj?.owningFaculty &&
-						String(v.owningFacultyId) === String(courseObj.owningFaculty)
-					) {
-						return true;
-					}
-					if (
-						v.owningLevel === "department" &&
-						courseObj?.departmentId &&
-						String(v.owningDepartmentId) === String(courseObj.departmentId)
-					) {
-						return true;
-					}
-					return false;
-				});
-				setAllowedVenues(filtered.length > 0 ? filtered : venues);
+				setAllowedVenues([]);
 				setIsLoadingVenues(false);
 			});
 
 		return () => {
 			isCurrent = false;
 		};
-	}, [isOpen, courseId, courses, venues]);
+	}, [
+		isOpen,
+		courseId,
+		dayOfWeek,
+		startTime,
+		endTime,
+		isSlotClick,
+		defaultDate,
+		activeSemester?.id,
+	]);
 
 	// Auto-select first allowed venue if current selection is invalid
 	useEffect(() => {
@@ -348,7 +343,14 @@ export default function ScheduleEntryModal({
 						variant="primary"
 						size="sm"
 						onClick={handleSubmit}
-						disabled={isPending || !courseId || !venueId || !startTime || !endTime}
+						disabled={
+							isPending ||
+							!courseId ||
+							!venueId ||
+							allowedVenues.length === 0 ||
+							!startTime ||
+							!endTime
+						}
 						className="cursor-pointer text-xs gap-1.5"
 					>
 						{isPending ? (
@@ -378,7 +380,8 @@ export default function ScheduleEntryModal({
 									{level ? ` · ${level} Level` : ""}
 								</span>
 								<span className="text-[11px] text-text-muted">
-									Course options are filtered strictly for this {level ? `${level}L ` : ""}program timetable.
+									Course options are filtered strictly for this{" "}
+									{level ? `${level}L ` : ""}program timetable.
 								</span>
 							</div>
 						</div>
@@ -516,10 +519,13 @@ export default function ScheduleEntryModal({
 					{filteredCourses.length === 0 ? (
 						<div className="p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs space-y-1">
 							<p className="font-semibold">
-								No {level ? `${level}L ` : ""}courses found for {programName || "this program"}
+								No {level ? `${level}L ` : ""}courses found for{" "}
+								{programName || "this program"}
 							</p>
 							<p className="text-[11px] opacity-80">
-								Courses must be registered or configured for {programName || "this program"} at {level}L before lectures can be scheduled.
+								Courses must be registered or configured for{" "}
+								{programName || "this program"} at {level}L before lectures can
+								be scheduled.
 							</p>
 						</div>
 					) : (
@@ -534,27 +540,46 @@ export default function ScheduleEntryModal({
 					)}
 				</div>
 
-				{/* 5. Venue Selection (Resolved according to course allowed scope) */}
+				{/* 5. Venue Selection (Resolved according to course allowed scope & availability) */}
 				<div>
 					<div className="flex items-center justify-between mb-1">
 						<Text variant="caption" className="font-semibold block">
-							Venue (Course Allowed Scope)
+							Available venues (
+							{isSlotClick
+								? `${defaultDay} ${defaultStartTime?.slice(0, 5)} - ${defaultEndTime?.slice(0, 5)}`
+								: `${dayOfWeek} ${startTime?.slice(0, 5)} - ${endTime?.slice(0, 5)}`}
+							)
 						</Text>
 						{isLoadingVenues && (
 							<span className="text-[10px] text-primary flex items-center gap-1">
 								<div className="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-								Resolving allowed venues...
+								Checking availability...
 							</span>
 						)}
 					</div>
-					<Select
-						value={venueId}
-						onChange={(e) => setVenueId(e.target.value)}
-						options={allowedVenues.map((v) => ({
-							value: v.id,
-							label: `${v.name} (Cap: ${v.capacity}${v.owningLevel ? ` · ${v.owningLevel}` : ""})`,
-						}))}
-					/>
+					{allowedVenues.length === 0 && !isLoadingVenues ? (
+						<div className="p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs space-y-1">
+							<p className="font-semibold flex items-center gap-1.5">
+								<AlertCircle size={14} className="shrink-0" />
+								No venues available at this timeslot
+							</p>
+							<p className="text-[11px] opacity-90">
+								All eligible venues for this course are occupied during{" "}
+								{isSlotClick ? defaultDay : dayOfWeek} ({startTime?.slice(0, 5)}{" "}
+								- {endTime?.slice(0, 5)}). Please select a different time slot
+								or day.
+							</p>
+						</div>
+					) : (
+						<Select
+							value={venueId}
+							onChange={(e) => setVenueId(e.target.value)}
+							options={allowedVenues.map((v) => ({
+								value: v.id,
+								label: `${v.name} (Cap: ${v.capacity}${v.owningLevel ? ` · ${v.owningLevel}` : ""})`,
+							}))}
+						/>
+					)}
 				</div>
 
 				{/* 6. Time Slot Picker (When not in slot click mode) */}

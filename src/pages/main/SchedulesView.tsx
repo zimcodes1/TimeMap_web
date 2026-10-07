@@ -392,9 +392,11 @@ export default function SchedulesView({
 					) : (
 						<TimetableListView
 							sessions={sessions || []}
+							entries={entries || []}
 							weekDayDates={weekDayDates}
 							todayStr={todayStr}
 							onShiftSessionTrigger={onShiftSessionTrigger}
+							onCancelSessionTrigger={onCancelSessionTrigger}
 						/>
 					)}
 

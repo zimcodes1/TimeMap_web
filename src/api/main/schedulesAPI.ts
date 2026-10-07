@@ -96,6 +96,7 @@ interface RawTimetableEntry {
   recurrence_end_date?: string;
   has_conflict?: boolean;
   conflict_reason?: string;
+  status?: "scheduled" | "shifted" | "postponed" | "cancelled" | "pending_approval" | string;
 }
 
 interface RawLectureSession {
@@ -214,6 +215,7 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     recurrenceEndDate: raw.recurrence_end_date,
     hasConflict: Boolean(raw.has_conflict),
     conflictReason: raw.conflict_reason,
+    status: (raw.status as TimetableEntry["status"]) || "scheduled",
   };
 }
 

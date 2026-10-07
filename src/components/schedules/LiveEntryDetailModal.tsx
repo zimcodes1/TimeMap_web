@@ -28,9 +28,15 @@ interface LiveEntryDetailModalProps {
 	isPast?: boolean;
 	date?: string;
 	canShift?: boolean;
-	onShiftClick?: () => void;
+	onShiftClick?: (
+		session?: LectureSession | null,
+		entry?: TimetableEntry | null,
+	) => void;
 	canCancel?: boolean;
-	onCancelClick?: () => void;
+	onCancelClick?: (
+		session?: LectureSession | null,
+		entry?: TimetableEntry | null,
+	) => void;
 }
 
 export function LiveEntryDetailModal({
@@ -132,9 +138,12 @@ export function LiveEntryDetailModal({
 	const isCancelled = sessionStatus === "cancelled";
 	const isShifted = sessionStatus === "shifted";
 
-	// Shift eligibility: past sessions can NEVER be shifted
+	// Shift eligibility: past sessions can NEVER be shifted, cancelled sessions cannot be shifted
 	const isShiftAllowed =
-		!calculatedIsPast && canShift !== false && Boolean(onShiftClick);
+		!calculatedIsPast &&
+		canShift !== false &&
+		Boolean(onShiftClick) &&
+		!isCancelled;
 
 	return (
 		<Modal
@@ -145,18 +154,22 @@ export function LiveEntryDetailModal({
 				<div className="flex items-center gap-2.5">
 					<div
 						className={`p-2 rounded-xl flex items-center justify-center ${
-							isEvent
-								? "bg-purple-500/15 border border-purple-500/30 text-purple-400"
-								: hasHardConflicts
-									? "bg-red-500/10 text-red-400"
-									: hasConflicts
-										? "bg-amber-500/10 border border-amber-500/20 text-amber-300"
-										: calculatedIsPast
-											? "bg-surface-raised border border-border text-text-muted"
-											: "bg-emerald-500/20 border border-primary/10 text-primary"
+							isCancelled
+								? "bg-rose-500/15 border border-rose-500/30 text-rose-400"
+								: isEvent
+									? "bg-purple-500/15 border border-purple-500/30 text-purple-400"
+									: hasHardConflicts
+										? "bg-red-500/10 text-red-400"
+										: hasConflicts
+											? "bg-amber-500/10 border border-amber-500/20 text-amber-300"
+											: calculatedIsPast
+												? "bg-surface-raised border border-border text-text-muted"
+												: "bg-emerald-500/20 border border-primary/10 text-primary"
 						}`}
 					>
-						{isEvent ? (
+						{isCancelled ? (
+							<Ban size={20} />
+						) : isEvent ? (
 							<Building2 size={20} />
 						) : hasHardConflicts ? (
 							<ShieldAlert size={20} />
@@ -254,13 +267,15 @@ export function LiveEntryDetailModal({
 				</div>
 			}
 			description={
-				isEvent
-					? calculatedIsPast
-						? "Past academic event record and details."
-						: "Live academic event schedule details."
-					: calculatedIsPast
-						? "Past lecture schedule details and attendance reporting record."
-						: "Detailed live lecture schedule details and conflict diagnostics."
+				isCancelled
+					? `This ${isEvent ? "event" : "lecture session"} has been cancelled.`
+					: isEvent
+						? calculatedIsPast
+							? "Past academic event record and details."
+							: "Live academic event schedule details."
+						: calculatedIsPast
+							? "Past lecture schedule details and attendance reporting record."
+							: "Detailed live lecture schedule details and conflict diagnostics."
 			}
 			footer={
 				<div className="flex items-center justify-between w-full">
@@ -268,6 +283,10 @@ export function LiveEntryDetailModal({
 						<span className="text-[11px] text-text-subtle italic">
 							Past {isEvent ? "events" : "lectures"} cannot be shifted or
 							cancelled.
+						</span>
+					) : isCancelled ? (
+						<span className="text-[11px] text-rose-400 italic font-medium">
+							This {isEvent ? "event" : "session"} has been cancelled.
 						</span>
 					) : confirmCancel ? (
 						<div className="flex items-center gap-2">
@@ -278,8 +297,8 @@ export function LiveEntryDetailModal({
 								variant="danger"
 								size="sm"
 								onClick={() => {
+									onCancelClick?.(session, entry);
 									onClose();
-									onCancelClick?.();
 								}}
 								className="cursor-pointer text-xs"
 							>
@@ -301,8 +320,8 @@ export function LiveEntryDetailModal({
 									variant="primary"
 									size="sm"
 									onClick={() => {
+										onShiftClick?.(session, entry);
 										onClose();
-										onShiftClick?.();
 									}}
 									className="cursor-pointer text-xs gap-1.5"
 								>
@@ -345,7 +364,7 @@ export function LiveEntryDetailModal({
 						<Clock size={18} className="text-text-muted shrink-0 mt-0.5" />
 						<div className="space-y-1 text-xs">
 							<div className="font-bold text-text-main flex items-center gap-2">
-								<span>Past Lecture Occurrence</span>
+								<span>Past Occurrence</span>
 								{dateStr && (
 									<span className="text-[10px] font-mono text-text-subtle font-normal">
 										({dateStr})
@@ -361,7 +380,7 @@ export function LiveEntryDetailModal({
 								from {startTime?.slice(0, 5)} to {endTime?.slice(0, 5)}.
 							</p>
 							<div className="pt-0.5 text-[11px] font-medium text-amber-400/90">
-								Past lectures cannot be shifted or rescheduled.
+								Past lectures/events cannot be shifted or rescheduled.
 							</div>
 						</div>
 					</div>

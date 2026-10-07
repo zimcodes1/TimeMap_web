@@ -485,39 +485,14 @@ export default function SchedulesContainer() {
 			} else if (result.outcome === "ROUTE_APPROVAL") {
 				setIsScheduleEntryOpen(false);
 				setIsScheduleEventOpen(false);
-				if (variables.entry_type !== "event" && variables.recurrence_rule) {
-					const selCourse = coursesData.find(
-						(c) => String(c.id) === String(variables.course),
-					);
-					const selVenue = venuesData.find(
-						(v) => String(v.id) === String(variables.venue),
-					);
-					setPendingApprovalInfo({
-						discrepancyId: result.discrepancy_request_id
-							? String(result.discrepancy_request_id)
-							: undefined,
-						courseCode: selCourse?.code,
-						courseTitle: selCourse?.title,
-						venueName: selVenue?.name,
-						venueCapacity: selVenue?.capacity,
-						dayOfWeek:
-							lastSubmittedEntryDetails?.day_of_week ||
-							scheduleEntryDefaults.day,
-						startTime: variables.start_time,
-						endTime: variables.end_time,
-						semesterName: activeSemester?.displayName || activeSemester?.name,
-						lectureStartDate: activeSemester?.lectureStartDate,
-						lectureEndDate: activeSemester?.lectureEndDate,
-					});
-					setIsRecurringApprovalOpen(true);
-				} else {
-					setConflictOutcome("ROUTE_APPROVAL");
-					setConflictDetailMsg(result.message);
-					setConflictsList([]);
-					setIsConflictModalOpen(true);
-				}
+				toast.info(
+					result.message ||
+						"Booking touches a venue outside your scope and has been routed to the Faculty Administrator for approval. You will receive a notification once reviewed.",
+				);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+				queryClient.invalidateQueries({ queryKey: ["discrepancies"] });
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			} else if (result.outcome === "HARD_REJECT") {
 				setConflictOutcome("HARD_REJECT");
 				setConflictDetailMsg(result.detail);
@@ -613,6 +588,23 @@ export default function SchedulesContainer() {
 		defaultDate?: string,
 		isSlotClick?: boolean,
 	) => {
+		if (defaultDate && defaultSlot) {
+			const now = new Date();
+			const todayDateStr = `${now.getFullYear()}-${String(
+				now.getMonth() + 1,
+			).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+			const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+				now.getMinutes(),
+			).padStart(2, "0")}:00`;
+			if (
+				defaultDate < todayDateStr ||
+				(defaultDate === todayDateStr && defaultSlot.end <= currentTimeStr)
+			) {
+				toast.error("Cannot schedule a lecture in a past time slot.");
+				return;
+			}
+		}
+
 		setScheduleEntryDefaults({
 			day: defaultDay,
 			date: defaultDate,

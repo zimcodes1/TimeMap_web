@@ -224,6 +224,7 @@ export interface TimetableEntry {
   recurrenceEndDate?: string;
   hasConflict?: boolean;
   conflictReason?: string;
+  status?: 'scheduled' | 'shifted' | 'postponed' | 'cancelled' | 'pending_approval' | string;
 }
 
 export type SessionStatus = 'scheduled' | 'shifted' | 'postponed' | 'cancelled' | 'held' | 'not_held';
