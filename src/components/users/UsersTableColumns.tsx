@@ -1,4 +1,4 @@
-import type { User, UserRole } from "@/types";
+import type { User, UserRole, Department, Faculty, School } from "@/types";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,11 +95,55 @@ function ActionGuard({
 	);
 }
 
+function getUserScopeDisplayName(
+	user: User,
+	departments: Department[] = [],
+	faculties: Faculty[] = [],
+	schools: School[] = [],
+): string {
+	if (user.role === "admin") {
+		if (user.adminScopeName) return user.adminScopeName;
+		if (user.adminLevel === "department") {
+			if (user.departmentName) return user.departmentName;
+			const id = user.departmentId || user.adminScopeId;
+			const found = departments.find((d) => String(d.id) === String(id));
+			if (found) return found.name;
+		}
+		if (user.adminLevel === "faculty") {
+			if (user.facultyName) return user.facultyName;
+			const id = user.facultyId || user.adminScopeId;
+			const found = faculties.find((f) => String(f.id) === String(id));
+			if (found) return found.name;
+		}
+		if (user.adminLevel === "school") {
+			if (user.schoolName) return user.schoolName;
+			const id = user.schoolId || user.adminScopeId;
+			const found = schools.find((s) => String(s.id) === String(id));
+			if (found) return found.name;
+		}
+		if (user.adminLevel === "system" || user.adminLevel === "university") {
+			return "System Wide";
+		}
+		return user.departmentName || "General Scope";
+	}
+
+	// Lecturer or Student
+	if (user.departmentName) return user.departmentName;
+	if (user.departmentId) {
+		const found = departments.find((d) => String(d.id) === String(user.departmentId));
+		if (found) return found.name;
+	}
+	return "General Scope";
+}
+
 interface BuildColumnsProps {
 	activeTab: UserRole;
 	loggedInRank: number;
 	selectedUserIds: string[];
 	paginatedUsers: User[];
+	departments?: Department[];
+	faculties?: Faculty[];
+	schools?: School[];
 	onToggleSelectUser: (id: string) => void;
 	onToggleSelectAll: () => void;
 	onEditUser: (user: User) => void;
@@ -112,6 +156,9 @@ export function buildUsersColumns({
 	loggedInRank,
 	selectedUserIds,
 	paginatedUsers,
+	departments = [],
+	faculties = [],
+	schools = [],
 	onToggleSelectUser,
 	onToggleSelectAll,
 	onEditUser,
@@ -205,19 +252,50 @@ export function buildUsersColumns({
 		},
 		{
 			header: "Scope / Department",
-			accessor: (user: User) => (
-				<div className="text-xs">
-					{user.role === "admin" ? (
-						<Badge variant="primary" className="capitalize text-[11px]">
-							{user.adminLevel || "Department"} Scope
-						</Badge>
-					) : (
-						<span className="text-text-main font-medium">
-							{user.departmentName || user.departmentId || "General Scope"}
-						</span>
-					)}
-				</div>
-			),
+			accessor: (user: User) => {
+				const scopeDisplayName = getUserScopeDisplayName(
+					user,
+					departments,
+					faculties,
+					schools,
+				);
+
+				return (
+					<div className="text-xs">
+						{user.role === "admin" ? (
+							<div className="flex flex-col gap-1 items-start">
+								<span className="text-text-main font-medium">
+									{scopeDisplayName}
+								</span>
+								{(user.isExamOfficer || user.isLecturer) && (
+									<div className="flex flex-wrap gap-1 mt-0.5">
+										{user.isExamOfficer && (
+											<Badge
+												variant="outline"
+												className="text-[10px] py-0 px-1.5 font-semibold border-amber-500/40 text-amber-500 bg-amber-500/10"
+											>
+												Exam Officer
+											</Badge>
+										)}
+										{user.isLecturer && (
+											<Badge
+												variant="outline"
+												className="text-[10px] py-0 px-1.5 font-medium border-indigo-500/40 text-indigo-400 bg-indigo-500/10"
+											>
+												Lecturer{user.lecturerDepartmentName ? `: ${user.lecturerDepartmentName}` : ""}
+											</Badge>
+										)}
+									</div>
+								)}
+							</div>
+						) : (
+							<span className="text-text-main font-medium">
+								{scopeDisplayName}
+							</span>
+						)}
+					</div>
+				);
+			},
 		},
 		...(activeTab === "student"
 			? [

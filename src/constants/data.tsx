@@ -35,6 +35,23 @@ export interface NavGroup {
 	items: NavItem[];
 }
 
+export const EXAM_OFFICER_ALLOWED_ROUTES: readonly string[] = [
+	"/dashboard",
+	"/exams",
+	"/venues",
+	"/notifications",
+	"/settings",
+] as const;
+
+export function isRouteAllowedForExamOfficer(path: string): boolean {
+	if (path.startsWith("/dashboard/analytics")) {
+		return false;
+	}
+	return EXAM_OFFICER_ALLOWED_ROUTES.some(
+		(allowed) => path === allowed || path.startsWith(`${allowed}/`)
+	);
+}
+
 export const NAV_GROUPS: NavGroup[] = [
 	{
 		title: "Overview",

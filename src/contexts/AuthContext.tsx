@@ -103,6 +103,10 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
 		level: rawProfile?.level,
 		isClassRep: rawProfile?.is_class_rep,
 		requiresPasswordReset: rawUser.requires_password_reset,
+		isLecturer: Boolean(rawProfile?.is_lecturer),
+		lecturerDepartmentId: rawProfile?.lecturer_department_id ? String(rawProfile.lecturer_department_id) : undefined,
+		lecturerDepartmentName: rawProfile?.lecturer_department_name,
+		isExamOfficer: Boolean(rawProfile?.is_exam_officer),
 	};
 }
 

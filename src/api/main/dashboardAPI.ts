@@ -6,6 +6,7 @@ import type {
   Department,
   DashboardStatCardsResponse,
   CapacityDeficitAnalytics,
+  ExamAnalyticsResponse,
 } from "@/types";
 
 export interface AnalyticsFilterParams {
@@ -283,9 +284,15 @@ export async function getDepartmentsList(): Promise<Department[]> {
  * GET /api/reporting/analytics/dashboard-statcards/
  */
 export async function getDashboardStatCards(): Promise<DashboardStatCardsResponse> {
-  const response = await apiClient.get<DashboardStatCardsResponse>(
+  const response = await apiClient.get<DashboardStatCardsResponse | DashboardStatCardsResponse["cards"]>(
     "/reporting/analytics/dashboard-statcards/"
   );
+  if (Array.isArray(response.data)) {
+    return {
+      role_level: "department",
+      cards: response.data,
+    };
+  }
   return response.data;
 }
 
@@ -300,6 +307,22 @@ export async function getCapacityDeficitAnalytics(
 
   const response = await apiClient.get<CapacityDeficitAnalytics>(
     "/reporting/analytics/capacity-deficit/",
+    { params }
+  );
+  return response.data;
+}
+
+/**
+ * GET /api/reporting/analytics/exam-analytics/
+ */
+export async function getExamAnalytics(
+  semesterId?: string
+): Promise<ExamAnalyticsResponse> {
+  const params: Record<string, string> = {};
+  if (semesterId) params.semester_id = semesterId;
+
+  const response = await apiClient.get<ExamAnalyticsResponse>(
+    "/reporting/analytics/exam-analytics/",
     { params }
   );
   return response.data;

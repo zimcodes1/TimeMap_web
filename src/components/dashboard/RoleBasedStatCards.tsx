@@ -14,6 +14,9 @@ import {
 	Sparkles,
 	CheckCircle2,
 	ShieldAlert,
+	GraduationCap,
+	Users,
+	UserCheck,
 } from "lucide-react";
 import type { DashboardStatCard } from "@/types";
 
@@ -45,6 +48,14 @@ function getCardIcon(id: string) {
 			return <Clock size={18} className="text-amber-500" />;
 		case "unreported_sessions":
 			return <AlertTriangle size={18} className="text-rose-500" />;
+		case "exam_sittings":
+			return <GraduationCap size={18} className="text-indigo-500" />;
+		case "exam_candidates":
+			return <Users size={18} className="text-blue-500" />;
+		case "assigned_invigilators":
+			return <UserCheck size={18} className="text-emerald-500" />;
+		case "exam_venues":
+			return <Building2 size={18} className="text-primary" />;
 		default:
 			return <Building2 size={18} className="text-primary" />;
 	}
@@ -67,14 +78,22 @@ function getCardBorderColor(id: string): string {
 			return "border-l-emerald-500";
 		case "discrepancy_queue":
 			return "border-l-amber-500";
+		case "exam_sittings":
+			return "border-l-indigo-500";
+		case "exam_candidates":
+			return "border-l-blue-500";
+		case "assigned_invigilators":
+			return "border-l-emerald-500";
+		case "exam_venues":
+			return "border-l-primary";
 		default:
 			return "border-l-primary";
 	}
 }
 
 function mapBadgeVariant(
-	variant?: "success" | "warning" | "danger" | "neutral",
-): "success" | "warning" | "danger" | "secondary" {
+	variant?: string,
+): "success" | "warning" | "danger" | "info" | "secondary" {
 	switch (variant) {
 		case "success":
 			return "success";
@@ -82,6 +101,8 @@ function mapBadgeVariant(
 			return "warning";
 		case "danger":
 			return "danger";
+		case "info":
+			return "info";
 		default:
 			return "secondary";
 	}

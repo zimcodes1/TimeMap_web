@@ -112,6 +112,17 @@ export default function CreateUserModal({
 		initialData?.isClassRep || false,
 	);
 
+	// Admin Specialization & Dual-Role fields
+	const [isExamOfficer, setIsExamOfficer] = useState<boolean>(
+		initialData?.isExamOfficer || false,
+	);
+	const [isLecturer, setIsLecturer] = useState<boolean>(
+		initialData?.isLecturer || false,
+	);
+	const [lecturerDepartmentId, setLecturerDepartmentId] = useState<string>(
+		initialData?.lecturerDepartmentId || "",
+	);
+
 	// Form Validation & API Error States
 	const [errors, setErrors] = useState<Record<string, string>>({});
 	const [formError, setFormError] = useState<string | null>(null);
@@ -169,6 +180,9 @@ export default function CreateUserModal({
 			setProgramId(initialData?.programId || "");
 			setLevel(initialData?.level ? String(initialData.level) : "");
 			setIsClassRep(initialData?.isClassRep || isDeptAdmin);
+			setIsExamOfficer(Boolean(initialData?.isExamOfficer));
+			setIsLecturer(Boolean(initialData?.isLecturer));
+			setLecturerDepartmentId(initialData?.lecturerDepartmentId || "");
 			setErrors({});
 			setFormError(null);
 		}
@@ -178,6 +192,30 @@ export default function CreateUserModal({
 	// Compute selected department & dynamic max level
 	const selectedDept = scopedDepts.find((d) => d.id === scopeId);
 	const deptMaxLevel = selectedDept?.max_level || selectedDept?.maxLevel || 400;
+
+	// Allowed Departments for Lecturer Role if dual-role is selected
+	const allowedLecturerDepts = useMemo(() => {
+		if (adminLevel === "department") {
+			return scopedDepts.filter((d) => String(d.id) === String(scopeId));
+		}
+		if (adminLevel === "faculty") {
+			return departments.filter((d) => String(d.facultyId) === String(scopeId));
+		}
+		if (adminLevel === "school") {
+			return departments.filter((d) => {
+				const fac = faculties.find((f) => String(f.id) === String(d.facultyId));
+				return fac && String(fac.schoolId) === String(scopeId);
+			});
+		}
+		return departments;
+	}, [adminLevel, scopeId, scopedDepts, departments, faculties]);
+
+	// Auto-lock lecturer department if admin is department level
+	useEffect(() => {
+		if (adminLevel === "department" && scopeId) {
+			setLecturerDepartmentId(scopeId);
+		}
+	}, [adminLevel, scopeId]);
 
 	// Available Programs for the selected department
 	const availablePrograms = useMemo(() => {
@@ -297,6 +335,9 @@ export default function CreateUserModal({
 			if (!scopeId) {
 				newErrors.scopeId = "Please select an assigned scope entity.";
 			}
+			if (isLecturer && adminLevel !== "department" && !lecturerDepartmentId) {
+				newErrors.lecturerDepartmentId = "Please select a department for the lecturer appointment.";
+			}
 		} else if (role === "lecturer" || role === "student") {
 			if (!scopeId) {
 				newErrors.scopeId = "Please select a department.";
@@ -329,6 +370,11 @@ export default function CreateUserModal({
 					adminLevel: adminLevel as AdminLevel,
 					scopeId,
 					departmentId: adminLevel === "department" ? scopeId : undefined,
+					isLecturer,
+					lecturerDepartmentId: isLecturer
+						? (adminLevel === "department" ? scopeId : lecturerDepartmentId)
+						: undefined,
+					isExamOfficer,
 					isActive: true,
 					requiresPasswordReset: true,
 				});
@@ -607,6 +653,102 @@ export default function CreateUserModal({
 													]
 								}
 							/>
+						</div>
+					</div>
+				)}
+
+				{/* Admin Officer Specialization & Dual Role Section */}
+				{role === "admin" && (
+					<div className="p-3.5 rounded-xl bg-surface-raised border border-border/60 space-y-3.5">
+						{/* Exam Officer Designation */}
+						<div className="flex items-start gap-3">
+							<input
+								type="checkbox"
+								id="exam-officer-toggle"
+								checked={isExamOfficer}
+								onChange={(e) => setIsExamOfficer(e.target.checked)}
+								className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/30 accent-primary cursor-pointer"
+							/>
+							<label htmlFor="exam-officer-toggle" className="flex-1 cursor-pointer select-none">
+								<div className="flex items-center gap-2">
+									<Text variant="caption" className="font-semibold text-text-main">
+										Designate as Exam Officer
+									</Text>
+									<span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+										Exams Only
+									</span>
+								</div>
+								<Text variant="caption" className="text-xs text-text-muted mt-0.5">
+									Exam officers manage exam timetables, sitting periods, and exam-specific analytics within their scope.
+								</Text>
+							</label>
+						</div>
+
+						<div className="border-t border-border/40" />
+
+						{/* Dual Role: Also a Lecturer? */}
+						<div className="space-y-2.5">
+							<div className="flex items-start gap-3">
+								<input
+									type="checkbox"
+									id="also-lecturer-toggle"
+									checked={isLecturer}
+									onChange={(e) => {
+										setIsLecturer(e.target.checked);
+										if (!e.target.checked) {
+											setErrors((prev) => {
+												const copy = { ...prev };
+												delete copy.lecturerDepartmentId;
+												return copy;
+											});
+										}
+									}}
+									className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/30 accent-primary cursor-pointer"
+								/>
+								<label htmlFor="also-lecturer-toggle" className="flex-1 cursor-pointer select-none">
+									<div className="flex items-center gap-2">
+										<Text variant="caption" className="font-semibold text-text-main">
+											Also a Lecturer / Teaching Staff
+										</Text>
+										<span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+											Dual Role
+										</span>
+									</div>
+									<Text variant="caption" className="text-xs text-text-muted mt-0.5">
+										Creates a linked teaching staff profile to allow course allocations and timetable scheduling.
+									</Text>
+								</label>
+							</div>
+
+							{/* Lecturer Department Selector if Dual Role is Active */}
+							{isLecturer && (
+								<div className="pl-7 pt-1">
+									<Select
+										label="Lecturer Academic Department *"
+										value={adminLevel === "department" ? scopeId : lecturerDepartmentId}
+										error={errors.lecturerDepartmentId}
+										disabled={adminLevel === "department"}
+										onChange={(e) => {
+											setLecturerDepartmentId(e.target.value);
+											if (errors.lecturerDepartmentId) {
+												setErrors((prev) => ({ ...prev, lecturerDepartmentId: "" }));
+											}
+										}}
+										options={[
+											{ value: "", label: "-- Select Lecturer Department --", disabled: true },
+											...allowedLecturerDepts.map((d) => ({
+												value: String(d.id),
+												label: `${d.code} - ${d.name}`,
+											})),
+										]}
+									/>
+									{adminLevel === "department" && (
+										<span className="text-[11px] text-text-muted mt-1 block">
+											Locked to admin's assigned department ({selectedDept?.name || "current department"}).
+										</span>
+									)}
+								</div>
+							)}
 						</div>
 					</div>
 				)}

@@ -19,6 +19,7 @@ import type {
 	Program,
 	Semester,
 	DashboardStatCard,
+	ExamAnalyticsResponse,
 } from "@/types";
 import type { DashboardSummaryCounts } from "@/api/main/dashboardAPI";
 import HoldRateLineChart from "@/components/dashboard/HoldRateLineChart";
@@ -26,6 +27,7 @@ import VenueUtilizationCard from "@/components/dashboard/VenueUtilizationCard";
 import DashboardScopeFilterBar from "@/components/dashboard/DashboardScopeFilterBar";
 import DetailedAnalyticsBanner from "@/components/dashboard/DetailedAnalyticsBanner";
 import RoleBasedStatCards from "@/components/dashboard/RoleBasedStatCards";
+import ExamOfficerDashboardSection from "@/components/dashboard/ExamOfficerDashboardSection";
 import useAuth from "@/hooks/useAuth";
 
 interface DashboardViewProps {
@@ -39,6 +41,9 @@ interface DashboardViewProps {
 	countsLoading?: boolean;
 	roleStatCards?: DashboardStatCard[];
 	roleStatCardsLoading?: boolean;
+	examAnalytics?: ExamAnalyticsResponse;
+	examAnalyticsLoading?: boolean;
+	isExamOfficer?: boolean;
 	departments: Department[];
 	faculties: Faculty[];
 	programs: Program[];
@@ -71,6 +76,9 @@ export default function DashboardView({
 	countsLoading = false,
 	roleStatCards,
 	roleStatCardsLoading = false,
+	examAnalytics,
+	examAnalyticsLoading = false,
+	isExamOfficer = false,
 	departments = [],
 	faculties = [],
 	programs = [],
@@ -88,11 +96,9 @@ export default function DashboardView({
 	currentWeekLabel,
 	onResetFilters,
 }: DashboardViewProps) {
-	const isAnyLoading =
-		holdRateLoading ||
-		utilizationLoading ||
-		discrepanciesLoading ||
-		countsLoading;
+	const isAnyLoading = isExamOfficer
+		? examAnalyticsLoading
+		: (holdRateLoading || utilizationLoading || discrepanciesLoading || countsLoading);
 
 	const pieData = [
 		{
@@ -122,12 +128,23 @@ export default function DashboardView({
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 				<div>
-					<Text variant="h3" weight="bold" className="text-text-main">
-						Dashboard & Academic Overview
-					</Text>
+					<div className="flex items-center gap-2.5">
+						<Text variant="h3" weight="bold" className="text-text-main">
+							{isExamOfficer ? "Exam Operations Dashboard" : "Dashboard & Academic Overview"}
+						</Text>
+						{isExamOfficer && (
+							<Badge
+								variant="outline"
+								className="text-xs font-semibold border-amber-500/40 text-amber-500 bg-amber-500/10"
+							>
+								Exam Officer
+							</Badge>
+						)}
+					</div>
 					<Text variant="body-sm" color="muted">
-						Administrative metrics and session compliance scoped to your
-						institutional role.
+						{isExamOfficer
+							? "Examination sittings, seat capacities, invigilation coverage, and logistics scoped to your administrative department."
+							: "Administrative metrics and session compliance scoped to your institutional role."}
 					</Text>
 				</div>
 				<div className="flex items-center gap-3">
@@ -270,112 +287,122 @@ export default function DashboardView({
 				</div>
 			)}
 
-			{/* Scope-Level Aware Filter Bar */}
-			<DashboardScopeFilterBar
-				adminLevel={adminLevel}
-				faculties={faculties}
-				selectedFacultyId={selectedFacultyId}
-				onFacultyChange={onFacultyChange}
-				departments={departments}
-				selectedDepartmentId={selectedDepartmentId}
-				onDepartmentChange={onDepartmentChange}
-				programs={programs}
-				selectedProgramId={selectedProgramId}
-				onProgramChange={onProgramChange}
-				selectedLevel={selectedLevel}
-				onLevelChange={onLevelChange}
-				maxLevel={maxLevel}
-				currentWeekLabel={currentWeekLabel}
-				onResetFilters={onResetFilters}
-			/>
-
-			{/* Analytics Charts Grid */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* 1. Lecture-Hold Rate Line Chart */}
-				<HoldRateLineChart holdRate={holdRate} isLoading={holdRateLoading} />
-
-				{/* 2. Venue Utilization (Faculty aggregates for School Admin, Dept scoped otherwise) */}
-				<VenueUtilizationCard
-					utilization={utilization}
-					isLoading={utilizationLoading}
-					departmentName={activeDept ? activeDept.name : undefined}
-					adminLevel={adminLevel}
+			{isExamOfficer ? (
+				<ExamOfficerDashboardSection
+					examAnalytics={examAnalytics}
+					isLoading={examAnalyticsLoading}
+					activeSemester={activeSemester}
 				/>
+			) : (
+				<>
+					{/* Scope-Level Aware Filter Bar */}
+					<DashboardScopeFilterBar
+						adminLevel={adminLevel}
+						faculties={faculties}
+						selectedFacultyId={selectedFacultyId}
+						onFacultyChange={onFacultyChange}
+						departments={departments}
+						selectedDepartmentId={selectedDepartmentId}
+						onDepartmentChange={onDepartmentChange}
+						programs={programs}
+						selectedProgramId={selectedProgramId}
+						onProgramChange={onProgramChange}
+						selectedLevel={selectedLevel}
+						onLevelChange={onLevelChange}
+						maxLevel={maxLevel}
+						currentWeekLabel={currentWeekLabel}
+						onResetFilters={onResetFilters}
+					/>
 
-				{/* 3. Discrepancy Resolution Breakdown */}
-				{user?.adminLevel == "department" && (
-					<Card className="p-5 space-y-4 lg:col-span-2">
-						<div>
-							{discrepanciesLoading ? (
-								<div className="space-y-1">
-									<Skeleton className="h-6 w-56" />
-									<Skeleton className="h-4 w-40" />
-								</div>
-							) : (
-								<>
-									<Text variant="h6" weight="bold">
-										Discrepancy Resolution Breakdown (
-										{discrepancies?.summary?.totalDiscrepancies ?? 0} Total)
-									</Text>
-									<Text variant="caption" color="muted">
-										Approved: {discrepancies?.summary?.byStatus?.approved ?? 0}{" "}
-										| Rejected:{" "}
-										{discrepancies?.summary?.byStatus?.rejected ?? 0} | Pending:{" "}
-										{discrepancies?.summary?.byStatus?.pending ?? 0} |
-										Withdrawn:{" "}
-										{discrepancies?.summary?.byStatus?.withdrawn ?? 0}
-									</Text>
-								</>
-							)}
-						</div>
-						<div className="h-64 flex items-center justify-center">
-							{discrepanciesLoading ? (
-								<div className="h-full w-full flex items-center justify-center">
-									<Skeleton className="w-36 h-36 rounded-full" />
-								</div>
-							) : totalPieValues > 0 ? (
-								<ResponsiveContainer width="100%" height="100%">
-									<PieChart>
-										<Pie
-											data={pieData}
-											cx="50%"
-											cy="50%"
-											innerRadius={45}
-											outerRadius={80}
-											paddingAngle={5}
-											dataKey="value"
-											label={({
-												name,
-												percent,
-											}: {
-												name?: string;
-												percent?: number;
-											}) =>
-												`${name ?? ""}: ${((percent ?? 0) * 100).toFixed(0)}%`
-											}
-										>
-											{pieData.map((_, index) => (
-												<Cell
-													key={`cell-${index}`}
-													fill={PIE_COLORS[index % PIE_COLORS.length]}
-												/>
-											))}
-										</Pie>
-										<Tooltip />
-									</PieChart>
-								</ResponsiveContainer>
-							) : (
-								<div className="h-full w-full flex items-center justify-center text-text-subtle text-xs border border-dashed border-border/50 rounded-xl p-4 text-center">
-									No discrepancy requests submitted in this period.
-								</div>
-							)}
-						</div>
-					</Card>
-				)}
-			</div>
+					{/* Analytics Charts Grid */}
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+						{/* 1. Lecture-Hold Rate Line Chart */}
+						<HoldRateLineChart holdRate={holdRate} isLoading={holdRateLoading} />
 
-			{/* Link to Detailed Analytics */}
-			<DetailedAnalyticsBanner adminLevel={adminLevel} />
+						{/* 2. Venue Utilization (Faculty aggregates for School Admin, Dept scoped otherwise) */}
+						<VenueUtilizationCard
+							utilization={utilization}
+							isLoading={utilizationLoading}
+							departmentName={activeDept ? activeDept.name : undefined}
+							adminLevel={adminLevel}
+						/>
+
+						{/* 3. Discrepancy Resolution Breakdown */}
+						{user?.adminLevel == "department" && (
+							<Card className="p-5 space-y-4 lg:col-span-2">
+								<div>
+									{discrepanciesLoading ? (
+										<div className="space-y-1">
+											<Skeleton className="h-6 w-56" />
+											<Skeleton className="h-4 w-40" />
+										</div>
+									) : (
+										<>
+											<Text variant="h6" weight="bold">
+												Discrepancy Resolution Breakdown (
+												{discrepancies?.summary?.totalDiscrepancies ?? 0} Total)
+											</Text>
+											<Text variant="caption" color="muted">
+												Approved: {discrepancies?.summary?.byStatus?.approved ?? 0}{" "}
+												| Rejected:{" "}
+												{discrepancies?.summary?.byStatus?.rejected ?? 0} | Pending:{" "}
+												{discrepancies?.summary?.byStatus?.pending ?? 0} |
+												Withdrawn:{" "}
+												{discrepancies?.summary?.byStatus?.withdrawn ?? 0}
+											</Text>
+										</>
+									)}
+								</div>
+								<div className="h-64 flex items-center justify-center">
+									{discrepanciesLoading ? (
+										<div className="h-full w-full flex items-center justify-center">
+											<Skeleton className="w-36 h-36 rounded-full" />
+										</div>
+									) : totalPieValues > 0 ? (
+										<ResponsiveContainer width="100%" height="100%">
+											<PieChart>
+												<Pie
+													data={pieData}
+													cx="50%"
+													cy="50%"
+													innerRadius={45}
+													outerRadius={80}
+													paddingAngle={5}
+													dataKey="value"
+													label={({
+														name,
+														percent,
+													}: {
+														name?: string;
+														percent?: number;
+													}) =>
+														`${name ?? ""}: ${((percent ?? 0) * 100).toFixed(0)}%`
+													}
+												>
+													{pieData.map((_, index) => (
+														<Cell
+															key={`cell-${index}`}
+															fill={PIE_COLORS[index % PIE_COLORS.length]}
+														/>
+													))}
+												</Pie>
+												<Tooltip />
+											</PieChart>
+										</ResponsiveContainer>
+									) : (
+										<div className="h-full w-full flex items-center justify-center text-text-subtle text-xs border border-dashed border-border/50 rounded-xl p-4 text-center">
+											No discrepancy requests submitted in this period.
+										</div>
+									)}
+								</div>
+							</Card>
+						)}
+					</div>
+
+					{/* Link to Detailed Analytics */}
+					<DetailedAnalyticsBanner adminLevel={adminLevel} />
+				</>
+			)}
 		</div>
 	);
 }

@@ -33,6 +33,10 @@ export interface ApiProfileRaw {
   level?: number;
   is_class_rep?: boolean;
   email?: string;
+  is_lecturer?: boolean;
+  lecturer_department_id?: number | string;
+  lecturer_department_name?: string;
+  is_exam_officer?: boolean;
   [key: string]: unknown;
 }
 

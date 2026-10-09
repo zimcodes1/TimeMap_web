@@ -26,6 +26,9 @@ export interface CreateAdminPayload {
   scope_department?: number | string | null;
   scope_faculty?: number | string | null;
   scope_school?: number | string | null;
+  is_lecturer?: boolean;
+  lecturer_department?: number | string | null;
+  is_exam_officer?: boolean;
 }
 
 interface RawUser {
@@ -69,9 +72,27 @@ interface RawAdminProfile {
   full_name: string;
   level: AdminLevel;
   email?: string;
+  scope_level?: string;
+  scope_id?: number | string;
+  scope_name?: string;
   scope_department?: number | string;
   scope_faculty?: number | string;
   scope_school?: number | string;
+  scope_department_id?: number | string;
+  scope_faculty_id?: number | string;
+  scope_school_id?: number | string;
+  department?: number | string;
+  department_id?: number | string;
+  department_name?: string;
+  faculty_id?: number | string;
+  faculty_name?: string;
+  school_id?: number | string;
+  school_name?: string;
+  is_lecturer?: boolean;
+  lecturer_department?: number | string | null;
+  lecturer_department_id?: number | string;
+  lecturer_department_name?: string;
+  is_exam_officer?: boolean;
 }
 
 export function mapRawStudentToUser(raw: RawStudentProfile): User {
@@ -112,6 +133,83 @@ export function mapRawLecturerToUser(raw: RawLecturerProfile): User {
 }
 
 export function mapRawAdminToUser(raw: RawAdminProfile): User {
+  const scopeId =
+    raw.scope_id !== undefined && raw.scope_id !== null
+      ? String(raw.scope_id)
+      : raw.scope_school_id !== undefined && raw.scope_school_id !== null
+        ? String(raw.scope_school_id)
+        : raw.scope_faculty_id !== undefined && raw.scope_faculty_id !== null
+          ? String(raw.scope_faculty_id)
+          : raw.scope_department_id !== undefined && raw.scope_department_id !== null
+            ? String(raw.scope_department_id)
+            : raw.department_id !== undefined && raw.department_id !== null
+              ? String(raw.department_id)
+              : typeof raw.scope_school === "number"
+                ? String(raw.scope_school)
+                : typeof raw.scope_faculty === "number"
+                  ? String(raw.scope_faculty)
+                  : typeof raw.scope_department === "number"
+                    ? String(raw.scope_department)
+                    : undefined;
+
+  const resolvedDeptId =
+    raw.scope_department_id !== undefined && raw.scope_department_id !== null
+      ? String(raw.scope_department_id)
+      : raw.department_id !== undefined && raw.department_id !== null
+        ? String(raw.department_id)
+        : typeof raw.scope_department === "number"
+          ? String(raw.scope_department)
+          : raw.level === "department" && scopeId
+            ? scopeId
+            : undefined;
+
+  const resolvedDeptName =
+    raw.department_name ||
+    (typeof raw.scope_department === "string" ? raw.scope_department : undefined) ||
+    (raw.level === "department" ? raw.scope_name : undefined);
+
+  const resolvedFacultyId =
+    raw.scope_faculty_id !== undefined && raw.scope_faculty_id !== null
+      ? String(raw.scope_faculty_id)
+      : raw.faculty_id !== undefined && raw.faculty_id !== null
+        ? String(raw.faculty_id)
+        : typeof raw.scope_faculty === "number"
+          ? String(raw.scope_faculty)
+          : raw.level === "faculty" && scopeId
+            ? scopeId
+            : undefined;
+
+  const resolvedFacultyName =
+    raw.faculty_name ||
+    (typeof raw.scope_faculty === "string" ? raw.scope_faculty : undefined) ||
+    (raw.level === "faculty" ? raw.scope_name : undefined);
+
+  const resolvedSchoolId =
+    raw.scope_school_id !== undefined && raw.scope_school_id !== null
+      ? String(raw.scope_school_id)
+      : raw.school_id !== undefined && raw.school_id !== null
+        ? String(raw.school_id)
+        : typeof raw.scope_school === "number"
+          ? String(raw.scope_school)
+          : raw.level === "school" && scopeId
+            ? scopeId
+            : undefined;
+
+  const resolvedSchoolName =
+    raw.school_name ||
+    (typeof raw.scope_school === "string" ? raw.scope_school : undefined) ||
+    (raw.level === "school" ? raw.scope_name : undefined);
+
+  const scopeName =
+    raw.scope_name ||
+    (raw.level === "department"
+      ? resolvedDeptName
+      : raw.level === "faculty"
+        ? resolvedFacultyName
+        : raw.level === "school"
+          ? resolvedSchoolName
+          : "System Wide");
+
   return {
     id: String(raw.id),
     identifier: raw.staff_id || raw.user?.identifier || "",
@@ -120,16 +218,24 @@ export function mapRawAdminToUser(raw: RawAdminProfile): User {
     role: "admin",
     adminLevel: raw.level,
     staffId: raw.staff_id,
-    departmentId: raw.scope_department ? String(raw.scope_department) : undefined,
-    adminScopeId: raw.scope_school
-      ? String(raw.scope_school)
-      : raw.scope_faculty
-        ? String(raw.scope_faculty)
-        : raw.scope_department
-          ? String(raw.scope_department)
-          : undefined,
+    departmentId: resolvedDeptId,
+    departmentName: resolvedDeptName,
+    facultyId: resolvedFacultyId,
+    facultyName: resolvedFacultyName,
+    schoolId: resolvedSchoolId,
+    schoolName: resolvedSchoolName,
+    adminScopeId: scopeId,
+    adminScopeName: scopeName,
     isActive: raw.user?.is_active ?? true,
     requiresPasswordReset: raw.user?.requires_password_reset ?? true,
+    isLecturer: Boolean(raw.is_lecturer),
+    lecturerDepartmentId: raw.lecturer_department_id
+      ? String(raw.lecturer_department_id)
+      : raw.lecturer_department
+        ? String(raw.lecturer_department)
+        : undefined,
+    lecturerDepartmentName: raw.lecturer_department_name,
+    isExamOfficer: Boolean(raw.is_exam_officer),
   };
 }
 

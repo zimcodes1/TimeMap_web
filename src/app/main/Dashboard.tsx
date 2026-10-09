@@ -7,6 +7,7 @@ import {
 	getDiscrepancyAnalytics,
 	getDashboardSummaryCounts,
 	getDashboardStatCards,
+	getExamAnalytics,
 } from "@/api/main/dashboardAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
@@ -208,9 +209,12 @@ export default function DashboardContainer() {
 		activeSemester,
 	]);
 
+	const isExamOfficer = Boolean(currentUser?.isExamOfficer);
+
 	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
 		queryKey: ["analytics", "hold-rate", holdRateParams],
 		queryFn: () => getLectureHoldRateAnalytics(holdRateParams),
+		enabled: !isExamOfficer,
 	});
 
 	const isSchoolAdmin = adminLevel === "school";
@@ -250,9 +254,10 @@ export default function DashboardContainer() {
 		queryKey: ["analytics", "utilization", utilizationParams],
 		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
 		enabled:
-			isSchoolAdmin ||
-			(isFacultyAdmin && !selectedDepartmentId) ||
-			Boolean(selectedDepartmentId),
+			!isExamOfficer &&
+			(isSchoolAdmin ||
+				(isFacultyAdmin && !selectedDepartmentId) ||
+				Boolean(selectedDepartmentId)),
 	});
 
 	// Discrepancy Analytics
@@ -266,18 +271,28 @@ export default function DashboardContainer() {
 	const { data: discrepancies, isLoading: discrepanciesLoading } = useQuery({
 		queryKey: ["analytics", "discrepancies", discrepancyParams],
 		queryFn: () => getDiscrepancyAnalytics(discrepancyParams),
+		enabled: !isExamOfficer,
 	});
 
 	// Dashboard Summary Counts (Legacy fallback)
 	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
 		queryKey: ["analytics", "summary-counts"],
 		queryFn: getDashboardSummaryCounts,
+		enabled: !isExamOfficer,
 	});
 
 	// Role-based Statcards Query
 	const { data: roleStatCardsData, isLoading: roleStatCardsLoading } = useQuery({
 		queryKey: ["analytics", "role-statcards"],
 		queryFn: getDashboardStatCards,
+	});
+
+	// Exam Analytics Query (for Exam Officers)
+	const { data: examAnalytics, isLoading: examAnalyticsLoading } = useQuery({
+		queryKey: ["analytics", "exam-analytics", activeSemester?.id],
+		queryFn: () =>
+			getExamAnalytics(activeSemester?.id ? String(activeSemester.id) : undefined),
+		enabled: isExamOfficer,
 	});
 
 	const handleResetFilters = () => {
@@ -302,6 +317,9 @@ export default function DashboardContainer() {
 			countsLoading={countsLoading}
 			roleStatCards={roleStatCardsData?.cards}
 			roleStatCardsLoading={roleStatCardsLoading}
+			examAnalytics={examAnalytics}
+			examAnalyticsLoading={examAnalyticsLoading}
+			isExamOfficer={isExamOfficer}
 			departments={displayedDepartments}
 			faculties={scopedFaculties}
 			programs={programsData}

@@ -127,6 +127,7 @@ export default function UsersContainer() {
 				"Admin officer account created with default password '12345678'",
 			);
 			queryClient.invalidateQueries({ queryKey: ["auth", "admins"] });
+			queryClient.invalidateQueries({ queryKey: ["auth", "lecturers"] });
 		},
 	});
 
@@ -183,12 +184,18 @@ export default function UsersContainer() {
 				scope_department: level === "department" ? targetScopeId : null,
 				scope_faculty: level === "faculty" ? targetScopeId : null,
 				scope_school: level === "school" ? targetScopeId : null,
+				is_lecturer: payload.isLecturer || false,
+				lecturer_department: payload.isLecturer
+					? payload.lecturerDepartmentId || (level === "department" ? targetScopeId : null)
+					: null,
+				is_exam_officer: payload.isExamOfficer || false,
 			});
 		},
 		onSuccess: () => {
 			toast.success("Admin details updated");
 			setEditingUser(null);
 			queryClient.invalidateQueries({ queryKey: ["auth", "admins"] });
+			queryClient.invalidateQueries({ queryKey: ["auth", "lecturers"] });
 		},
 		onError: () => toast.error("Failed to update admin details"),
 	});
@@ -225,6 +232,11 @@ export default function UsersContainer() {
 				scope_department: level === "department" ? targetScopeId : null,
 				scope_faculty: level === "faculty" ? targetScopeId : null,
 				scope_school: level === "school" ? targetScopeId : null,
+				is_lecturer: data.isLecturer || false,
+				lecturer_department: data.isLecturer
+					? data.lecturerDepartmentId || (level === "department" ? targetScopeId : null)
+					: null,
+				is_exam_officer: data.isExamOfficer || false,
 			});
 		}
 	};
@@ -328,6 +340,8 @@ export default function UsersContainer() {
 				students={students}
 				studentsLoading={studentsLoading}
 				departments={departments}
+				faculties={faculties}
+				schools={schools}
 				isRefetching={isRefetching}
 				onManualRefresh={handleManualRefresh}
 				onOpenCreateUser={() => setIsCreateUserOpen(true)}

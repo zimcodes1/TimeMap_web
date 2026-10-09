@@ -94,6 +94,9 @@ export default function EditUserModal({
 	const [programId, setProgramId] = useState("");
 	const [level, setLevel] = useState<number>(100);
 	const [isClassRep, setIsClassRep] = useState(false);
+	const [isExamOfficer, setIsExamOfficer] = useState(false);
+	const [isLecturer, setIsLecturer] = useState(false);
+	const [lecturerDepartmentId, setLecturerDepartmentId] = useState("");
 
 	useEffect(() => {
 		if (user) {
@@ -102,6 +105,9 @@ export default function EditUserModal({
 			setIdentifier(user.identifier || "");
 			setRole(user.role || "admin");
 			setAdminLevel((user.adminLevel as AdminLevel) || "department");
+			setIsExamOfficer(Boolean(user.isExamOfficer));
+			setIsLecturer(Boolean(user.isLecturer));
+			setLecturerDepartmentId(user.lecturerDepartmentId || "");
 
 			// Robust Auto-fill scopeId / department select resolution
 			let matchedScopeId =
@@ -170,6 +176,30 @@ export default function EditUserModal({
 	);
 	const effectiveMaxLevel = selectedProgram?.maxLevel || deptMaxLevel;
 
+	// Allowed Departments for Lecturer Role if dual-role is selected
+	const allowedLecturerDepts = useMemo(() => {
+		if (selectedAdminLevel === "department") {
+			return scopedDepts.filter((d) => String(d.id) === String(scopeId));
+		}
+		if (selectedAdminLevel === "faculty") {
+			return departments.filter((d) => String(d.facultyId) === String(scopeId));
+		}
+		if (selectedAdminLevel === "school") {
+			return departments.filter((d) => {
+				const fac = faculties.find((f) => String(f.id) === String(d.facultyId));
+				return fac && String(fac.schoolId) === String(scopeId);
+			});
+		}
+		return departments;
+	}, [selectedAdminLevel, scopeId, scopedDepts, departments, faculties]);
+
+	// Auto-lock lecturer department if admin is department level
+	useEffect(() => {
+		if (selectedAdminLevel === "department" && scopeId) {
+			setLecturerDepartmentId(scopeId);
+		}
+	}, [selectedAdminLevel, scopeId]);
+
 	const handleAdminLevelChange = (newLevel: AdminLevel) => {
 		setAdminLevel(newLevel);
 		if (newLevel === "school" && scopedSchs.length > 0) {
@@ -202,6 +232,12 @@ export default function EditUserModal({
 						? scopeId
 						: undefined,
 				departmentName: targetDept?.name,
+				isLecturer: role === "admin" ? isLecturer : undefined,
+				lecturerDepartmentId:
+					role === "admin" && isLecturer
+						? (selectedAdminLevel === "department" ? scopeId : lecturerDepartmentId)
+						: undefined,
+				isExamOfficer: role === "admin" ? isExamOfficer : false,
 				programId: role === "student" ? programId || undefined : undefined,
 				programName: role === "student" ? selectedProgram?.name : undefined,
 				level: role === "student" ? level : undefined,
@@ -352,6 +388,86 @@ export default function EditUserModal({
 										label: `${d.name} (${d.code})`,
 									}))}
 								/>
+							)}
+						</div>
+					</div>
+				)}
+
+				{/* Admin Officer Specialization & Dual Role Section */}
+				{role === "admin" && (
+					<div className="p-3.5 rounded-xl bg-surface-raised border border-border/60 space-y-3.5">
+						{/* Exam Officer Designation */}
+						<div className="flex items-start gap-3">
+							<input
+								type="checkbox"
+								id="exam-officer-toggle-edit"
+								checked={isExamOfficer}
+								onChange={(e) => setIsExamOfficer(e.target.checked)}
+								className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/30 accent-primary cursor-pointer"
+							/>
+							<label htmlFor="exam-officer-toggle-edit" className="flex-1 cursor-pointer select-none">
+								<div className="flex items-center gap-2">
+									<Text variant="caption" className="font-semibold text-text-main">
+										Designate as Exam Officer
+									</Text>
+									<span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
+										Exams Only
+									</span>
+								</div>
+								<Text variant="caption" className="text-xs text-text-muted mt-0.5">
+									Exam officers manage exam timetables, sitting periods, and exam-specific analytics within their scope.
+								</Text>
+							</label>
+						</div>
+
+						<div className="border-t border-border/40" />
+
+						{/* Dual Role: Also a Lecturer? */}
+						<div className="space-y-2.5">
+							<div className="flex items-start gap-3">
+								<input
+									type="checkbox"
+									id="also-lecturer-toggle-edit"
+									checked={isLecturer}
+									onChange={(e) => setIsLecturer(e.target.checked)}
+									className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/30 accent-primary cursor-pointer"
+								/>
+								<label htmlFor="also-lecturer-toggle-edit" className="flex-1 cursor-pointer select-none">
+									<div className="flex items-center gap-2">
+										<Text variant="caption" className="font-semibold text-text-main">
+											Also a Lecturer / Teaching Staff
+										</Text>
+										<span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+											Dual Role
+										</span>
+									</div>
+									<Text variant="caption" className="text-xs text-text-muted mt-0.5">
+										Creates a linked teaching staff profile to allow course allocations and timetable scheduling.
+									</Text>
+								</label>
+							</div>
+
+							{/* Lecturer Department Selector if Dual Role is Active */}
+							{isLecturer && (
+								<div className="pl-7 pt-1">
+									<Select
+										value={selectedAdminLevel === "department" ? scopeId : lecturerDepartmentId}
+										disabled={selectedAdminLevel === "department"}
+										onChange={(e) => setLecturerDepartmentId(e.target.value)}
+										options={[
+											{ value: "", label: "-- Select Lecturer Department --", disabled: true },
+											...allowedLecturerDepts.map((d) => ({
+												value: String(d.id),
+												label: `${d.code} - ${d.name}`,
+											})),
+										]}
+										helperText={
+											selectedAdminLevel === "department"
+												? `Locked to admin's assigned department (${selectedDept?.name || "current department"}).`
+												: undefined
+										}
+									/>
+								</div>
 							)}
 						</div>
 					</div>

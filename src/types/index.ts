@@ -27,6 +27,10 @@ export interface User {
   isClassRep?: boolean;
   isActive: boolean;
   requiresPasswordReset?: boolean;
+  isLecturer?: boolean;
+  lecturerDepartmentId?: string;
+  lecturerDepartmentName?: string;
+  isExamOfficer?: boolean;
 }
 
 export interface School {
@@ -665,4 +669,22 @@ export interface CapacityDeficitAnalytics {
   case_aware_remark?: string;
   status_variant?: 'success' | 'warning' | 'danger';
   message?: string;
+}
+
+export interface ExamAnalyticsSummary {
+  total_sittings: number;
+  total_candidates: number;
+  total_invigilators: number;
+  total_venues: number;
+}
+
+export interface ExamAnalyticsDailyBreakdown {
+  date: string;
+  sittings: number;
+  candidates: number;
+}
+
+export interface ExamAnalyticsResponse {
+  summary: ExamAnalyticsSummary;
+  daily_breakdown: ExamAnalyticsDailyBreakdown[];
 }

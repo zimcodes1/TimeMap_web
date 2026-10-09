@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/elements/logo";
 import { Text } from "@/components/ui/text";
-import { NAV_GROUPS } from "@/constants/data";
+import { NAV_GROUPS, isRouteAllowedForExamOfficer } from "@/constants/data";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SideNavProps {
@@ -87,6 +87,10 @@ export default function SideNav({
 			<div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/20">
 				{NAV_GROUPS.map((group) => {
 					const visibleItems = group.items.filter((item) => {
+						if (user?.isExamOfficer && !isRouteAllowedForExamOfficer(item.to)) {
+							return false;
+						}
+
 						if (item.adminLevels && item.adminLevels.length > 0) {
 							const effectiveLevel = user?.adminLevel === "university" ? "system" : user?.adminLevel;
 							if (
@@ -288,12 +292,19 @@ export default function SideNav({
 					</div>
 					{!collapsed && (
 						<div className="flex-1 min-w-0">
-							<Text
-								variant="caption"
-								className="font-bold text-white truncate block"
-							>
-								{displayName}
-							</Text>
+							<div className="flex items-center gap-1.5 truncate">
+								<Text
+									variant="caption"
+									className="font-bold text-white truncate block"
+								>
+									{displayName}
+								</Text>
+								{user?.isExamOfficer && (
+									<span className="text-[9px] bg-amber-400/20 text-amber-200 border border-amber-300/30 px-1 py-0.2 rounded font-semibold shrink-0">
+										Exam Officer
+									</span>
+								)}
+							</div>
 							<Text
 								variant="caption"
 								className="text-white/70 truncate block text-[11px]"
