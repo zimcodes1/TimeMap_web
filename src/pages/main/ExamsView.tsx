@@ -8,7 +8,6 @@ import {
 	LayoutGrid,
 	List,
 	RefreshCw,
-	Plus,
 	CalendarOff,
 } from "lucide-react";
 import type {
@@ -23,11 +22,12 @@ import type {
 	EffectiveExamPeriod,
 } from "@/types";
 import type { WeekRange, WeekDayInfo } from "@/utils/semesterWeeks";
-import { ExamWeeklyGrid } from "@/components/exams/ExamWeeklyGrid";
 import { ExamScopeFilterBar } from "@/components/exams/ExamScopeFilterBar";
 import { ExamPeriodBanner } from "@/components/exams/ExamPeriodBanner";
-import { TimetableListView } from "@/components/schedules/TimetableListView";
 import { WeekNavigator } from "@/components/schedules/WeekNavigator";
+import { ExamOptimizerWeek } from "@/components/exams/ExamOptimizerWeek";
+import type { OptimizedExamEvent } from "@/api/main/examOptimizerAPI";
+import { Link } from "@tanstack/react-router";
 
 interface ExamsViewProps {
 	entries: TimetableEntry[] | undefined;
@@ -69,10 +69,13 @@ interface ExamsViewProps {
 	onShiftSessionTrigger: (session: LectureSession) => void;
 	onOpenSetSchoolExamPeriod?: () => void;
 	onOpenSetFacultyExamPeriod?: () => void;
+	optimizedEvents: OptimizedExamEvent[];
+	optimizerDiagnostics?: { scheduled?: number; unscheduled?: Array<{ course_code: string; reason: string }> };
+	canViewOptimizedTimetable: boolean;
+	canOptimize: boolean;
 }
 
 export default function ExamsView({
-	entries = [],
 	entriesLoading = false,
 	sessions = [],
 	sessionsLoading = false,
@@ -99,19 +102,17 @@ export default function ExamsView({
 	onResetToCurrentWeek,
 	isCurrentWeekActive,
 	weekRange,
-	weekDayDates,
 	activeSemester,
 	onManualRefresh,
-	onOpenCreateExamEntry,
 	onOpenExamSitting,
-	onShiftSessionTrigger,
 	onOpenSetSchoolExamPeriod,
 	onOpenSetFacultyExamPeriod,
+	optimizedEvents = [],
+	optimizerDiagnostics,
+	canViewOptimizedTimetable,
+	canOptimize,
 }: ExamsViewProps) {
 	const [activeTab, setActiveTab] = useState<"grid" | "list">("grid");
-
-	const today = new Date();
-	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
 	const isSchoolAdmin =
 		currentUser?.role === "admin" &&
@@ -121,6 +122,7 @@ export default function ExamsView({
 		currentUser?.role === "admin" && currentUser?.adminLevel === "faculty";
 	const isDeptAdmin =
 		currentUser?.role === "admin" && currentUser?.adminLevel === "department";
+	const canOpenExamGenerator = isSchoolAdmin || canOptimize;
 
 	const currentFaculty =
 		faculties.find((f) => String(f.id) === String(selectedFacultyId)) ||
@@ -203,7 +205,8 @@ export default function ExamsView({
 				</div>
 
 				<div className="flex items-center justify-end gap-2 flex-wrap">
-					<Button
+					{canOpenExamGenerator && <Link to="/exams/generator"><Button variant="primary" size="sm" className="h-9 gap-1.5 text-xs">Generate / inspect timetable</Button></Link>}
+					{canViewOptimizedTimetable && <Button
 						variant="outline"
 						size="sm"
 						onClick={onManualRefresh}
@@ -215,9 +218,9 @@ export default function ExamsView({
 							className={isRefetching ? "animate-spin text-primary" : ""}
 						/>
 						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
-					</Button>
+					</Button>}
 
-					<Button
+					{canViewOptimizedTimetable && <Button
 						variant="outline"
 						size="sm"
 						onClick={onOpenExamSitting}
@@ -231,18 +234,8 @@ export default function ExamsView({
 								{examSittings.length}
 							</Badge>
 						)}
-					</Button>
+					</Button>}
 
-					<Button
-						variant="primary"
-						size="sm"
-						onClick={() => onOpenCreateExamEntry()}
-						disabled={!isExamPeriodDefined}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<Plus size={15} />
-						<span>Schedule Exam</span>
-					</Button>
 				</div>
 			</div>
 
@@ -317,17 +310,24 @@ export default function ExamsView({
 					</div>
 
 					{/* View Tabs: Grid View & List View */}
+					<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
+						<div className="text-sm text-text-muted">{optimizerDiagnostics ? `${optimizerDiagnostics.scheduled || 0} scheduled · ${optimizerDiagnostics.unscheduled?.length || 0} need attention` : "No optimizer run has been published for this scope."}</div>
+					</div>
+					{!!optimizerDiagnostics?.unscheduled?.length && <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm"><div className="mb-2 font-semibold text-amber-600">Courses needing attention</div><ul className="space-y-1 text-xs text-text-muted">{optimizerDiagnostics.unscheduled.map((item) => <li key={item.course_code}><span className="font-medium">{item.course_code}:</span> {item.reason}</li>)}</ul></div>}
+					{!canViewOptimizedTimetable ? <div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-text-muted">Exam timetable access is limited to the assigned faculty or department exam officer. A department or faculty admin can manage it when no exam officer is assigned.</div> : null}
+
+					{/* View Tabs: Grid View & List View */}
 					<div className="flex justify-center">
 						<TabSwitcher<"grid" | "list">
 							tabs={[
 								{
 									id: "grid",
-									label: "Exam Grid View",
+								label: "Weekly exam view",
 									icon: LayoutGrid,
 								},
 								{
 									id: "list",
-									label: "Exam List View",
+									label: "All exam events",
 									icon: List,
 									count: sessions?.length,
 								},
@@ -338,36 +338,21 @@ export default function ExamsView({
 					</div>
 
 					{/* Timetable Content */}
-					{activeTab === "grid" ? (
+					{canViewOptimizedTimetable && activeTab === "grid" ? (
 						entriesLoading ? (
 							<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
 								Loading examination timetable grid...
 							</div>
 						) : (
-							<ExamWeeklyGrid
-								entries={entries}
-								sessions={sessions}
-								examSittings={examSittings}
-								weekDayDates={weekDayDates}
-								isSchedulingDisabled={!isExamPeriodDefined}
-								onOpenCreateExam={(defaultDay, defaultDate, defaultSlot) =>
-									onOpenCreateExamEntry(defaultDay, defaultDate, defaultSlot)
-								}
-							/>
+							<ExamOptimizerWeek events={optimizedEvents} weekStart={weekRange.startStr} weekEnd={weekRange.endStr} level={selectedLevel} programId={selectedProgramId} departmentId={selectedDepartmentId} />
 						)
-					) : sessionsLoading ? (
+					) : canViewOptimizedTimetable && sessionsLoading ? (
 						<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
 							Loading examination sessions list...
 						</div>
-					) : (
-						<TimetableListView
-							sessions={sessions}
-							weekDayDates={weekDayDates}
-							todayStr={todayStr}
-							onShiftSessionTrigger={onShiftSessionTrigger}
-							isExam={true}
-						/>
-					)}
+					) : canViewOptimizedTimetable ? (
+							<ExamOptimizerWeek events={optimizedEvents} weekStart={effectiveExamPeriod?.effectiveStartDate || weekRange.startStr} weekEnd={effectiveExamPeriod?.effectiveEndDate || weekRange.endStr} level={selectedLevel} programId={selectedProgramId} />
+					) : null}
 
 					{/* Bottom Week Navigation */}
 					<WeekNavigator

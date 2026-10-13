@@ -30,8 +30,10 @@ import { Route as MainStudentsRouteImport } from './routes/_main/students'
 import { Route as MainUsersRouteImport } from './routes/_main/users'
 import { Route as MainVenuesRouteImport } from './routes/_main/venues'
 import { Route as MainDashboardAnalyticsRouteImport } from './routes/_main/dashboard_.analytics'
+import { Route as MainExamsGeneratorRouteImport } from './routes/_main/exams_.generator'
 import { Route as MainLecturersLecturerIdRouteImport } from './routes/_main/lecturers_.$lecturerId'
 import { Route as MainSchedulesGeneratorRouteImport } from './routes/_main/schedules_.generator'
+import { Route as MainExamsGeneratorRunIdRouteImport } from './routes/_main/exams_.generator_.$runId'
 import { Route as MainSchedulesGeneratorRunIdRouteImport } from './routes/_main/schedules_.generator_.$runId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -137,6 +139,11 @@ const MainDashboardAnalyticsRoute = MainDashboardAnalyticsRouteImport.update({
   path: '/dashboard/analytics',
   getParentRoute: () => MainRouteRoute,
 } as any)
+const MainExamsGeneratorRoute = MainExamsGeneratorRouteImport.update({
+  id: '/exams_/generator',
+  path: '/exams/generator',
+  getParentRoute: () => MainRouteRoute,
+} as any)
 const MainLecturersLecturerIdRoute = MainLecturersLecturerIdRouteImport.update({
   id: '/lecturers_/$lecturerId',
   path: '/lecturers/$lecturerId',
@@ -145,6 +152,11 @@ const MainLecturersLecturerIdRoute = MainLecturersLecturerIdRouteImport.update({
 const MainSchedulesGeneratorRoute = MainSchedulesGeneratorRouteImport.update({
   id: '/schedules_/generator',
   path: '/schedules/generator',
+  getParentRoute: () => MainRouteRoute,
+} as any)
+const MainExamsGeneratorRunIdRoute = MainExamsGeneratorRunIdRouteImport.update({
+  id: '/exams_/generator_/$runId',
+  path: '/exams/generator/$runId',
   getParentRoute: () => MainRouteRoute,
 } as any)
 const MainSchedulesGeneratorRunIdRoute =
@@ -174,8 +186,10 @@ export interface FileRoutesByFullPath {
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
   '/dashboard/analytics': typeof MainDashboardAnalyticsRoute
+  '/exams/generator': typeof MainExamsGeneratorRoute
   '/lecturers/$lecturerId': typeof MainLecturersLecturerIdRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
+  '/exams/generator/$runId': typeof MainExamsGeneratorRunIdRoute
   '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRoutesByTo {
@@ -198,8 +212,10 @@ export interface FileRoutesByTo {
   '/users': typeof MainUsersRoute
   '/venues': typeof MainVenuesRoute
   '/dashboard/analytics': typeof MainDashboardAnalyticsRoute
+  '/exams/generator': typeof MainExamsGeneratorRoute
   '/lecturers/$lecturerId': typeof MainLecturersLecturerIdRoute
   '/schedules/generator': typeof MainSchedulesGeneratorRoute
+  '/exams/generator/$runId': typeof MainExamsGeneratorRunIdRoute
   '/schedules/generator/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRoutesById {
@@ -225,8 +241,10 @@ export interface FileRoutesById {
   '/_main/users': typeof MainUsersRoute
   '/_main/venues': typeof MainVenuesRoute
   '/_main/dashboard_/analytics': typeof MainDashboardAnalyticsRoute
+  '/_main/exams_/generator': typeof MainExamsGeneratorRoute
   '/_main/lecturers_/$lecturerId': typeof MainLecturersLecturerIdRoute
   '/_main/schedules_/generator': typeof MainSchedulesGeneratorRoute
+  '/_main/exams_/generator_/$runId': typeof MainExamsGeneratorRunIdRoute
   '/_main/schedules_/generator_/$runId': typeof MainSchedulesGeneratorRunIdRoute
 }
 export interface FileRouteTypes {
@@ -251,8 +269,10 @@ export interface FileRouteTypes {
     | '/users'
     | '/venues'
     | '/dashboard/analytics'
+    | '/exams/generator'
     | '/lecturers/$lecturerId'
     | '/schedules/generator'
+    | '/exams/generator/$runId'
     | '/schedules/generator/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -275,8 +295,10 @@ export interface FileRouteTypes {
     | '/users'
     | '/venues'
     | '/dashboard/analytics'
+    | '/exams/generator'
     | '/lecturers/$lecturerId'
     | '/schedules/generator'
+    | '/exams/generator/$runId'
     | '/schedules/generator/$runId'
   id:
     | '__root__'
@@ -301,8 +323,10 @@ export interface FileRouteTypes {
     | '/_main/users'
     | '/_main/venues'
     | '/_main/dashboard_/analytics'
+    | '/_main/exams_/generator'
     | '/_main/lecturers_/$lecturerId'
     | '/_main/schedules_/generator'
+    | '/_main/exams_/generator_/$runId'
     | '/_main/schedules_/generator_/$runId'
   fileRoutesById: FileRoutesById
 }
@@ -461,6 +485,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MainDashboardAnalyticsRouteImport
       parentRoute: typeof MainRouteRoute
     }
+    '/_main/exams_/generator': {
+      id: '/_main/exams_/generator'
+      path: '/exams/generator'
+      fullPath: '/exams/generator'
+      preLoaderRoute: typeof MainExamsGeneratorRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
     '/_main/lecturers_/$lecturerId': {
       id: '/_main/lecturers_/$lecturerId'
       path: '/lecturers/$lecturerId'
@@ -473,6 +504,13 @@ declare module '@tanstack/react-router' {
       path: '/schedules/generator'
       fullPath: '/schedules/generator'
       preLoaderRoute: typeof MainSchedulesGeneratorRouteImport
+      parentRoute: typeof MainRouteRoute
+    }
+    '/_main/exams_/generator_/$runId': {
+      id: '/_main/exams_/generator_/$runId'
+      path: '/exams/generator/$runId'
+      fullPath: '/exams/generator/$runId'
+      preLoaderRoute: typeof MainExamsGeneratorRunIdRouteImport
       parentRoute: typeof MainRouteRoute
     }
     '/_main/schedules_/generator_/$runId': {
@@ -517,8 +555,10 @@ interface MainRouteRouteChildren {
   MainUsersRoute: typeof MainUsersRoute
   MainVenuesRoute: typeof MainVenuesRoute
   MainDashboardAnalyticsRoute: typeof MainDashboardAnalyticsRoute
+  MainExamsGeneratorRoute: typeof MainExamsGeneratorRoute
   MainLecturersLecturerIdRoute: typeof MainLecturersLecturerIdRoute
   MainSchedulesGeneratorRoute: typeof MainSchedulesGeneratorRoute
+  MainExamsGeneratorRunIdRoute: typeof MainExamsGeneratorRunIdRoute
   MainSchedulesGeneratorRunIdRoute: typeof MainSchedulesGeneratorRunIdRoute
 }
 
@@ -538,8 +578,10 @@ const MainRouteRouteChildren: MainRouteRouteChildren = {
   MainUsersRoute: MainUsersRoute,
   MainVenuesRoute: MainVenuesRoute,
   MainDashboardAnalyticsRoute: MainDashboardAnalyticsRoute,
+  MainExamsGeneratorRoute: MainExamsGeneratorRoute,
   MainLecturersLecturerIdRoute: MainLecturersLecturerIdRoute,
   MainSchedulesGeneratorRoute: MainSchedulesGeneratorRoute,
+  MainExamsGeneratorRunIdRoute: MainExamsGeneratorRunIdRoute,
   MainSchedulesGeneratorRunIdRoute: MainSchedulesGeneratorRunIdRoute,
 }
 

@@ -55,6 +55,7 @@ import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
 import SetExamPeriodModal from "@/components/modals/SetExamPeriodModal";
 import SetFacultyExamPeriodModal from "@/components/modals/SetFacultyExamPeriodModal";
+import { getExamOptimizerAccess, getOptimizedExamTimetable } from "@/api/main/examOptimizerAPI";
 
 export default function ExamsContainer() {
 	const queryClient = useQueryClient();
@@ -149,6 +150,18 @@ export default function ExamsContainer() {
 	const activeSemester = useMemo(() => {
 		return semestersData.find((s) => s.isActive) || semestersData[0];
 	}, [semestersData]);
+	const examScopeType = user?.adminLevel === "department" ? "department" : "faculty";
+	const examScopeId = examScopeType === "department" ? user?.departmentId : user?.facultyId || selectedFacultyId;
+	const examAccessQuery = useQuery({
+		queryKey: ["scheduling", "exam-optimizer-access", activeSemester?.id, examScopeType, examScopeId],
+		queryFn: () => getExamOptimizerAccess(activeSemester!.id, examScopeType, examScopeId!),
+		enabled: Boolean(activeSemester?.id && examScopeId && user?.role === "admin"),
+	});
+	const optimizedTimetableQuery = useQuery({
+		queryKey: ["scheduling", "exam-optimizer", activeSemester?.id, examScopeType, examScopeId],
+		queryFn: () => getOptimizedExamTimetable(activeSemester!.id, examScopeType, examScopeId!),
+		enabled: Boolean(examAccessQuery.data?.can_view && activeSemester?.id && examScopeId),
+	});
 
 	// Auto-initialize selected faculty and department based on user scope
 	useEffect(() => {
@@ -559,6 +572,10 @@ export default function ExamsContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
+				optimizedEvents={optimizedTimetableQuery.data?.events || []}
+				optimizerDiagnostics={optimizedTimetableQuery.data?.diagnostics}
+				canViewOptimizedTimetable={Boolean(examAccessQuery.data?.can_view)}
+				canOptimize={Boolean(examAccessQuery.data?.can_optimize)}
 				onManualRefresh={handleManualRefresh}
 				onOpenCreateExamEntry={handleOpenCreateExamEntry}
 				onOpenExamSitting={() => setIsExamSittingOpen(true)}

@@ -164,6 +164,9 @@ export interface Course {
   registrationCount?: number;
   courseType?: 'lecture' | 'practical';
   requiredOccurrencesPerWeek?: number;
+  examType?: 'written' | 'cbt' | 'lab_practical';
+  examDurationMinutes?: number;
+  examDurationPerStudentMinutes?: number;
 }
 
 export interface CourseAccessGrant {

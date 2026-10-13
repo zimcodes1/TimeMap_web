@@ -32,6 +32,9 @@ interface RawCourse {
   registration_count?: number;
   course_type?: "lecture" | "practical";
   required_occurrences_per_week?: number;
+  exam_type?: "written" | "cbt" | "lab_practical";
+  exam_duration_minutes?: number | null;
+  exam_duration_per_student_minutes?: number | null;
 }
 
 interface RawGrant {
@@ -128,6 +131,9 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     registrationCount: raw.registration_count || 0,
     courseType: raw.course_type || "lecture",
     requiredOccurrencesPerWeek: raw.required_occurrences_per_week ?? 1,
+    examType: raw.exam_type || "written",
+    examDurationMinutes: raw.exam_duration_minutes || undefined,
+    examDurationPerStudentMinutes: raw.exam_duration_per_student_minutes || undefined,
   };
 }
 
@@ -176,6 +182,9 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
     target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
     course_type: data.courseType || "lecture",
     required_occurrences_per_week: data.requiredOccurrencesPerWeek ? Number(data.requiredOccurrencesPerWeek) : 1,
+    exam_type: data.examType || undefined,
+    exam_duration_minutes: data.examDurationMinutes ? Number(data.examDurationMinutes) : undefined,
+    exam_duration_per_student_minutes: data.examDurationPerStudentMinutes ? Number(data.examDurationPerStudentMinutes) : undefined,
   };
 
   if (lecturerIds !== undefined) {
