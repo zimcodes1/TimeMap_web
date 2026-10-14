@@ -150,8 +150,44 @@ export default function ExamsContainer() {
 	const activeSemester = useMemo(() => {
 		return semestersData.find((s) => s.isActive) || semestersData[0];
 	}, [semestersData]);
-	const examScopeType = user?.adminLevel === "department" ? "department" : "faculty";
-	const examScopeId = examScopeType === "department" ? user?.departmentId : user?.facultyId || selectedFacultyId;
+	const isSchoolAdmin =
+		user?.role === "admin" &&
+		(user?.adminLevel === "school" || user?.adminLevel === "system" || user?.adminLevel === "university");
+	const isFacultyAdmin =
+		user?.role === "admin" && user?.adminLevel === "faculty";
+	const isDeptAdmin =
+		user?.role === "admin" && user?.adminLevel === "department";
+
+	const resolvedSchoolId =
+		user?.schoolId ||
+		(isSchoolAdmin ? user?.adminScopeId : undefined) ||
+		activeSemester?.schoolId ||
+		(activeSemester as any)?.session?.schoolId;
+
+	const examScopeType = isDeptAdmin
+		? "department"
+		: isFacultyAdmin
+			? (selectedDepartmentId && selectedDepartmentId !== "ALL" ? "department" : "faculty")
+			: isSchoolAdmin
+				? (selectedDepartmentId && selectedDepartmentId !== "ALL"
+					? "department"
+					: selectedFacultyId
+						? "faculty"
+						: "school")
+				: "school";
+
+	const examScopeId = isDeptAdmin
+		? user?.departmentId
+		: isFacultyAdmin
+			? (selectedDepartmentId && selectedDepartmentId !== "ALL"
+				? selectedDepartmentId
+				: user?.facultyId || selectedFacultyId)
+			: isSchoolAdmin
+				? (selectedDepartmentId && selectedDepartmentId !== "ALL"
+					? selectedDepartmentId
+					: selectedFacultyId || resolvedSchoolId || facultiesData[0]?.id)
+				: resolvedSchoolId;
+
 	const examAccessQuery = useQuery({
 		queryKey: ["scheduling", "exam-optimizer-access", activeSemester?.id, examScopeType, examScopeId],
 		queryFn: () => getExamOptimizerAccess(activeSemester!.id, examScopeType, examScopeId!),
@@ -160,7 +196,7 @@ export default function ExamsContainer() {
 	const optimizedTimetableQuery = useQuery({
 		queryKey: ["scheduling", "exam-optimizer", activeSemester?.id, examScopeType, examScopeId],
 		queryFn: () => getOptimizedExamTimetable(activeSemester!.id, examScopeType, examScopeId!),
-		enabled: Boolean(examAccessQuery.data?.can_view && activeSemester?.id && examScopeId),
+		enabled: Boolean((isSchoolAdmin || examAccessQuery.data?.can_view) && activeSemester?.id && examScopeId),
 	});
 
 	// Auto-initialize selected faculty and department based on user scope
@@ -201,7 +237,7 @@ export default function ExamsContainer() {
 	});
 
 	// Generation & Exam Permissions Query
-	const schoolId = user?.schoolId || activeSemester?.schoolId;
+	const schoolId = resolvedSchoolId || user?.schoolId || activeSemester?.schoolId;
 	const { data: permissionsData } = useQuery({
 		queryKey: ["generation", "permissions", schoolId],
 		queryFn: () => getGenerationPermissions(schoolId!),
@@ -494,6 +530,8 @@ export default function ExamsContainer() {
 		refetchSessions();
 		refetchExams();
 		queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer-access"] });
 		toast.info("Refreshing exam schedule data...");
 	};
 
@@ -574,8 +612,8 @@ export default function ExamsContainer() {
 				activeSemester={activeSemester}
 				optimizedEvents={optimizedTimetableQuery.data?.events || []}
 				optimizerDiagnostics={optimizedTimetableQuery.data?.diagnostics}
-				canViewOptimizedTimetable={Boolean(examAccessQuery.data?.can_view)}
-				canOptimize={Boolean(examAccessQuery.data?.can_optimize)}
+				canViewOptimizedTimetable={isSchoolAdmin || Boolean(examAccessQuery.data?.can_view)}
+				canOptimize={isSchoolAdmin || Boolean(examAccessQuery.data?.can_optimize)}
 				onManualRefresh={handleManualRefresh}
 				onOpenCreateExamEntry={handleOpenCreateExamEntry}
 				onOpenExamSitting={() => setIsExamSittingOpen(true)}
