@@ -107,6 +107,7 @@ function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
 		lecturerDepartmentId: rawProfile?.lecturer_department_id ? String(rawProfile.lecturer_department_id) : undefined,
 		lecturerDepartmentName: rawProfile?.lecturer_department_name,
 		isExamOfficer: Boolean(rawProfile?.is_exam_officer),
+		hasScopeExamOfficer: Boolean(rawProfile?.has_scope_exam_officer),
 	};
 }
 

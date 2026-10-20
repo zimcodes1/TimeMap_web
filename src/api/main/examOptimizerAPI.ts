@@ -26,15 +26,20 @@ export interface ExamOptimizerResult {
 	semester_id?: number;
 	scope_type?: string;
 	scope_id?: number;
+	scope_name?: string;
 	status?: "draft" | "approved" | "published";
 	events: OptimizedExamEvent[];
-	diagnostics: { scheduled?: number; joined_sessions?: number; unscheduled?: Array<{ course_code: string; reason: string }>; validation?: { valid: boolean; errors: Array<{ course_code: string; reason: string }> } };
+	diagnostics: { scheduled?: number; joined_sessions?: number; unscheduled?: Array<{ course_code: string; reason: string }>; validation?: { valid: boolean; errors: Array<{ course_code: string; reason: string }> }; student_workload?: { maximum_exams_per_student_per_week?: number; students_over_three_exams_per_week?: number; average_exams_per_student_week?: number; maximum_exams_per_student_per_day?: number } };
 	metrics?: Record<string, number | string>;
 	created_at?: string;
+	created_by_id?: number | null;
+	created_by_name?: string | null;
 	approved_at?: string | null;
 	approved_by?: number | null;
+	approved_by_name?: string | null;
 	published_at?: string | null;
 	published_by?: number | null;
+	published_by_name?: string | null;
 }
 
 const params = (semester: string | number, scopeType: string, scopeId: string | number) => ({

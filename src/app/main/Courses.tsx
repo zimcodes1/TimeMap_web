@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import CoursesView from "@/pages/main/CoursesView";
 import CreateCourseModal from "@/components/modals/CreateCourseModal";
 import EditCourseModal from "@/components/modals/EditCourseModal";
+import EditCourseExamSettingsModal from "@/components/modals/EditCourseExamSettingsModal";
 import DeleteConfirmModal from "@/components/modals/DeleteConfirmModal";
 import OfferAccessGrantModal from "@/components/modals/OfferAccessGrantModal";
 import RequestAccessGrantModal from "@/components/modals/RequestAccessGrantModal";
@@ -17,6 +18,8 @@ import {
 	approveCourseGrantAPI,
 	rejectCourseGrantAPI,
 	createCourseRegistrationAPI,
+	updateCourseExamSettingsAPI,
+	getCourseExamSettingsAccessAPI,
 } from "@/api/main/coursesAPI";
 import {
 	getDepartmentsOptions,
@@ -27,11 +30,13 @@ import {
 } from "@/api/main/usersAPI";
 import { getPrograms } from "@/api/main/programsAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
+import { useAuth } from "@/hooks/useAuth";
 import type { Course, AdminLevel } from "@/types";
 import { toast } from "sonner";
 
 export default function CoursesContainer() {
 	const queryClient = useQueryClient();
+	const { user: currentUser } = useAuth();
 
 	// Modal Visibility States
 	const [isCreateCourseOpen, setIsCreateCourseOpen] = useState(false);
@@ -40,6 +45,21 @@ export default function CoursesContainer() {
 	const [isRegisterStudentOpen, setIsRegisterStudentOpen] = useState(false);
 	const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 	const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+	const [examConfigCourse, setExamConfigCourse] = useState<Course | null>(null);
+
+	// Exam Settings Access Query
+	const { data: examAccess } = useQuery({
+		queryKey: ["courses", "exam-settings-access"],
+		queryFn: getCourseExamSettingsAccessAPI,
+	});
+
+	const isExamOfficer = Boolean(currentUser?.isExamOfficer);
+	const hasScopeExamOfficer = Boolean(
+		currentUser?.hasScopeExamOfficer ?? examAccess?.has_scope_exam_officer,
+	);
+	const canAccessExamTab = Boolean(
+		examAccess?.can_access_exam_tab ?? (isExamOfficer || !hasScopeExamOfficer),
+	);
 
 	// React Query Options Data
 	const { data: lecturers = [] } = useQuery({
@@ -266,6 +286,32 @@ export default function CoursesContainer() {
 		onError: () => toast.error("Failed to register student for course."),
 	});
 
+	const updateExamSettingsMutation = useMutation({
+		mutationFn: ({
+			id,
+			settings,
+		}: {
+			id: string;
+			settings: {
+				examType: "written" | "cbt" | "lab_practical";
+				examDurationMinutes?: number | null;
+				examDurationPerStudentMinutes?: number | null;
+			};
+		}) => updateCourseExamSettingsAPI(id, settings),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			toast.success("Exam settings updated successfully.");
+			setExamConfigCourse(null);
+		},
+		onError: (error: any) => {
+			toast.error(
+				error?.response?.data?.detail ||
+					error?.response?.data?.error ||
+					"Failed to update exam settings.",
+			);
+		},
+	});
+
 	// Handlers
 	const handleCreateCourse = (
 		data: Partial<Course> & { scopeId?: string; lecturerIds?: string[] },
@@ -333,6 +379,10 @@ export default function CoursesContainer() {
 				onDeleteCourse={handleDeleteCourse}
 				onApproveGrant={(id) => approveGrantMutation.mutate(id)}
 				onRejectGrant={(id) => rejectGrantMutation.mutate(id)}
+				isExamOfficer={isExamOfficer}
+				canAccessExamTab={canAccessExamTab}
+				hasScopeExamOfficer={hasScopeExamOfficer}
+				onEditExamSettings={(c) => setExamConfigCourse(c)}
 			/>
 
 			<CreateCourseModal
@@ -401,6 +451,16 @@ export default function CoursesContainer() {
 						: ""
 				}
 				itemType="course"
+			/>
+
+			<EditCourseExamSettingsModal
+				isOpen={Boolean(examConfigCourse)}
+				onClose={() => setExamConfigCourse(null)}
+				onSubmit={(id, settings) => {
+					updateExamSettingsMutation.mutate({ id, settings });
+				}}
+				course={examConfigCourse}
+				isSubmitting={updateExamSettingsMutation.isPending}
 			/>
 		</>
 	);

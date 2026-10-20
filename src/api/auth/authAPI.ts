@@ -37,6 +37,7 @@ export interface ApiProfileRaw {
   lecturer_department_id?: number | string;
   lecturer_department_name?: string;
   is_exam_officer?: boolean;
+  has_scope_exam_officer?: boolean;
   [key: string]: unknown;
 }
 

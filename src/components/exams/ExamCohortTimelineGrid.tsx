@@ -112,10 +112,18 @@ export const ExamCohortTimelineGrid: React.FC<ExamCohortTimelineGridProps> = ({
 					<AlertCircle size={22} />
 				</div>
 				<div className="space-y-1">
-					<Text variant="h4" weight="bold" className="text-text-main">
+					<Text
+						variant="h4"
+						weight="bold"
+						className="text-text-main text-center"
+					>
 						Select a Program to View Cohort Timeline
 					</Text>
-					<Text variant="body-sm" color="muted" className="max-w-md mx-auto">
+					<Text
+						variant="body-sm"
+						color="muted"
+						className="max-w-md mx-auto text-center"
+					>
 						To prevent parallel examinations from congesting the continuous time
 						ruler, please select a specific <strong>Program</strong> and{" "}
 						<strong>Level</strong> in the filter bar above, or switch to the{" "}

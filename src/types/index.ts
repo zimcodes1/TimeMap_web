@@ -31,6 +31,7 @@ export interface User {
   lecturerDepartmentId?: string;
   lecturerDepartmentName?: string;
   isExamOfficer?: boolean;
+  hasScopeExamOfficer?: boolean;
 }
 
 export interface School {
@@ -167,6 +168,14 @@ export interface Course {
   examType?: 'written' | 'cbt' | 'lab_practical';
   examDurationMinutes?: number;
   examDurationPerStudentMinutes?: number;
+  isGrantedToScope?: boolean;
+  canEditExamSettings?: boolean;
+}
+
+export interface CourseExamSettingsAccess {
+  is_exam_officer: boolean;
+  has_scope_exam_officer: boolean;
+  can_access_exam_tab: boolean;
 }
 
 export interface CourseAccessGrant {

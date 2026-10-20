@@ -1,5 +1,5 @@
 import apiClient from "@/api/apiClient";
-import type { Course, CourseAccessGrant, AdminLevel, User } from "@/types";
+import type { Course, CourseAccessGrant, AdminLevel, User, CourseExamSettingsAccess } from "@/types";
 
 interface RawCourse {
   id: number | string;
@@ -35,6 +35,8 @@ interface RawCourse {
   exam_type?: "written" | "cbt" | "lab_practical";
   exam_duration_minutes?: number | null;
   exam_duration_per_student_minutes?: number | null;
+  is_granted_to_scope?: boolean;
+  can_edit_exam_settings?: boolean;
 }
 
 interface RawGrant {
@@ -134,6 +136,8 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     examType: raw.exam_type || "written",
     examDurationMinutes: raw.exam_duration_minutes || undefined,
     examDurationPerStudentMinutes: raw.exam_duration_per_student_minutes || undefined,
+    isGrantedToScope: Boolean(raw.is_granted_to_scope),
+    canEditExamSettings: Boolean(raw.can_edit_exam_settings),
   };
 }
 
@@ -233,6 +237,41 @@ export async function updateCourseAPI(
   const payload = mapCourseToRawPayload(data);
   const response = await apiClient.patch<RawCourse>(`/courses/courses/${id}/`, payload);
   return mapRawCourseToCourse(response.data, lecturersList);
+}
+
+/**
+ * PATCH /api/courses/courses/{id}/
+ * Specialized payload for exam officers and scope admins updating exam settings only.
+ */
+export async function updateCourseExamSettingsAPI(
+  id: string,
+  settings: {
+    examType: "written" | "cbt" | "lab_practical";
+    examDurationMinutes?: number | null;
+    examDurationPerStudentMinutes?: number | null;
+  },
+  lecturersList: User[] = []
+): Promise<Course> {
+  const payload = {
+    exam_type: settings.examType,
+    exam_duration_minutes:
+      settings.examType === "cbt" ? null : (settings.examDurationMinutes ?? 120),
+    exam_duration_per_student_minutes:
+      settings.examType === "cbt" ? (settings.examDurationPerStudentMinutes ?? 45) : null,
+  };
+  const response = await apiClient.patch<RawCourse>(`/courses/courses/${id}/`, payload);
+  return mapRawCourseToCourse(response.data, lecturersList);
+}
+
+/**
+ * GET /api/courses/courses/exam-settings-access/
+ * Resolves current user's role and permission to view/edit course exam settings.
+ */
+export async function getCourseExamSettingsAccessAPI(): Promise<CourseExamSettingsAccess> {
+  const response = await apiClient.get<CourseExamSettingsAccess>(
+    "/courses/courses/exam-settings-access/"
+  );
+  return response.data;
 }
 
 /**

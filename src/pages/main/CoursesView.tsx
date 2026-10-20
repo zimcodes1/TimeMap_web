@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
 	type ToolbarFilter,
 } from "@/components/ui/table-toolbar";
 import { DataTable } from "@/components/ui/data-table";
+import { CourseExamSettingsTable } from "@/components/courses/CourseExamSettingsTable";
 import {
 	Plus,
 	Share2,
@@ -21,6 +22,7 @@ import {
 	RefreshCw,
 	Trash2,
 	Lock,
+	SlidersHorizontal,
 } from "lucide-react";
 import type {
 	Course,
@@ -49,6 +51,10 @@ interface CoursesViewProps {
 	onDeleteCourse?: (id: string) => void;
 	onApproveGrant: (id: string) => void;
 	onRejectGrant: (id: string) => void;
+	isExamOfficer?: boolean;
+	canAccessExamTab?: boolean;
+	hasScopeExamOfficer?: boolean;
+	onEditExamSettings?: (course: Course) => void;
 }
 
 export default function CoursesView({
@@ -68,6 +74,10 @@ export default function CoursesView({
 	onDeleteCourse,
 	onApproveGrant,
 	onRejectGrant,
+	isExamOfficer: propIsExamOfficer,
+	canAccessExamTab: propCanAccessExamTab,
+	hasScopeExamOfficer: propHasScopeExamOfficer,
+	onEditExamSettings,
 }: CoursesViewProps) {
 	const { user: currentUser } = useAuth();
 	const adminLevel = currentUser?.adminLevel;
@@ -82,37 +92,81 @@ export default function CoursesView({
 	const isDeptAdmin =
 		currentUser?.role === "admin" && adminLevel === "department";
 
-	// Tab configurations per admin level
+	const isExamOfficer =
+		propIsExamOfficer !== undefined
+			? propIsExamOfficer
+			: Boolean(currentUser?.isExamOfficer);
+
+	const hasScopeExamOfficer =
+		propHasScopeExamOfficer !== undefined
+			? propHasScopeExamOfficer
+			: Boolean(currentUser?.hasScopeExamOfficer);
+
+	// canAccessExamTab is true if exam officer, OR if scope admin has no exam officer assigned
+	const canAccessExamTab =
+		propCanAccessExamTab !== undefined
+			? propCanAccessExamTab
+			: isExamOfficer || (!hasScopeExamOfficer && !isUniversityAdmin);
+
+	// Tab configurations per role and scope
 	const visibleTabs = useMemo(() => {
-		if (isUniversityAdmin || isSchoolAdmin) {
+		if (isExamOfficer) {
 			return [
 				{
-					id: "catalog",
-					label: "Course Catalog",
-					icon: BookOpen,
+					id: "exam_settings",
+					label: "Exam Configurations",
+					icon: SlidersHorizontal,
 					count: courses.length,
 				},
 			];
 		}
-		return [
+
+		const tabs = [
 			{
 				id: "catalog",
 				label: "Course Catalog",
 				icon: BookOpen,
 				count: courses.length,
 			},
-			{
+		];
+
+		if (canAccessExamTab) {
+			tabs.push({
+				id: "exam_settings",
+				label: "Exam Settings",
+				icon: SlidersHorizontal,
+				count: courses.length,
+			});
+		}
+
+		if (!isUniversityAdmin && !isSchoolAdmin) {
+			tabs.push({
 				id: "grants",
 				label: "Access Grants Queue",
 				icon: Share2,
 				count: grants.length,
-			},
-		];
-	}, [isUniversityAdmin, isSchoolAdmin, courses.length, grants.length]);
+			});
+		}
+
+		return tabs;
+	}, [
+		isExamOfficer,
+		canAccessExamTab,
+		isUniversityAdmin,
+		isSchoolAdmin,
+		courses.length,
+		grants.length,
+	]);
 
 	const [activeTab, setActiveTab] = useState<
-		"catalog" | "grants" | "registrations"
-	>("catalog");
+		"catalog" | "grants" | "exam_settings"
+	>(isExamOfficer ? "exam_settings" : "catalog");
+
+	useEffect(() => {
+		if (isExamOfficer && activeTab !== "exam_settings") {
+			setActiveTab("exam_settings");
+		}
+	}, [isExamOfficer, activeTab]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [levelFilter, setLevelFilter] = useState("");
 	const [scopeFilter, setScopeFilter] = useState("");
@@ -356,17 +410,21 @@ export default function CoursesView({
 				<div>
 					<div className="flex-col sm:mb-2 sm:flex items-left gap-2">
 						<Text variant="h3" weight="bold" className="text-text-main">
-							Courses & Access Sharing
+							{isExamOfficer
+								? "Course Exam Configurations"
+								: "Courses & Access Sharing"}
 						</Text>
 					</div>
 					<Text variant="body-sm" color="muted">
-						{isUniversityAdmin
-							? "Read-only course catalog and institutional curriculum overview."
-							: isSchoolAdmin
-								? "Manage school-level core courses and view academic catalog across all departments."
-								: isFacultyAdmin
-									? "Manage faculty courses, review cross-department access grants, and view departmental offerings."
-									: "Manage departmental courses, offer access grants, and request cross-department offerings."}
+						{isExamOfficer
+							? "Configure examination modes, duration windows, and CBT candidate timings for courses in your scope."
+							: isUniversityAdmin
+								? "Read-only course catalog and institutional curriculum overview."
+								: isSchoolAdmin
+									? "Manage school-level core courses and view academic catalog across all departments."
+									: isFacultyAdmin
+										? "Manage faculty courses, review cross-department access grants, and view departmental offerings."
+										: "Manage departmental courses, offer access grants, and request cross-department offerings."}
 					</Text>
 				</div>
 
@@ -389,8 +447,8 @@ export default function CoursesView({
 						</Button>
 					)}
 
-					{/* Access Grants Buttons: Available only to Faculty & Department Admins */}
-					{(isFacultyAdmin || isDeptAdmin) && (
+					{/* Access Grants Buttons: Available only to Faculty & Department Admins (Not Exam Officers) */}
+					{!isExamOfficer && (isFacultyAdmin || isDeptAdmin) && (
 						<>
 							<Button
 								variant="outline"
@@ -411,8 +469,8 @@ export default function CoursesView({
 						</>
 					)}
 
-					{/* Create Course Button: Available to School, Faculty & Department Admins */}
-					{!isUniversityAdmin && (
+					{/* Create Course Button: Available to School, Faculty & Department Admins (Not Exam Officers) */}
+					{!isExamOfficer && !isUniversityAdmin && (
 						<Button
 							variant="primary"
 							size="sm"
@@ -789,6 +847,16 @@ export default function CoursesView({
 						/>
 					)}
 				</div>
+			)}
+
+			{/* Exam Settings View */}
+			{activeTab === "exam_settings" && (
+				<CourseExamSettingsTable
+					courses={courses}
+					isLoading={isLoading}
+					onEditExamSettings={onEditExamSettings || (() => {})}
+					isExamOfficer={isExamOfficer}
+				/>
 			)}
 		</div>
 	);
