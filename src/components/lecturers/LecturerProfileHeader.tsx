@@ -68,11 +68,11 @@ export const LecturerProfileHeader: React.FC<LecturerProfileHeaderProps> = ({
 						variant={lecturer.isActive ? "success" : "danger"}
 						className="text-xs px-2.5 py-1"
 					>
-						{lecturer.isActive ? "Active Account" : "Account Disabled"}
+						{lecturer.isActive ? "Active" : "Disabled"}
 					</Badge>
 					{lecturer.requiresPasswordReset && (
 						<Badge variant="warning" className="text-xs px-2.5 py-1">
-							Password Reset Pending
+							Reset Pending
 						</Badge>
 					)}
 				</div>

@@ -149,19 +149,14 @@ export const LecturerStatsSection: React.FC<LecturerStatsSectionProps> = ({
 					<div>
 						<div className="flex items-center gap-2">
 							<Text variant="h6" weight="bold" className="text-text-main">
-								Lecture Hold Rate Performance
+								Lecture Hold Rate
 							</Text>
 							{activeSemester && (
 								<Badge
 									variant="outline"
 									className="text-[11px] font-medium hidden sm:inline-flex"
 								>
-									{activeSemester.sessionLabel
-										? `${activeSemester.sessionLabel} • `
-										: ""}
-									{activeSemester.name === "first"
-										? "1st Semester"
-										: "2nd Semester"}
+									This semester
 								</Badge>
 							)}
 						</div>
@@ -178,7 +173,7 @@ export const LecturerStatsSection: React.FC<LecturerStatsSectionProps> = ({
 					<select
 						value={selectedCourseId}
 						onChange={(e) => onCourseChange(e.target.value)}
-						className="text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main font-medium focus:outline-none focus:ring-1 focus:ring-primary min-w-[200px]"
+						className="text-xs bg-surface-raised border border-border rounded-xl px-3 py-2 text-text-main font-medium focus:outline-none focus:ring-1 focus:ring-primary max-sm:w-70 sm:min-w-50"
 					>
 						<option value="">All Assigned Courses</option>
 						{courses.map((c) => (

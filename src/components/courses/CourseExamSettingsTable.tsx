@@ -12,13 +12,10 @@ import {
 import {
 	FileText,
 	Cpu,
-	FlaskConical,
 	Clock,
 	Users,
 	SlidersHorizontal,
 	Lock,
-	Share2,
-	CheckCircle2,
 	Layers,
 } from "lucide-react";
 import type { Course } from "@/types";
@@ -401,15 +398,15 @@ export function CourseExamSettingsTable({
 
 							if (isLocked) {
 								const lockReason = c.isGrantedToScope
-									? "Granted (Read-Only)"
+									? "Granted course (read-only in this scope)"
 									: c.owningLevel === "department"
-										? "Department Scope"
-										: "Read-Only";
+										? "Originates in department scope — configurable only by department exam officer or admin"
+										: "Course can only be configured by its originating scope exam officer or admin.";
 								return (
 									<Badge
 										variant="outline"
 										className="text-[11px] text-text-subtle gap-1.5 py-1 px-2.5 bg-surface-raised/60 border-border select-none"
-										title="Course can only be configured by its originating scope exam officer or admin."
+										title={lockReason}
 									>
 										<Lock size={11} />
 									</Badge>

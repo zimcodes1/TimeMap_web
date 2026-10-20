@@ -154,11 +154,24 @@ export default function UsersView({
       // Admin scope level filter (admin tab only)
       const matchesScope = !scopeFilter || u.adminLevel === scopeFilter;
 
-      // Admin role type filter (exam officer / dual-role lecturer)
+      // Admin role type filter (general admin / exam officer / dual-role lecturer / scope level)
       let matchesAdminRole = true;
       if (currentTab === "admin" && adminRoleFilter) {
-        if (adminRoleFilter === "exam_officer") matchesAdminRole = Boolean(u.isExamOfficer);
-        if (adminRoleFilter === "lecturer") matchesAdminRole = Boolean(u.isLecturer);
+        if (adminRoleFilter === "general") {
+          matchesAdminRole = !u.isExamOfficer && !u.isLecturer;
+        } else if (adminRoleFilter === "exam_officer") {
+          matchesAdminRole = Boolean(u.isExamOfficer);
+        } else if (adminRoleFilter === "lecturer") {
+          matchesAdminRole = Boolean(u.isLecturer);
+        } else if (adminRoleFilter === "department") {
+          matchesAdminRole = u.adminLevel === "department";
+        } else if (adminRoleFilter === "faculty") {
+          matchesAdminRole = u.adminLevel === "faculty";
+        } else if (adminRoleFilter === "school") {
+          matchesAdminRole = u.adminLevel === "school";
+        } else if (adminRoleFilter === "university" || adminRoleFilter === "system") {
+          matchesAdminRole = u.adminLevel === "university" || u.adminLevel === "system";
+        }
       }
 
       // Department filter — compare by string ID
@@ -359,7 +372,7 @@ export default function UsersView({
           value: adminRoleFilter,
           onChange: setAdminRoleFilter,
           options: [
-            { label: "All Roles", value: "" },
+            { label: "General Administrators", value: "general" },
             { label: "Exam Officers", value: "exam_officer" },
             { label: "Lecturers (Dual-Role)", value: "lecturer" },
           ],

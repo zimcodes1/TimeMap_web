@@ -267,7 +267,7 @@ export function buildUsersColumns({
 								<span className="text-text-main font-medium">
 									{scopeDisplayName}
 								</span>
-								{(user.isExamOfficer || user.isLecturer) && (
+								{(user.isExamOfficer || user.isLecturer) ? (
 									<div className="flex flex-wrap gap-1 mt-0.5">
 										{user.isExamOfficer && (
 											<Badge
@@ -285,6 +285,15 @@ export function buildUsersColumns({
 												Lecturer{user.lecturerDepartmentName ? `: ${user.lecturerDepartmentName}` : ""}
 											</Badge>
 										)}
+									</div>
+								) : (
+									<div className="flex flex-wrap gap-1 mt-0.5">
+										<Badge
+											variant="outline"
+											className="text-[10px] py-0 px-1.5 font-normal border-border text-text-muted bg-surface-raised"
+										>
+											General Admin
+										</Badge>
 									</div>
 								)}
 							</div>

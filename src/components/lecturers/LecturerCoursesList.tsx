@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Users, Clock, Layers, AlertCircle } from "lucide-react";
+import { BookOpen, Users, Layers, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,11 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 					</div>
 					<div>
 						<div className="flex items-center gap-2">
-							<Text variant="h6" weight="bold" className="text-text-main text-sm sm:text-base">
+							<Text
+								variant="h6"
+								weight="bold"
+								className="text-text-main text-sm sm:text-base"
+							>
 								Assigned Courses This Semester
 							</Text>
 							<Badge variant="outline" className="text-[11px] font-semibold">
@@ -35,7 +39,8 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 							</Badge>
 						</div>
 						<Text variant="caption" color="muted">
-							Course offerings assigned to this lecturer for teaching and timetable delivery.
+							Course offerings assigned to this lecturer for teaching and
+							timetable delivery.
 						</Text>
 					</div>
 				</div>
@@ -44,8 +49,10 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 					<div className="text-xs text-text-muted font-medium bg-surface-raised px-3 py-1.5 rounded-xl border border-border/60 self-start sm:self-auto">
 						<span>Semester: </span>
 						<span className="text-text-main font-semibold">
-							{activeSemester.name === "first" ? "1st Semester" : "2nd Semester"} (
-							{activeSemester.sessionLabel || "Current"})
+							{activeSemester.name === "first"
+								? "1st Semester"
+								: "2nd Semester"}{" "}
+							({activeSemester.sessionLabel || "Current"})
 						</span>
 					</div>
 				)}
@@ -65,16 +72,19 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 						No Courses Assigned For This Semester
 					</Text>
 					<Text variant="caption" color="muted" className="max-w-md pt-1">
-						This lecturer is not assigned to any course offerings in the current semester schedule.
+						This lecturer is not assigned to any course offerings in the current
+						semester schedule.
 					</Text>
 				</div>
 			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
 					{courses.map((course) => {
 						const programDisplay =
 							course.targetProgramCode ||
 							course.targetProgramName ||
-							(course.programScope === "general" ? "General Scope (All Programs)" : "Department Program");
+							(course.programScope === "general"
+								? "General Scope (All Programs)"
+								: "Department Program");
 
 						return (
 							<div
@@ -88,37 +98,43 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 											<span className="font-mono text-sm font-bold text-primary">
 												{course.code}
 											</span>
-											<Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0">
+											<Badge
+												variant="outline"
+												className="text-[10px] font-bold px-1.5 py-0"
+											>
 												{course.level}L
 											</Badge>
 											{course.courseType && (
 												<Badge
-													variant={course.courseType === "practical" ? "info" : "secondary"}
+													variant={
+														course.courseType === "practical"
+															? "info"
+															: "secondary"
+													}
 													className="text-[10px] capitalize px-1.5 py-0"
 												>
 													{course.courseType}
 												</Badge>
 											)}
 										</div>
-										<Text variant="body-sm" weight="semibold" className="text-text-main line-clamp-1">
+										<Text
+											variant="body-sm"
+											weight="semibold"
+											className="text-text-main line-clamp-1"
+										>
 											{course.title}
 										</Text>
-									</div>
-
-									{/* Weekly Occurrences */}
-									<div className="text-right shrink-0">
-										<Badge variant="outline" className="text-[10px] font-medium flex items-center gap-1">
-											<Clock size={11} />
-											<span>{course.requiredOccurrencesPerWeek ?? 1} hrs/wk</span>
-										</Badge>
 									</div>
 								</div>
 
 								{/* Bottom Row: Program details and student count */}
-								<div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs text-text-muted">
+								<div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-text-muted">
 									<div className="flex items-center gap-1.5 text-text-muted max-w-[70%]">
 										<Layers size={13} className="text-blue-400 shrink-0" />
-										<span className="truncate font-medium text-[11px]" title={programDisplay}>
+										<span
+											className="truncate font-medium text-[11px]"
+											title={programDisplay}
+										>
 											{programDisplay}
 										</span>
 									</div>
