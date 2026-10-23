@@ -6,6 +6,8 @@ import {
 	ShieldAlert,
 	AlertCircle,
 	ArrowRight,
+	FileDown,
+	Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,8 @@ interface ExamGeneratorConfigCardProps {
 	isFacultyAdmin: boolean;
 	isDeptAdmin: boolean;
 	existingRunForScope?: ExamOptimizerResult | null;
+	onExportProblem?: (format?: "json" | "csv") => void;
+	isExporting?: boolean;
 	className?: string;
 }
 
@@ -58,6 +62,8 @@ export const ExamGeneratorConfigCard: React.FC<
 	isFacultyAdmin,
 	isDeptAdmin,
 	existingRunForScope,
+	onExportProblem,
+	isExporting = false,
 	className = "",
 }) => {
 	// Build target scope options based on scopeType
@@ -246,13 +252,13 @@ export const ExamGeneratorConfigCard: React.FC<
 				)}
 			</div>
 
-			{/* Action Trigger */}
-			<div className="pt-2 flex justify-start">
+			{/* Action Trigger & Problem Dataset Export Actions */}
+			<div className="pt-2 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
 				<Button
 					variant="primary"
 					onClick={onGenerate}
 					disabled={!canTrigger}
-					className="h-11 px-6 gap-2 text-sm font-semibold shadow-md cursor-pointer"
+					className="h-10 px-5 gap-2 text-sm font-semibold shadow-md cursor-pointer"
 				>
 					<Sparkles size={16} />
 					<span>
@@ -261,6 +267,52 @@ export const ExamGeneratorConfigCard: React.FC<
 							: "Generate Draft Timetable"}
 					</span>
 				</Button>
+
+				<div className="flex items-center gap-2">
+					<Button
+						variant="outline"
+						type="button"
+						disabled={
+							isGenerating ||
+							isExporting ||
+							!canOptimize ||
+							!selectedSemesterId ||
+							!scopeId
+						}
+						onClick={() => onExportProblem?.("json")}
+						className="cursor-pointer gap-2 text-xs h-10 px-3.5 font-medium hover:bg-surface-raised"
+						title="Export exam scheduling problem dataset with course populations and conflict graph in JSON"
+					>
+						{isExporting ? (
+							<>
+								<Cpu size={14} className="animate-spin text-primary" />
+								<span>Exporting Dataset...</span>
+							</>
+						) : (
+							<>
+								<FileDown size={14} className="text-primary" />
+								<span>Export Problem (JSON)</span>
+							</>
+						)}
+					</Button>
+
+					<Button
+						variant="outline"
+						type="button"
+						disabled={
+							isGenerating ||
+							isExporting ||
+							!canOptimize ||
+							!selectedSemesterId ||
+							!scopeId
+						}
+						onClick={() => onExportProblem?.("csv")}
+						className="cursor-pointer text-xs h-10 px-3 text-text-muted hover:text-text-main hover:bg-surface-raised font-medium"
+						title="Export exam scheduling problem dataset as CSV"
+					>
+						CSV
+					</Button>
+				</div>
 			</div>
 		</div>
 	);

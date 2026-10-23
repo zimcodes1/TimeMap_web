@@ -34,6 +34,8 @@ interface ExamOptimizerGeneratorViewProps {
 	isHistoryOpen: boolean;
 	onOpenHistory: () => void;
 	onCloseHistory: () => void;
+	onExportProblem?: (format?: "json" | "csv") => void;
+	isExporting?: boolean;
 }
 
 export const ExamOptimizerGeneratorView: React.FC<ExamOptimizerGeneratorViewProps> = ({
@@ -60,6 +62,8 @@ export const ExamOptimizerGeneratorView: React.FC<ExamOptimizerGeneratorViewProp
 	isHistoryOpen,
 	onOpenHistory,
 	onCloseHistory,
+	onExportProblem,
+	isExporting = false,
 }) => {
 	return (
 		<div className="mx-auto max-w-6xl space-y-6 pb-12">
@@ -121,6 +125,8 @@ export const ExamOptimizerGeneratorView: React.FC<ExamOptimizerGeneratorViewProp
 				isFacultyAdmin={isFacultyAdmin}
 				isDeptAdmin={isDeptAdmin}
 				existingRunForScope={existingRunForScope}
+				onExportProblem={onExportProblem}
+				isExporting={isExporting}
 			/>
 
 			{/* Recent Optimization Runs Card */}

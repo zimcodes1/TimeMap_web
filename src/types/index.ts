@@ -113,7 +113,7 @@ export interface Semester {
 }
 
 // Venue & Facility Types
-export type VenueType = 'lecture_hall' | 'lab' | 'laboratory' | 'auditorium' | 'classroom' | 'multipurpose';
+export type VenueType = 'lecture_hall' | 'lab' | 'laboratory' | 'auditorium' | 'cbt_center' | 'exam_hall' | 'multipurpose';
 
 export interface Facility {
   id: string;
@@ -128,6 +128,7 @@ export interface Venue {
   venueType?: VenueType;
   capacity: number;
   examCapacity?: number;
+  location?: string;
   building?: string;
   owningLevel: AdminLevel;
   owningDepartmentId?: string;
@@ -156,7 +157,7 @@ export interface Course {
   semesterId?: string;
   semesterName?: string;
   sessionLabel?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;
   targetProgramName?: string;
   targetProgramCode?: string;
@@ -170,6 +171,7 @@ export interface Course {
   examDurationPerStudentMinutes?: number;
   isGrantedToScope?: boolean;
   canEditExamSettings?: boolean;
+  applicableProgramIds?: number[];
 }
 
 export interface CourseExamSettingsAccess {
@@ -229,7 +231,7 @@ export interface TimetableEntry {
   semesterId?: string;
   semesterName?: string;
   sessionLabel?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;
   targetProgramName?: string;
   targetLevel?: number;
@@ -274,7 +276,7 @@ export interface LectureSession {
   targetProgramId?: string;
   programName?: string;
   programCode?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   hasReport?: boolean;
   canShift?: boolean;
   reportStatus?: 'held' | 'not_held' | 'unreported';

@@ -25,13 +25,42 @@ export default function VenuesTableSection({
   const [facilityFilter, setFacilityFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
+  const isCbt = (type?: string) => type === 'cbt_center' || type === 'exam_hall';
+  const isLab = (type?: string) => type === 'lab' || type === 'laboratory';
+
+  const getVenueTypeLabel = (type?: string) => {
+    switch (type) {
+      case 'cbt_center':
+      case 'exam_hall':
+        return 'CBT Exam Center';
+      case 'lecture_hall':
+        return 'Lecture Hall';
+      case 'lab':
+      case 'laboratory':
+        return 'Laboratory';
+      case 'auditorium':
+        return 'Auditorium';
+      case 'multipurpose':
+        return 'Multipurpose Hall';
+      default:
+        return type?.replace('_', ' ') || 'Lecture Hall';
+    }
+  };
+
   const filteredVenues = venues.filter((v) => {
     const matchesSearch =
       v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (v.code && v.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (v.location && v.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (v.building && v.building.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesType = !venueTypeFilter || v.venueType === venueTypeFilter;
+    const matchesType =
+      !venueTypeFilter ||
+      (venueTypeFilter === 'cbt_center'
+        ? isCbt(v.venueType)
+        : venueTypeFilter === 'laboratory' || venueTypeFilter === 'lab'
+        ? isLab(v.venueType)
+        : v.venueType === venueTypeFilter);
     const matchesLevel = !owningLevelFilter || v.owningLevel === owningLevelFilter;
     const matchesFacility =
       !facilityFilter || v.facilities.some((f) => f.id === facilityFilter || f.name === facilityFilter);
@@ -55,9 +84,9 @@ export default function VenuesTableSection({
             onChange: setVenueTypeFilter,
             options: [
               { label: 'Lecture Hall', value: 'lecture_hall' },
-              { label: 'Laboratory', value: 'lab' },
+              { label: 'CBT Exam Center', value: 'cbt_center' },
+              { label: 'Laboratory', value: 'laboratory' },
               { label: 'Auditorium', value: 'auditorium' },
-              { label: 'Classroom', value: 'classroom' },
               { label: 'Multipurpose', value: 'multipurpose' },
             ],
           },
@@ -109,25 +138,33 @@ export default function VenuesTableSection({
             header: 'Type & Location',
             accessor: (v: Venue) => (
               <div className="text-xs">
-                <div className="font-semibold text-text-main capitalize">
-                  {v.venueType?.replace('_', ' ') || 'Lecture Hall'}
+                <div className="font-semibold text-text-main">
+                  {getVenueTypeLabel(v.venueType)}
                 </div>
-                <div className="text-text-muted">{v.building || 'Main Campus'}</div>
+                <div className="text-text-muted">{v.location || v.building || 'Main Campus'}</div>
               </div>
             ),
           },
           {
             header: 'Capacities',
-            accessor: (v: Venue) => (
-              <div className="text-xs">
-                <div>
-                  Lecture: <span className="font-bold">{v.capacity}</span>
+            accessor: (v: Venue) =>
+              isCbt(v.venueType) ? (
+                <div className="text-xs">
+                  <div className="text-text-muted">CBT Sitting:</div>
+                  <div className="font-bold text-accent">
+                    {v.examCapacity || v.capacity} workstations
+                  </div>
                 </div>
-                <div>
-                  Exam: <span className="font-bold">{v.examCapacity || v.capacity}</span>
+              ) : (
+                <div className="text-xs">
+                  <div>
+                    Lecture: <span className="font-bold">{v.capacity}</span>
+                  </div>
+                  <div>
+                    Exam: <span className="font-bold">{v.examCapacity || v.capacity}</span>
+                  </div>
                 </div>
-              </div>
-            ),
+              ),
           },
           {
             header: 'Owning Scope',
@@ -135,22 +172,25 @@ export default function VenuesTableSection({
           },
           {
             header: 'Facilities',
-            accessor: (v: Venue) => (
-              <div className="flex flex-wrap gap-1">
-                {v.facilities.length > 0 ? (
-                  v.facilities.map((f) => (
-                    <span
-                      key={f.id}
-                      className="px-2 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-semibold text-text-muted"
-                    >
-                      {f.name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-text-muted italic">None</span>
-                )}
-              </div>
-            ),
+            accessor: (v: Venue) =>
+              isCbt(v.venueType) ? (
+                <span className="text-xs text-text-muted italic">N/A (CBT Center)</span>
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {v.facilities.length > 0 ? (
+                    v.facilities.map((f) => (
+                      <span
+                        key={f.id}
+                        className="px-2 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-semibold text-text-muted"
+                      >
+                        {f.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-text-muted italic">None</span>
+                  )}
+                </div>
+              ),
           },
           {
             header: 'Status',

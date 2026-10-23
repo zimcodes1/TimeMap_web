@@ -63,7 +63,7 @@ export default function CreateCourseModal({
 	const [level, setLevel] = useState(initialData?.level || 100);
 	const [semesterId, setSemesterId] = useState(initialData?.semesterId || "");
 	const [programScope, setProgramScope] = useState<"general" | "program">(
-		initialData?.programScope || "general",
+		initialData?.programScope === "program" ? "program" : "general",
 	);
 	const [targetProgramId, setTargetProgramId] = useState(
 		initialData?.targetProgramId || "",

@@ -86,6 +86,19 @@ export function CourseExamSettingsTable({
 		});
 	}, [courses, searchQuery, levelFilter, examTypeFilter, originFilter]);
 
+	// Available Levels based on courses in scope
+	const availableLevels = useMemo(() => {
+		const courseLevels = courses
+			.map((c) => Number(c.level))
+			.filter((l) => !isNaN(l) && l > 0);
+		const maxLevel = courseLevels.length > 0 ? Math.max(...courseLevels) : 400;
+		const levels: number[] = [];
+		for (let lvl = 100; lvl <= maxLevel; lvl += 100) {
+			levels.push(lvl);
+		}
+		return levels;
+	}, [courses]);
+
 	// Toolbar Filters
 	const toolbarFilters = useMemo<ToolbarFilter[]>(() => {
 		return [
@@ -97,13 +110,10 @@ export function CourseExamSettingsTable({
 					setLevelFilter(val);
 					setCurrentPage(1);
 				},
-				options: [
-					{ label: "100 Level", value: "100" },
-					{ label: "200 Level", value: "200" },
-					{ label: "300 Level", value: "300" },
-					{ label: "400 Level", value: "400" },
-					{ label: "500 Level", value: "500" },
-				],
+				options: availableLevels.map((lvl) => ({
+					label: `${lvl} Level`,
+					value: String(lvl),
+				})),
 			},
 			{
 				id: "examType",
@@ -133,7 +143,7 @@ export function CourseExamSettingsTable({
 				],
 			},
 		];
-	}, [levelFilter, examTypeFilter, originFilter]);
+	}, [levelFilter, examTypeFilter, originFilter, availableLevels]);
 
 	if (isLoading) {
 		return (

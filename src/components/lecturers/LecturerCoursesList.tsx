@@ -22,7 +22,7 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
 				<div className="flex items-center gap-2.5">
-					<div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+					<div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
 						<BookOpen size={16} />
 					</div>
 					<div>

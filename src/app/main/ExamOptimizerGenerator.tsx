@@ -12,6 +12,7 @@ import {
 	getExamOptimizerAccess,
 	getExamOptimizerRuns,
 	optimizeExamTimetable,
+	exportExamSchedulingProblem,
 	type ExamOptimizerResult,
 } from "@/api/main/examOptimizerAPI";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,7 @@ export default function ExamOptimizerGenerator() {
 	const [scopeId, setScopeId] = useState("");
 	const [semesterId, setSemesterId] = useState("");
 	const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+	const [isExporting, setIsExporting] = useState(false);
 
 	// Queries
 	const { data: semesters = [] } = useQuery<Semester[]>({
@@ -151,6 +153,65 @@ export default function ExamOptimizerGenerator() {
 	const canOptimize =
 		isSchoolAdmin || Boolean(accessQuery.data?.can_optimize);
 
+	const handleExportProblem = async (format: "json" | "csv" = "json") => {
+		if (!activeSemester?.id || !scopeId) {
+			toast.error(
+				"Please select a target semester and scope before exporting.",
+			);
+			return;
+		}
+		setIsExporting(true);
+		const toastId = toast.loading(
+			`Exporting exam scheduling problem dataset (${format.toUpperCase()})...`,
+		);
+		try {
+			const data = await exportExamSchedulingProblem({
+				semester_id: activeSemester.id,
+				scope_type: scopeType,
+				scope_id: scopeId,
+				format,
+			});
+
+			const filename = `exam_scheduling_problem_${scopeType}_${scopeId}_semester_${activeSemester.id}.${format}`;
+			if (format === "csv") {
+				const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			} else {
+				const blob = new Blob([JSON.stringify(data, null, 2)], {
+					type: "application/json",
+				});
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
+			toast.success(
+				`Exam problem dataset exported successfully as ${format.toUpperCase()}!`,
+				{ id: toastId },
+			);
+		} catch (err: any) {
+			const errorMsg =
+				err?.response?.data?.detail ||
+				err?.response?.data?.error ||
+				err?.message ||
+				"Failed to export exam scheduling problem.";
+			toast.error(errorMsg, { id: toastId });
+		} finally {
+			setIsExporting(false);
+		}
+	};
+
 	return (
 		<ExamOptimizerGeneratorView
 			semesters={semesters}
@@ -176,6 +237,8 @@ export default function ExamOptimizerGenerator() {
 			isHistoryOpen={isHistoryOpen}
 			onOpenHistory={() => setIsHistoryOpen(true)}
 			onCloseHistory={() => setIsHistoryOpen(false)}
+			onExportProblem={handleExportProblem}
+			isExporting={isExporting}
 		/>
 	);
 }

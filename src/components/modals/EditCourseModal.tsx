@@ -50,7 +50,7 @@ export default function EditCourseModal({
 			setTitle(course.title || "");
 			setLevel(course.level || 300);
 			setSemesterId(course.semesterId || "");
-			setProgramScope(course.programScope || "general");
+			setProgramScope(course.programScope === "program" ? "program" : "general");
 			setTargetProgramId(course.targetProgramId || "");
 			setDepartmentId(course.departmentId || "");
 			const initialIds =

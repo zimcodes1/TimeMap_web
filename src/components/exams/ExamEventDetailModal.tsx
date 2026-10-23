@@ -50,7 +50,9 @@ export function ExamEventDetailModal({
 		year: "numeric",
 	});
 
-	const durationHours = (event.duration_minutes / 60).toFixed(1).replace(/\.0$/, "");
+	const durationHours = (event.duration_minutes / 60)
+		.toFixed(1)
+		.replace(/\.0$/, "");
 
 	return (
 		<Modal
@@ -76,7 +78,10 @@ export function ExamEventDetailModal({
 						{examTypeLabel}
 					</Badge>
 					{event.joined_courses && event.joined_courses.length > 0 && (
-						<Badge variant="outline" className="text-xs border-primary/40 text-primary">
+						<Badge
+							variant="outline"
+							className="text-xs border-primary/40 text-primary"
+						>
 							Joined Session: {event.joined_courses.join(", ")}
 						</Badge>
 					)}
@@ -97,7 +102,11 @@ export function ExamEventDetailModal({
 							<Text variant="caption" color="muted" weight="medium">
 								Examination Date
 							</Text>
-							<Text variant="body-sm" weight="semibold" className="text-text-main">
+							<Text
+								variant="body-sm"
+								weight="semibold"
+								className="text-text-main"
+							>
 								{formattedDate}
 							</Text>
 						</div>
@@ -109,8 +118,13 @@ export function ExamEventDetailModal({
 							<Text variant="caption" color="muted" weight="medium">
 								Time Window & Duration
 							</Text>
-							<Text variant="body-sm" weight="semibold" className="text-text-main">
-								{formatTime5(event.start_time)} – {formatTime5(event.end_time)} ({event.duration_minutes} mins / {durationHours}h)
+							<Text
+								variant="body-sm"
+								weight="semibold"
+								className="text-text-main"
+							>
+								{formatTime5(event.start_time)} – {formatTime5(event.end_time)}{" "}
+								({event.duration_minutes} mins / {durationHours}h)
 							</Text>
 						</div>
 					</div>
@@ -119,12 +133,19 @@ export function ExamEventDetailModal({
 				{/* Scope & Academic Metadata */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-surface-raised border border-border">
 					<div className="flex items-start gap-2.5">
-						<GraduationCap size={16} className="text-text-muted mt-0.5 shrink-0" />
+						<GraduationCap
+							size={16}
+							className="text-text-muted mt-0.5 shrink-0"
+						/>
 						<div>
 							<Text variant="caption" color="muted" weight="medium">
 								Target Program
 							</Text>
-							<Text variant="body-sm" weight="semibold" className="text-text-main">
+							<Text
+								variant="body-sm"
+								weight="semibold"
+								className="text-text-main"
+							>
 								{event.program_name || "General / Multi-Program"}
 							</Text>
 						</div>
@@ -136,7 +157,11 @@ export function ExamEventDetailModal({
 							<Text variant="caption" color="muted" weight="medium">
 								Department
 							</Text>
-							<Text variant="body-sm" weight="semibold" className="text-text-main">
+							<Text
+								variant="body-sm"
+								weight="semibold"
+								className="text-text-main"
+							>
 								{event.department_name || "School-wide / General"}
 							</Text>
 						</div>
@@ -164,7 +189,9 @@ export function ExamEventDetailModal({
 							<span>Physical Room Allocations ({event.venues.length}):</span>
 						</div>
 						<span className="text-[11px] text-text-muted">
-							{event.venues.length > 1 ? "Distributed Multi-Room Plan" : "Single Venue Allocation"}
+							{event.venues.length > 1
+								? "Distributed Multi-Room Plan"
+								: "Single Venue Allocation"}
 						</span>
 					</div>
 
@@ -174,12 +201,18 @@ export function ExamEventDetailModal({
 								key={v.venue_id}
 								className="p-3 rounded-xl bg-surface border border-border flex flex-col justify-between"
 							>
-								<div className="flex items-center justify-between mb-1.5">
+								<div className="flex flex-col items-center justify-between mb-1.5">
 									<span className="font-bold text-xs text-text-main flex items-center gap-1">
-										<CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+										<CheckCircle2
+											size={12}
+											className="text-emerald-500 shrink-0"
+										/>
 										<span className="truncate">{v.venue_name}</span>
 									</span>
-									<Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-mono"
+									>
 										{v.students} Seats
 									</Badge>
 								</div>
@@ -201,7 +234,9 @@ export function ExamEventDetailModal({
 					<div className="p-3 rounded-xl bg-surface-raised border border-border/70 text-xs text-text-muted flex items-start gap-2">
 						<Info size={14} className="text-primary mt-0.5 shrink-0" />
 						<div>
-							<span className="font-semibold text-text-main">Optimizer Rationale: </span>
+							<span className="font-semibold text-text-main">
+								Optimizer Rationale:{" "}
+							</span>
 							<span>{event.explanation}</span>
 						</div>
 					</div>
@@ -210,4 +245,3 @@ export function ExamEventDetailModal({
 		</Modal>
 	);
 }
-

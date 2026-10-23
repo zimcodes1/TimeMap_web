@@ -143,7 +143,7 @@ export const LecturerStatsSection: React.FC<LecturerStatsSectionProps> = ({
 			{/* Section Header with Course Filter */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface/70 border border-border/80 rounded-2xl p-4 shadow-sm backdrop-blur-md">
 				<div className="flex items-center gap-3">
-					<div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+					<div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
 						<TrendingUp size={18} />
 					</div>
 					<div>

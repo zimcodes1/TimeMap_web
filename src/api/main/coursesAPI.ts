@@ -37,6 +37,7 @@ interface RawCourse {
   exam_duration_per_student_minutes?: number | null;
   is_granted_to_scope?: boolean;
   can_edit_exam_settings?: boolean;
+  applicable_program_ids?: number[];
 }
 
 interface RawGrant {
@@ -138,6 +139,7 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     examDurationPerStudentMinutes: raw.exam_duration_per_student_minutes || undefined,
     isGrantedToScope: Boolean(raw.is_granted_to_scope),
     canEditExamSettings: Boolean(raw.can_edit_exam_settings),
+    applicableProgramIds: raw.applicable_program_ids || [],
   };
 }
 

@@ -87,9 +87,14 @@ export default function CoursesContainer() {
 		queryFn: getSchoolsOptions,
 	});
 
+	const userDeptId =
+		currentUser?.adminLevel === "department"
+			? currentUser.adminScopeId || currentUser.departmentId
+			: undefined;
+
 	const { data: programs = [] } = useQuery({
-		queryKey: ["hierarchy", "programs"],
-		queryFn: () => getPrograms(),
+		queryKey: ["hierarchy", "programs", userDeptId],
+		queryFn: () => getPrograms(userDeptId),
 	});
 
 	const { data: semesters = [] } = useQuery({

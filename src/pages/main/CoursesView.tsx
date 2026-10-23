@@ -177,6 +177,79 @@ export default function CoursesView({
 	const [statusFilter, setStatusFilter] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
 
+	// Programs scoped according to current user admin role
+	const scopedPrograms = useMemo(() => {
+		if (isDeptAdmin) {
+			const myDeptId = String(
+				currentUser?.adminScopeId || currentUser?.departmentId || "",
+			);
+			if (myDeptId) {
+				const filtered = programs.filter(
+					(p) => String(p.departmentId) === myDeptId,
+				);
+				if (filtered.length > 0) return filtered;
+			}
+		}
+		if (isFacultyAdmin) {
+			const myFacId = String(currentUser?.adminScopeId || "");
+			if (myFacId) {
+				const filtered = programs.filter(
+					(p) =>
+						String(p.facultyId) === myFacId ||
+						departments.find((d) => d.id === String(p.departmentId))
+							?.facultyId === myFacId,
+				);
+				if (filtered.length > 0) return filtered;
+			}
+		}
+		return programs;
+	}, [programs, isDeptAdmin, isFacultyAdmin, currentUser, departments]);
+
+	// Available Levels dynamically computed from selected program or department scope max_level
+	const availableLevels = useMemo(() => {
+		let maxLevel = 500;
+
+		if (programFilter && programFilter !== "general") {
+			const selectedProg =
+				scopedPrograms.find((p) => String(p.id) === String(programFilter)) ||
+				programs.find((p) => String(p.id) === String(programFilter));
+			if (selectedProg && selectedProg.maxLevel) {
+				maxLevel = selectedProg.maxLevel;
+			}
+		} else if (isDeptAdmin && scopedPrograms.length > 0) {
+			const progMax = Math.max(
+				...scopedPrograms.map((p) => p.maxLevel || 400),
+			);
+			maxLevel = progMax > 0 ? progMax : 400;
+		} else if (scopedPrograms.length > 0) {
+			const progMax = Math.max(
+				...scopedPrograms.map((p) => p.maxLevel || 400),
+			);
+			maxLevel = progMax > 0 ? progMax : 500;
+		}
+
+		// Ensure maxLevel accounts for actual courses if no program filter is set
+		const courseLevels = courses
+			.map((c) => Number(c.level))
+			.filter((l) => !isNaN(l) && l > 0);
+		if (courseLevels.length > 0 && !programFilter && !isDeptAdmin) {
+			maxLevel = Math.max(maxLevel, ...courseLevels);
+		}
+
+		const levels: number[] = [];
+		for (let lvl = 100; lvl <= maxLevel; lvl += 100) {
+			levels.push(lvl);
+		}
+		return levels;
+	}, [programFilter, scopedPrograms, programs, isDeptAdmin, courses]);
+
+	// Auto-reset levelFilter if it exceeds available levels
+	useEffect(() => {
+		if (levelFilter && !availableLevels.includes(Number(levelFilter))) {
+			setLevelFilter("");
+		}
+	}, [availableLevels, levelFilter]);
+
 	// Filter catalog
 	const filteredCourses = useMemo(() => {
 		return courses.filter((c) => {
@@ -189,15 +262,48 @@ export default function CoursesView({
 				(c.facultyName && c.facultyName.toLowerCase().includes(q)) ||
 				(c.schoolName && c.schoolName.toLowerCase().includes(q));
 
-			const matchesLevel = !levelFilter || c.level === Number(levelFilter);
+			const matchesLevel =
+				!levelFilter || Number(c.level) === Number(levelFilter);
 			const matchesScope = !scopeFilter || c.owningLevel === scopeFilter;
 			const matchesSemester =
 				!semesterFilter || c.semesterId === semesterFilter;
-			const matchesProgram =
-				!programFilter ||
-				(programFilter === "general"
-					? c.programScope === "general"
-					: c.targetProgramId === programFilter);
+
+			let matchesProgram = true;
+			if (programFilter) {
+				if (programFilter === "general") {
+					matchesProgram =
+						c.programScope === "general" ||
+						(c.owningLevel as string) === "general" ||
+						c.owningLevel === "faculty" ||
+						c.owningLevel === "school";
+				} else {
+					const progIdNum = Number(programFilter);
+					if (c.applicableProgramIds && c.applicableProgramIds.length > 0) {
+						matchesProgram = c.applicableProgramIds.includes(progIdNum);
+					} else {
+						const selectedProg =
+							scopedPrograms.find(
+								(p) => String(p.id) === String(programFilter),
+							) ||
+							programs.find((p) => String(p.id) === String(programFilter));
+						if (c.targetProgramId) {
+							matchesProgram =
+								String(c.targetProgramId) === String(programFilter);
+						} else if (c.programScope === "all" || !c.programScope) {
+							matchesProgram =
+								!c.owningDepartment ||
+								!selectedProg?.departmentId ||
+								String(c.owningDepartment) ===
+									String(selectedProg.departmentId);
+						} else if (c.programScope === "general") {
+							matchesProgram = true;
+						} else {
+							matchesProgram =
+								String(c.targetProgramId) === String(programFilter);
+						}
+					}
+				}
+			}
 
 			const matchesFaculty =
 				!facultyFilter ||
@@ -235,6 +341,8 @@ export default function CoursesView({
 		departmentFilter,
 		faculties,
 		departments,
+		scopedPrograms,
+		programs,
 	]);
 
 	// Filter grants
@@ -293,13 +401,10 @@ export default function CoursesView({
 				label: "Level",
 				value: levelFilter,
 				onChange: setLevelFilter,
-				options: [
-					{ label: "100 Level", value: "100" },
-					{ label: "200 Level", value: "200" },
-					{ label: "300 Level", value: "300" },
-					{ label: "400 Level", value: "400" },
-					{ label: "500 Level", value: "500" },
-				],
+				options: availableLevels.map((lvl) => ({
+					label: `${lvl} Level`,
+					value: String(lvl),
+				})),
 			},
 		];
 
@@ -316,7 +421,7 @@ export default function CoursesView({
 			});
 		}
 
-		if (programs.length > 0) {
+		if (scopedPrograms.length > 0) {
 			list.push({
 				id: "program",
 				label: "Program",
@@ -324,7 +429,7 @@ export default function CoursesView({
 				onChange: setProgramFilter,
 				options: [
 					{ label: "General Courses Only", value: "general" },
-					...programs.map((p) => ({
+					...scopedPrograms.map((p) => ({
 						label: `${p.code} - ${p.name}`,
 						value: p.id,
 					})),
@@ -398,6 +503,8 @@ export default function CoursesView({
 		departmentFilter,
 		semesters,
 		programs,
+		scopedPrograms,
+		availableLevels,
 		faculties,
 		departments,
 		currentUser,

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { getRouteApi } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -61,7 +61,7 @@ export default function LecturerDetailsContainer() {
 	}, [semesters]);
 
 	// 3. Fetch Courses Assigned to this Lecturer this Semester
-	const { data: courses = [], isLoading: coursesLoading } = useQuery<Course[]>({
+	const { data: rawCourses = [], isLoading: coursesLoading } = useQuery<Course[]>({
 		queryKey: ["courses", "lecturer", lecturerId, activeSemester?.id],
 		queryFn: () =>
 			getCoursesList([], {
@@ -70,6 +70,32 @@ export default function LecturerDetailsContainer() {
 			}),
 		enabled: Boolean(lecturerId),
 	});
+
+	// Guarantee that only courses genuinely assigned to this lecturer are resolved
+	const courses = useMemo(() => {
+		if (!lecturerId) return [];
+		return rawCourses.filter((c) => {
+			const hasMatchingId = c.lecturerIds?.some(
+				(id) => String(id) === String(lecturerId)
+			);
+			const hasMatchingLecturerObj = c.lecturers?.some(
+				(l) =>
+					String(l.id) === String(lecturerId) ||
+					(lecturer?.staffId && l.staffId && l.staffId === lecturer.staffId) ||
+					(lecturer?.identifier && l.identifier && l.identifier === lecturer.identifier)
+			);
+			return hasMatchingId || hasMatchingLecturerObj;
+		});
+	}, [rawCourses, lecturerId, lecturer]);
+
+	useEffect(() => {
+		if (selectedCourseId && courses.length > 0) {
+			const exists = courses.some((c) => String(c.id) === String(selectedCourseId));
+			if (!exists) {
+				setSelectedCourseId("");
+			}
+		}
+	}, [courses, selectedCourseId]);
 
 	// 4. Fetch Hold Rate Stats for this Lecturer
 	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
