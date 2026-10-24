@@ -316,10 +316,9 @@ export default function ExamOptimizerRunInspectionView({
 			{activeTab === "master" && (
 				<ExamMasterScheduleView
 					events={events}
-					selectedLevel={selectedLevel}
-					onSelectLevel={onSelectLevel}
 					programs={programs}
 					onSelectEvent={(ev) => setSelectedDetailEvent(ev)}
+					weekDayDates={weekDayDates}
 				/>
 			)}
 

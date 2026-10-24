@@ -2,8 +2,17 @@ import React, { useState, useMemo } from "react";
 import { Calendar, Clock, Users, MapPin, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Text } from "@/components/ui/text";
+import { WeekNavigator } from "@/components/schedules/WeekNavigator";
 import type { OptimizedExamEvent } from "@/api/main/examOptimizerAPI";
 import type { Program } from "@/types";
+import {
+	type WeekDayInfo,
+	getMondayOfWeek,
+	getTotalWeeks,
+	getWeekRange,
+	getWeekDayDates,
+	formatDateToYYYYMMDD,
+} from "@/utils/semesterWeeks";
 import {
 	groupAllExamsByDate,
 	formatTime5,
@@ -12,34 +21,122 @@ import { ExamMasterFilterBar } from "./ExamMasterFilterBar";
 
 interface ExamMasterScheduleViewProps {
 	events: OptimizedExamEvent[];
-	selectedLevel: number | "ALL";
-	onSelectLevel: (lvl: number | "ALL") => void;
-	programs: Program[];
+	selectedLevel?: number | "ALL";
+	onSelectLevel?: (lvl: number | "ALL") => void;
+	programs?: Program[];
 	onSelectEvent?: (event: OptimizedExamEvent) => void;
+	// Weekly timeline navigation
+	currentWeek?: number;
+	totalWeeks?: number;
+	onPreviousWeek?: () => void;
+	onNextWeek?: () => void;
+	onResetToCurrentWeek?: () => void;
+	isCurrentWeekActive?: boolean;
+	weekRangeLabel?: string;
+	weekDayDates?: WeekDayInfo[];
 }
 
 export const ExamMasterScheduleView: React.FC<ExamMasterScheduleViewProps> = ({
 	events = [],
-	selectedLevel,
-	onSelectLevel,
+	selectedLevel: controlledLevel,
+	onSelectLevel: controlledOnSelectLevel,
 	programs = [],
 	onSelectEvent,
+	currentWeek: controlledWeek,
+	totalWeeks,
+	onPreviousWeek,
+	onNextWeek,
+	onResetToCurrentWeek,
+	isCurrentWeekActive,
+	weekRangeLabel,
+	weekDayDates: externalWeekDayDates,
 }) => {
+	const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+	const [internalWeek, setInternalWeek] = useState(1);
+	const [internalLevel, setInternalLevel] = useState<number | "ALL">("ALL");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedExamType, setSelectedExamType] = useState<string>("ALL");
 
-	// Filter events by level, exam type, and search query
-	const filteredEvents = useMemo(() => {
+	// Active level filter (uncontrolled defaults to "ALL" to show all levels)
+	const activeLevel = controlledLevel !== undefined ? controlledLevel : internalLevel;
+	const handleSelectLevel = controlledOnSelectLevel || setInternalLevel;
+
+	// Compute internal week timeline if parent does not provide controlled week props
+	const internalTimeline = useMemo(() => {
+		if (
+			controlledWeek != null &&
+			externalWeekDayDates &&
+			externalWeekDayDates.length > 0
+		) {
+			return null;
+		}
+
+		// Find earliest and latest dates from available events
+		const dates = events
+			.map((e) => e.date)
+			.filter(Boolean)
+			.sort();
+
+		const minDateStr = dates[0] || todayStr;
+		const maxDateStr = dates[dates.length - 1] || minDateStr;
+
+		const startMonday = getMondayOfWeek(new Date(`${minDateStr}T00:00:00`));
+		const startMondayStr = formatDateToYYYYMMDD(startMonday);
+		const calcTotalWeeks = getTotalWeeks(startMondayStr, maxDateStr, 4);
+
+		const activeInternalWeek = Math.min(
+			Math.max(1, internalWeek),
+			calcTotalWeeks,
+		);
+
+		const range = getWeekRange(startMondayStr, activeInternalWeek);
+		const dayDates = getWeekDayDates(range.startDate);
+
+		return {
+			week: activeInternalWeek,
+			totalWeeks: calcTotalWeeks,
+			weekDayDates: dayDates,
+			rangeLabel: range.rangeLabel,
+		};
+	}, [
+		controlledWeek,
+		externalWeekDayDates,
+		events,
+		internalWeek,
+		todayStr,
+	]);
+
+	const activeWeek = controlledWeek ?? internalTimeline?.week ?? 1;
+	const activeTotalWeeks = totalWeeks ?? internalTimeline?.totalWeeks ?? 1;
+	const activeWeekDayDates =
+		externalWeekDayDates && externalWeekDayDates.length > 0
+			? externalWeekDayDates
+			: internalTimeline?.weekDayDates || [];
+	const activeRangeLabel =
+		weekRangeLabel || internalTimeline?.rangeLabel || "";
+	const isCurrentActive =
+		isCurrentWeekActive ?? (activeWeek === 1);
+
+	const handlePrevious =
+		onPreviousWeek || (() => setInternalWeek((w) => Math.max(1, w - 1)));
+	const handleNext =
+		onNextWeek ||
+		(() => setInternalWeek((w) => Math.min(activeTotalWeeks, w + 1)));
+	const handleReset =
+		onResetToCurrentWeek || (() => setInternalWeek(1));
+
+	// Filter events across all weeks by level, exam type, and search query
+	const filteredAllEvents = useMemo(() => {
 		return events.filter((event) => {
 			// Level filter
-			if (selectedLevel !== "ALL" && event.course_level !== selectedLevel) {
+			if (activeLevel !== "ALL" && event.course_level !== activeLevel) {
 				return false;
 			}
 			// Exam Type filter
 			if (selectedExamType !== "ALL" && event.exam_type !== selectedExamType) {
 				return false;
 			}
-			// Search query (code or title)
+			// Search query (code, title, or program name)
 			if (searchQuery.trim()) {
 				const q = searchQuery.toLowerCase();
 				const matchesCode = event.course_code.toLowerCase().includes(q);
@@ -51,29 +148,57 @@ export const ExamMasterScheduleView: React.FC<ExamMasterScheduleViewProps> = ({
 			}
 			return true;
 		});
-	}, [events, selectedLevel, selectedExamType, searchQuery]);
+	}, [events, activeLevel, selectedExamType, searchQuery]);
 
-	// Group chronologically by date and cluster into timeframe boxes
+	// Filter down to the active week
+	const weekEvents = useMemo(() => {
+		if (activeWeekDayDates.length === 0) return filteredAllEvents;
+		const weekDatesSet = new Set(activeWeekDayDates.map((d) => d.dateStr));
+		const firstDate = activeWeekDayDates[0]?.dateStr;
+		const lastDate = activeWeekDayDates[activeWeekDayDates.length - 1]?.dateStr;
+
+		return filteredAllEvents.filter((event) => {
+			if (!event.date) return false;
+			if (weekDatesSet.has(event.date)) return true;
+			if (firstDate && lastDate && event.date >= firstDate && event.date <= lastDate) {
+				return true;
+			}
+			return false;
+		});
+	}, [filteredAllEvents, activeWeekDayDates]);
+
+	// Group the week's events chronologically by date and cluster into timeframe boxes
 	const dateGroups = useMemo(() => {
-		return groupAllExamsByDate(filteredEvents);
-	}, [filteredEvents]);
+		return groupAllExamsByDate(weekEvents);
+	}, [weekEvents]);
 
 	return (
 		<div className="space-y-4">
-			{/* Master Filter Bar */}
+			{/* Master Filter Bar (Independent of cohort filters) */}
 			<ExamMasterFilterBar
-				selectedLevel={selectedLevel}
-				onSelectLevel={onSelectLevel}
+				selectedLevel={activeLevel}
+				onSelectLevel={handleSelectLevel}
 				programs={programs}
 				searchQuery={searchQuery}
 				onSearchChange={setSearchQuery}
 				selectedExamType={selectedExamType}
 				onSelectExamType={setSelectedExamType}
 				totalExamsCount={events.length}
-				filteredExamsCount={filteredEvents.length}
+				filteredExamsCount={weekEvents.length}
 			/>
 
-			{/* Date Rows */}
+			{/* Weekly Navigation Controls */}
+			<WeekNavigator
+				currentWeek={activeWeek}
+				totalWeeks={activeTotalWeeks}
+				onPrevious={handlePrevious}
+				onNext={handleNext}
+				onResetToCurrent={handleReset}
+				isCurrentWeekActive={isCurrentActive}
+				dateRangeLabel={activeRangeLabel}
+			/>
+
+			{/* Date Rows for the Active Week */}
 			{dateGroups.length > 0 ? (
 				<div className="space-y-4">
 					{dateGroups.map((dateGroup) => (
@@ -266,18 +391,20 @@ export const ExamMasterScheduleView: React.FC<ExamMasterScheduleViewProps> = ({
 							weight="bold"
 							className="text-text-main text-center"
 						>
-							No Examinations Found
+							No Examinations Scheduled for Week {activeWeek}
 						</Text>
 						<Text variant="body-sm" color="muted" className="text-center">
-							{selectedLevel !== "ALL"
-								? `No examinations match the filtered ${selectedLevel} Level in the current scope.`
-								: "No examinations have been scheduled or published for this scope yet."}
+							{activeRangeLabel ? (
+								<>No examinations scheduled during <strong>{activeRangeLabel}</strong>.</>
+							) : (
+								"No examinations have been scheduled for this week in the current scope."
+							)}
 						</Text>
 					</div>
-					{selectedLevel !== "ALL" && (
+					{activeLevel !== "ALL" && (
 						<button
 							type="button"
-							onClick={() => onSelectLevel("ALL")}
+							onClick={() => handleSelectLevel("ALL")}
 							className="mt-2 text-xs font-bold text-primary hover:underline cursor-pointer"
 						>
 							Show All Levels

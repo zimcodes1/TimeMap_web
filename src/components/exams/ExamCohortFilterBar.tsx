@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Building2, Layers, GraduationCap, BookOpen } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import type { Faculty, Department, Program, User } from "@/types";
@@ -37,7 +37,9 @@ export const ExamCohortFilterBar: React.FC<ExamCohortFilterBarProps> = ({
 }) => {
 	const isSchoolAdmin =
 		currentUser?.role === "admin" &&
-		(currentUser?.adminLevel === "school" || currentUser?.adminLevel === "system");
+		(currentUser?.adminLevel === "school" ||
+			currentUser?.adminLevel === "system" ||
+			currentUser?.adminLevel === "university");
 	const isFacultyAdmin =
 		currentUser?.role === "admin" && currentUser?.adminLevel === "faculty";
 
@@ -67,45 +69,55 @@ export const ExamCohortFilterBar: React.FC<ExamCohortFilterBarProps> = ({
 		return getAvailableLevelsForProgram(activeProgram);
 	}, [activeProgram]);
 
+	// Auto-default program to default program (or first in scope)
+	useEffect(() => {
+		if (filteredPrograms.length === 0) return;
+
+		const currentValid = filteredPrograms.some(
+			(p) => String(p.id) === String(selectedProgramId),
+		);
+		if (!selectedProgramId || selectedProgramId === "ALL" || !currentValid) {
+			const defaultProg =
+				filteredPrograms.find((p) => p.isDefault) || filteredPrograms[0];
+			if (defaultProg) {
+				onSelectProgram(String(defaultProg.id));
+			}
+		}
+	}, [filteredPrograms, selectedProgramId, onSelectProgram]);
+
+	// Auto-default level to lowest available level
+	useEffect(() => {
+		const lowestLevel = availableLevels[0] || 100;
+		if (selectedLevel === "ALL" || !availableLevels.includes(selectedLevel as number)) {
+			onSelectLevel(lowestLevel);
+		}
+	}, [availableLevels, selectedLevel, onSelectLevel]);
+
 	return (
 		<div
 			className={`p-3.5 bg-surface border border-border rounded-2xl shadow-xs space-y-3 ${className}`}
 		>
-			{/* Faculty selector for school admin */}
-			{isSchoolAdmin && faculties.length > 0 && (
-				<div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border/50">
-					<div className="flex items-center gap-1 text-xs font-bold text-text-muted mr-1.5">
-						<Building2 size={13} className="text-primary" />
-						<span>Faculty:</span>
-					</div>
-					<div className="flex flex-wrap gap-1.5">
-						{faculties.map((fac) => {
-							const isSelected = String(fac.id) === String(selectedFacultyId);
-							return (
-								<button
-									key={fac.id}
-									type="button"
-									onClick={() => {
-										onSelectFaculty(String(fac.id));
-										onSelectDepartment("ALL");
-									}}
-									className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-										isSelected
-											? "bg-primary text-white border-primary shadow-xs"
-											: "bg-surface-raised text-text-muted border-border hover:bg-surface-hover hover:text-text-main"
-									}`}
-								>
-									{fac.name} {fac.code ? `(${fac.code})` : ""}
-								</button>
-							);
-						})}
-					</div>
-				</div>
-			)}
-
-			{/* Department, Program, and Level Row */}
+			{/* Faculty, Department, Program, and Level Row */}
 			<div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
 				<div className="flex flex-wrap items-center gap-2.5">
+					{/* Faculty Select Dropdown for >= school level admins */}
+					{isSchoolAdmin && faculties.length > 0 && (
+						<div className="flex items-center gap-1.5 min-w-[200px]">
+							<Building2 size={13} className="text-primary shrink-0" />
+							<Select
+								value={selectedFacultyId || String(faculties[0]?.id)}
+								onChange={(e) => {
+									onSelectFaculty(e.target.value);
+									onSelectDepartment("ALL");
+								}}
+								options={faculties.map((f) => ({
+									value: String(f.id),
+									label: `${f.name} (${f.code})`,
+								}))}
+							/>
+						</div>
+					)}
+
 					{/* Department Dropdown for School and Faculty Admins */}
 					{(isSchoolAdmin || isFacultyAdmin) && filteredDepartments.length > 0 && (
 						<div className="flex items-center gap-1.5 min-w-[200px]">
@@ -129,15 +141,12 @@ export const ExamCohortFilterBar: React.FC<ExamCohortFilterBarProps> = ({
 						<div className="flex items-center gap-1.5 min-w-[220px]">
 							<GraduationCap size={14} className="text-primary shrink-0" />
 							<Select
-								value={selectedProgramId || "ALL"}
+								value={selectedProgramId || String(filteredPrograms.find((p) => p.isDefault)?.id || filteredPrograms[0]?.id)}
 								onChange={(e) => onSelectProgram(e.target.value)}
-								options={[
-									{ value: "ALL", label: "Select Program (Cohort Timeline)" },
-									...filteredPrograms.map((p) => ({
-										value: String(p.id),
-										label: `${p.name} (${p.code})`,
-									})),
-								]}
+								options={filteredPrograms.map((p) => ({
+									value: String(p.id),
+									label: `${p.name} (${p.code})`,
+								}))}
 							/>
 						</div>
 					)}

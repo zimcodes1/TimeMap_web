@@ -9,6 +9,7 @@ interface ExamPeriodBannerProps {
 	currentUser?: User | null;
 	onOpenSetSchoolExamPeriod: () => void;
 	onOpenSetFacultyExamPeriod: () => void;
+	hasPublishedTimetable?: boolean;
 }
 
 export function ExamPeriodBanner({
@@ -16,6 +17,7 @@ export function ExamPeriodBanner({
 	currentUser,
 	onOpenSetSchoolExamPeriod,
 	onOpenSetFacultyExamPeriod,
+	hasPublishedTimetable = false,
 }: ExamPeriodBannerProps) {
 	const isSchoolAdmin =
 		currentUser?.role === "admin" &&
@@ -122,7 +124,7 @@ export function ExamPeriodBanner({
 			</div>
 
 			<div className="flex items-center gap-2 shrink-0">
-				{isSchoolAdmin && (
+				{isSchoolAdmin && !hasPublishedTimetable && (
 					<Button
 						variant="outline"
 						size="sm"

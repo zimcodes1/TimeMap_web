@@ -97,8 +97,8 @@ export default function ExamsContainer() {
 	// Scope selection state
 	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
 	const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("ALL");
-	const [selectedProgramId, setSelectedProgramId] = useState<string>("ALL");
-	const [selectedLevel, setSelectedLevel] = useState<number | "ALL">("ALL");
+	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+	const [selectedLevel, setSelectedLevel] = useState<number | "ALL">(100);
 	const [currentWeek, setCurrentWeek] = useState<number>(1);
 
 	// Hierarchy Queries
@@ -164,29 +164,18 @@ export default function ExamsContainer() {
 		activeSemester?.schoolId ||
 		(activeSemester as any)?.session?.schoolId;
 
+	// Base scope of the logged-in admin/exam officer (not narrowed by cohort display filters)
 	const examScopeType = isDeptAdmin
 		? "department"
 		: isFacultyAdmin
-			? (selectedDepartmentId && selectedDepartmentId !== "ALL" ? "department" : "faculty")
-			: isSchoolAdmin
-				? (selectedDepartmentId && selectedDepartmentId !== "ALL"
-					? "department"
-					: selectedFacultyId
-						? "faculty"
-						: "school")
-				: "school";
+			? "faculty"
+			: "school";
 
 	const examScopeId = isDeptAdmin
-		? user?.departmentId
+		? (user?.adminScopeId || user?.departmentId)
 		: isFacultyAdmin
-			? (selectedDepartmentId && selectedDepartmentId !== "ALL"
-				? selectedDepartmentId
-				: user?.facultyId || selectedFacultyId)
-			: isSchoolAdmin
-				? (selectedDepartmentId && selectedDepartmentId !== "ALL"
-					? selectedDepartmentId
-					: selectedFacultyId || resolvedSchoolId || facultiesData[0]?.id)
-				: resolvedSchoolId;
+			? (user?.adminScopeId || user?.facultyId || facultiesData[0]?.id)
+			: (resolvedSchoolId || facultiesData[0]?.schoolId || 1);
 
 	const examAccessQuery = useQuery({
 		queryKey: ["scheduling", "exam-optimizer-access", activeSemester?.id, examScopeType, examScopeId],
@@ -215,6 +204,40 @@ export default function ExamsContainer() {
 			setSelectedFacultyId(String(facultiesData[0].id));
 		}
 	}, [user, facultiesData, selectedFacultyId, selectedDepartmentId]);
+
+	// Auto-initialize program selection to default program and level to lowest level
+	useEffect(() => {
+		if (programsData.length === 0) return;
+
+		const scopedPrograms = programsData.filter((p) => {
+			if (user?.role === "admin" && user?.adminLevel === "department" && user?.departmentId) {
+				return String(p.departmentId) === String(user.departmentId);
+			}
+			if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
+				return String(p.departmentId) === String(selectedDepartmentId);
+			}
+			if (selectedFacultyId && p.facultyId) {
+				return String(p.facultyId) === String(selectedFacultyId);
+			}
+			return true;
+		});
+
+		const defaultProg =
+			scopedPrograms.find((p) => p.isDefault) ||
+			scopedPrograms[0] ||
+			programsData.find((p) => p.isDefault) ||
+			programsData[0];
+
+		if (defaultProg) {
+			if (!selectedProgramId || selectedProgramId === "ALL" || !scopedPrograms.some((p) => String(p.id) === String(selectedProgramId))) {
+				setSelectedProgramId(String(defaultProg.id));
+			}
+		}
+
+		if (selectedLevel === "ALL") {
+			setSelectedLevel(100);
+		}
+	}, [programsData, selectedFacultyId, selectedDepartmentId, user, selectedProgramId, selectedLevel]);
 
 	// Effective Exam Period Query
 	const effectiveTargetFaculty = selectedFacultyId || user?.facultyId;

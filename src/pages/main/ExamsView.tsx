@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabSwitcher } from "@/components/ui/tabs";
 import {
-	UserCheck,
 	LayoutGrid,
 	RefreshCw,
 	CalendarOff,
 	CalendarDays,
-	Settings,
 	BadgeX,
 } from "lucide-react";
 import type {
@@ -25,7 +23,6 @@ import type {
 } from "@/types";
 import type { WeekRange, WeekDayInfo } from "@/utils/semesterWeeks";
 import { ExamPeriodBanner } from "@/components/exams/ExamPeriodBanner";
-import { WeekNavigator } from "@/components/schedules/WeekNavigator";
 import { ExamMasterScheduleView } from "@/components/exams/ExamMasterScheduleView";
 import { ExamCohortFilterBar } from "@/components/exams/ExamCohortFilterBar";
 import { ExamCohortTimelineGrid } from "@/components/exams/ExamCohortTimelineGrid";
@@ -84,10 +81,6 @@ interface ExamsViewProps {
 
 export default function ExamsView({
 	entriesLoading = false,
-	sessions: _sessions = [],
-	sessionsLoading: _sessionsLoading = false,
-	examSittings = [],
-	examSittingsLoading = false,
 	isRefetching = false,
 	currentUser,
 	effectiveExamPeriod,
@@ -112,7 +105,6 @@ export default function ExamsView({
 	weekDayDates,
 	activeSemester,
 	onManualRefresh,
-	onOpenExamSitting,
 	onOpenSetSchoolExamPeriod,
 	onOpenSetFacultyExamPeriod,
 	optimizedEvents = [],
@@ -189,8 +181,56 @@ export default function ExamsView({
 		selectedDepartmentId,
 	]);
 
-	// Filter exam events strictly in scope for this admin
-	const eventsInScope = useMemo(() => {
+	// All exam events strictly within this admin's scope (unaffected by cohort filters)
+	const adminMasterEvents = useMemo(() => {
+		return optimizedEvents.filter((event) => {
+			if (isDeptAdmin && (currentUser?.departmentId || currentUser?.adminScopeId)) {
+				const deptId = String(currentUser.departmentId || currentUser.adminScopeId);
+				return (
+					event.department_id == null ||
+					String(event.department_id) === deptId
+				);
+			}
+			if (isFacultyAdmin) {
+				const facId = currentUser?.facultyId || currentUser?.adminScopeId;
+				if (!facId) return true;
+				if (event.department_id) {
+					const dept = departments.find(
+						(d) => String(d.id) === String(event.department_id),
+					);
+					if (dept && String(dept.facultyId) !== String(facId)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			// For School / University / System admin: all events in school
+			return true;
+		});
+	}, [optimizedEvents, departments, isDeptAdmin, isFacultyAdmin, currentUser]);
+
+	// All programs strictly in scope for this admin (unaffected by cohort filters)
+	const adminPrograms = useMemo(() => {
+		return programs.filter((p) => {
+			if (isDeptAdmin && (currentUser?.departmentId || currentUser?.adminScopeId)) {
+				const deptId = String(currentUser.departmentId || currentUser.adminScopeId);
+				return String(p.departmentId) === deptId;
+			}
+			if (isFacultyAdmin) {
+				const facId = currentUser?.facultyId || currentUser?.adminScopeId;
+				if (!facId) return true;
+				if (p.facultyId) return String(p.facultyId) === String(facId);
+				const dept = departments.find(
+					(d) => String(d.id) === String(p.departmentId),
+				);
+				return dept ? String(dept.facultyId) === String(facId) : true;
+			}
+			return true;
+		});
+	}, [programs, departments, isDeptAdmin, isFacultyAdmin, currentUser]);
+
+	// Filter exam events strictly in scope for this admin and active cohort selections
+	const cohortEventsInScope = useMemo(() => {
 		return optimizedEvents.filter((event) => {
 			if (isDeptAdmin && currentUser?.departmentId) {
 				return (
@@ -236,14 +276,6 @@ export default function ExamsView({
 		selectedFacultyId,
 		selectedDepartmentId,
 	]);
-
-	// Filter events for the selected week when in timeline view
-	const eventsInWeek = useMemo(() => {
-		if (!weekRange.startStr || !weekRange.endStr) return eventsInScope;
-		return eventsInScope.filter(
-			(e) => e.date >= weekRange.startStr && e.date <= weekRange.endStr,
-		);
-	}, [eventsInScope, weekRange.startStr, weekRange.endStr]);
 
 	// Scope header display text
 	const scopeTitle = useMemo(() => {
@@ -291,9 +323,6 @@ export default function ExamsView({
 		selectedProgramId,
 		currentUser,
 	]);
-
-	const isExamPeriodDefined = Boolean(effectiveExamPeriod?.isSet);
-
 	return (
 		<div className="space-y-6">
 			{/* Top Header */}
@@ -316,17 +345,6 @@ export default function ExamsView({
 				</div>
 
 				<div className="flex items-center justify-end gap-2 flex-wrap">
-					{isSchoolAdmin && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onOpenSetSchoolExamPeriod}
-							className="h-9 gap-1.5 text-xs cursor-pointer"
-						>
-							<Settings size={13} className="text-primary" />
-							<span>Configure School Exam Period</span>
-						</Button>
-					)}
 					{canOpenExamGenerator && (
 						<Link to="/exams/generator">
 							<Button
@@ -353,27 +371,6 @@ export default function ExamsView({
 							<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
 						</Button>
 					)}
-
-					{canViewOptimizedTimetable && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onOpenExamSitting}
-							disabled={examSittingsLoading || !isExamPeriodDefined}
-							className="h-9 gap-1.5 text-xs cursor-pointer"
-						>
-							<UserCheck size={14} />
-							<span>Assign Invigilators</span>
-							{examSittings && examSittings.length > 0 && (
-								<Badge
-									variant="primary"
-									className="ml-1 text-[10px] py-0 px-1.5"
-								>
-									{examSittings.length}
-								</Badge>
-							)}
-						</Button>
-					)}
 				</div>
 			</div>
 
@@ -395,12 +392,16 @@ export default function ExamsView({
 				currentUser={currentUser}
 				onOpenSetSchoolExamPeriod={onOpenSetSchoolExamPeriod || (() => {})}
 				onOpenSetFacultyExamPeriod={onOpenSetFacultyExamPeriod || (() => {})}
+				hasPublishedTimetable={Boolean(
+					optimizedEvents.length > 0 ||
+					(optimizerDiagnostics && optimizerDiagnostics.scheduled != null && optimizerDiagnostics.scheduled > 0)
+				)}
 			/>
 
 			{activeSemester && (
 				<>
 					{/* Diagnostics Banner */}
-					<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-5">
+					<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl  border-border bg-surface p-5">
 						<div className="w-full flex flex-col justify-center items-center gap-5 text-sm text-text-muted">
 							{optimizerDiagnostics ? (
 								`${optimizerDiagnostics.scheduled || 0} scheduled · ${optimizerDiagnostics.unscheduled?.length || 0} need attention`
@@ -432,7 +433,8 @@ export default function ExamsView({
 					{!canViewOptimizedTimetable ? (
 						<div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-text-muted">
 							Exam timetable access is limited to the assigned exam officer or
-							authorized scope administrator (department, faculty, or school admin).
+							authorized scope administrator (department, faculty, or school
+							admin).
 						</div>
 					) : (
 						<>
@@ -444,7 +446,7 @@ export default function ExamsView({
 											id: "master",
 											label: "Master Schedule",
 											icon: CalendarDays,
-											count: eventsInScope.length,
+											count: adminMasterEvents.length,
 										},
 										{
 											id: "timeline",
@@ -457,7 +459,7 @@ export default function ExamsView({
 								/>
 							</div>
 
-							{/* Tab 1: Master Schedule View (Date rows + clustered timeframes) */}
+							{/* Tab 1: Master Schedule View (Date rows + clustered timeframes per week) */}
 							{activeTab === "master" &&
 								(entriesLoading ? (
 									<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
@@ -465,11 +467,17 @@ export default function ExamsView({
 									</div>
 								) : (
 									<ExamMasterScheduleView
-										events={eventsInScope}
-										selectedLevel={selectedLevel}
-										onSelectLevel={onSelectLevel}
-										programs={programsInScope}
+										events={adminMasterEvents}
+										programs={adminPrograms}
 										onSelectEvent={(evt) => setSelectedModalEvent(evt)}
+										currentWeek={currentWeek}
+										totalWeeks={totalWeeks}
+										onPreviousWeek={onPreviousWeek}
+										onNextWeek={onNextWeek}
+										onResetToCurrentWeek={onResetToCurrentWeek}
+										isCurrentWeekActive={isCurrentWeekActive}
+										weekRangeLabel={weekRange.rangeLabel}
+										weekDayDates={weekDayDates}
 									/>
 								))}
 
@@ -537,7 +545,7 @@ export default function ExamsView({
 										</div>
 									) : (
 										<ExamCohortTimelineGrid
-											events={eventsInWeek}
+											events={cohortEventsInScope}
 											weekDayDates={weekDayDates}
 											selectedProgram={currentProgram}
 											selectedProgramId={selectedProgramId}
@@ -545,19 +553,15 @@ export default function ExamsView({
 											onSelectEvent={(evt) => setSelectedModalEvent(evt)}
 											programs={programsInScope}
 											onSelectProgram={onSelectProgram}
+											currentWeek={currentWeek}
+											totalWeeks={totalWeeks}
+											onPreviousWeek={onPreviousWeek}
+											onNextWeek={onNextWeek}
+											onResetToCurrentWeek={onResetToCurrentWeek}
+											isCurrentWeekActive={isCurrentWeekActive}
+											weekRangeLabel={weekRange.rangeLabel}
 										/>
 									)}
-
-									{/* Week Navigation */}
-									<WeekNavigator
-										currentWeek={currentWeek}
-										totalWeeks={totalWeeks}
-										onPrevious={onPreviousWeek}
-										onNext={onNextWeek}
-										onResetToCurrent={onResetToCurrentWeek}
-										isCurrentWeekActive={isCurrentWeekActive}
-										dateRangeLabel={weekRange.rangeLabel}
-									/>
 								</div>
 							)}
 						</>

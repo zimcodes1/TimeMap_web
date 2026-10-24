@@ -15,6 +15,7 @@ export interface OptimizedExamEvent {
 	start_time: string;
 	end_time: string;
 	duration_minutes: number;
+	duration_per_student_minutes?: number | null;
 	venues: Array<{ venue_id: number; venue_name: string; students: number; turns: number }>;
 	joined_courses: string[];
 	joined_session_id?: string;

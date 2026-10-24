@@ -28,7 +28,7 @@ export default function ExamOptimizerRunInspection() {
 	const [selectedDepartmentId, setSelectedDepartmentId] =
 		useState<string>("ALL");
 	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
-	const [selectedLevel, setSelectedLevel] = useState<number | "ALL">("ALL");
+	const [selectedLevel, setSelectedLevel] = useState<number | "ALL">(100);
 
 	// 1. Fetch the exam optimizer run data
 	const {
@@ -143,13 +143,14 @@ export default function ExamOptimizerRunInspection() {
 	useEffect(() => {
 		if (selectedProgramId || allPrograms.length === 0) return;
 
-		// If a department is selected, choose its first program
+		// If a department is selected, choose its default program (or first)
 		if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
-			const prog = allPrograms.find(
+			const deptPrograms = allPrograms.filter(
 				(p) => String(p.departmentId) === String(selectedDepartmentId),
 			);
-			if (prog) {
-				setSelectedProgramId(String(prog.id));
+			const defaultProg = deptPrograms.find((p) => p.isDefault) || deptPrograms[0];
+			if (defaultProg) {
+				setSelectedProgramId(String(defaultProg.id));
 				return;
 			}
 		}
@@ -163,9 +164,10 @@ export default function ExamOptimizerRunInspection() {
 			}
 		}
 
-		// Fallback to first available program
-		if (allPrograms[0]) {
-			setSelectedProgramId(String(allPrograms[0].id));
+		// Fallback to default program
+		const defaultProg = allPrograms.find((p) => p.isDefault) || allPrograms[0];
+		if (defaultProg) {
+			setSelectedProgramId(String(defaultProg.id));
 		}
 	}, [selectedProgramId, selectedDepartmentId, allPrograms, run]);
 
