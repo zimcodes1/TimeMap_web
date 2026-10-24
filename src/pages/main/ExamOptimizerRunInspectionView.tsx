@@ -53,6 +53,12 @@ interface ExamOptimizerRunInspectionViewProps {
 	onTabChange: (tab: "master" | "cohort" | "diagnostics" | "table") => void;
 	currentUser: User | null;
 	weekDayDates?: WeekDayInfo[];
+	existingPublishedInfo?: {
+		hasExisting: boolean;
+		runId?: string;
+		eventsCount?: number;
+		sourceScopeType?: string;
+	} | null;
 }
 
 export default function ExamOptimizerRunInspectionView({
@@ -79,6 +85,7 @@ export default function ExamOptimizerRunInspectionView({
 	onTabChange,
 	currentUser,
 	weekDayDates,
+	existingPublishedInfo,
 }: ExamOptimizerRunInspectionViewProps) {
 	const [selectedDetailEvent, setSelectedDetailEvent] =
 		useState<OptimizedExamEvent | null>(null);
@@ -385,6 +392,7 @@ export default function ExamOptimizerRunInspectionView({
 				}}
 				run={run}
 				isPublishing={isPublishing}
+				existingPublishedInfo={existingPublishedInfo}
 			/>
 		</div>
 	);

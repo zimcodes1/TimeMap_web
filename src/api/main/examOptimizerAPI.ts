@@ -28,6 +28,8 @@ export interface ExamOptimizerResult {
 	scope_type?: string;
 	scope_id?: number;
 	scope_name?: string;
+	source_scope_type?: string | null;
+	source_scope_id?: number | null;
 	status?: "draft" | "approved" | "published";
 	events: OptimizedExamEvent[];
 	diagnostics: { scheduled?: number; joined_sessions?: number; unscheduled?: Array<{ course_code: string; reason: string }>; validation?: { valid: boolean; errors: Array<{ course_code: string; reason: string }> }; student_workload?: { maximum_exams_per_student_per_week?: number; students_over_three_exams_per_week?: number; average_exams_per_student_week?: number; maximum_exams_per_student_per_day?: number } };

@@ -17,6 +17,12 @@ interface ExamPublishConfirmModalProps {
 	onConfirm: () => void;
 	run: ExamOptimizerResult | null;
 	isPublishing: boolean;
+	existingPublishedInfo?: {
+		hasExisting: boolean;
+		runId?: string;
+		eventsCount?: number;
+		sourceScopeType?: string;
+	} | null;
 }
 
 export function ExamPublishConfirmModal({
@@ -25,6 +31,7 @@ export function ExamPublishConfirmModal({
 	onConfirm,
 	run,
 	isPublishing,
+	existingPublishedInfo,
 }: ExamPublishConfirmModalProps) {
 	if (!run) return null;
 
@@ -33,6 +40,7 @@ export function ExamPublishConfirmModal({
 	const hardConflicts = Number(run.metrics?.hard_conflicts || 0);
 	const hasConflicts = hardConflicts > 0;
 	const activeDays = run.metrics?.active_exam_days ?? 0;
+	const hasExisting = Boolean(existingPublishedInfo?.hasExisting);
 
 	return (
 		<Modal
@@ -41,12 +49,20 @@ export function ExamPublishConfirmModal({
 			size="md"
 			title={
 				<div className="flex items-center gap-2.5">
-					<div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-						<UploadCloud size={20} />
+					<div
+						className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+							hasExisting
+								? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+								: "bg-primary/10 text-primary border border-primary/20"
+						}`}
+					>
+						{hasExisting ? <AlertTriangle size={20} /> : <UploadCloud size={20} />}
 					</div>
 					<div>
 						<h3 className="text-base font-bold text-text-main leading-tight">
-							Publish Exam Timetable to Live
+							{hasExisting
+								? "Overwrite Existing Published Timetable?"
+								: "Publish Exam Timetable to Live"}
 						</h3>
 						<p className="text-xs text-text-muted">
 							Run #{String(run.run_id).slice(0, 8)} · {run.scope_name || `${run.scope_type} scope`}
@@ -56,6 +72,27 @@ export function ExamPublishConfirmModal({
 			}
 		>
 			<div className="space-y-4 pt-1">
+				{/* Prominent overwrite warning if an existing timetable is already published for this scope */}
+				{hasExisting && (
+					<div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1.5">
+						<div className="flex items-center gap-2 font-bold text-amber-400">
+							<AlertTriangle size={16} className="text-amber-400 shrink-0" />
+							<span>Active Published Timetable Will Be Overwritten</span>
+						</div>
+						<p className="text-[11px] leading-relaxed text-amber-200/90">
+							An active examination timetable (
+							{existingPublishedInfo?.runId
+								? `Run #${existingPublishedInfo.runId.slice(0, 8)}`
+								: "existing schedule"}
+							{existingPublishedInfo?.eventsCount != null
+								? ` with ${existingPublishedInfo.eventsCount} examinations`
+								: ""}
+							) is currently live for this scope. Publishing this run will immediately
+							overwrite and replace it for all enrolled students, courses, and venues.
+						</p>
+					</div>
+				)}
+
 				{/* Warning banner if conflicts exist */}
 				{hasConflicts ? (
 					<div className="p-3 rounded-xl bg-danger/10 border border-danger/30 text-danger text-xs flex items-start gap-2.5">
@@ -131,17 +168,29 @@ export function ExamPublishConfirmModal({
 						size="sm"
 						onClick={onConfirm}
 						disabled={isPublishing}
-						className="gap-2 cursor-pointer text-xs font-semibold"
+						className={`gap-2 cursor-pointer text-xs font-semibold ${
+							hasExisting
+								? "bg-amber-600 hover:bg-amber-500 text-white border-amber-600"
+								: ""
+						}`}
 					>
 						{isPublishing ? (
 							<>
 								<Loader2 size={14} className="animate-spin" />
-								<span>Publishing Timetable...</span>
+								<span>
+									{hasExisting
+										? "Overwriting & Publishing..."
+										: "Publishing Timetable..."}
+								</span>
 							</>
 						) : (
 							<>
 								<UploadCloud size={14} />
-								<span>Confirm & Publish</span>
+								<span>
+									{hasExisting
+										? "Proceed to Overwrite & Publish"
+										: "Confirm & Publish"}
+								</span>
 							</>
 						)}
 					</Button>

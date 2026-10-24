@@ -606,6 +606,8 @@ export interface GenerationScopePermission {
   allowFacultyGeneration: boolean;
   allowDepartmentGeneration: boolean;
   allowFacultyExamPeriod?: boolean;
+  allowFacultyExamGeneration?: boolean;
+  allowDepartmentExamGeneration?: boolean;
   updatedAt?: string;
 }
 

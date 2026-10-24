@@ -384,6 +384,8 @@ export default function ExamsContainer() {
 			exam_start_date: string;
 			exam_end_date: string;
 			allow_faculty_exam_period?: boolean;
+			allow_faculty_exam_generation?: boolean;
+			allow_department_exam_generation?: boolean;
 		}) => {
 			if (!activeSemester) throw new Error("No active semester.");
 			await setSemesterExamPeriod(activeSemester.id, {
@@ -391,10 +393,12 @@ export default function ExamsContainer() {
 				exam_end_date: data.exam_end_date,
 			});
 
-			if (data.allow_faculty_exam_period !== undefined && schoolId) {
+			if (schoolId) {
 				await updateGenerationPermissions({
 					school: schoolId,
 					allow_faculty_exam_period: data.allow_faculty_exam_period,
+					allow_faculty_exam_generation: data.allow_faculty_exam_generation,
+					allow_department_exam_generation: data.allow_department_exam_generation,
 				});
 			}
 		},
@@ -404,6 +408,7 @@ export default function ExamsContainer() {
 			queryClient.invalidateQueries({ queryKey: ["semesters"] });
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
 			queryClient.invalidateQueries({ queryKey: ["generation", "permissions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer-access"] });
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 		},
@@ -651,11 +656,9 @@ export default function ExamsContainer() {
 				onClose={() => setIsSetSchoolExamPeriodOpen(false)}
 				semester={activeSemester || null}
 				currentAllowFacultyExamPeriod={Boolean(permissionsData?.allowFacultyExamPeriod)}
-				onSubmit={(data: {
-					exam_start_date: string;
-					exam_end_date: string;
-					allow_faculty_exam_period?: boolean;
-				}) => setSchoolExamPeriodMutation.mutate(data)}
+				currentAllowFacultyExamGeneration={Boolean(permissionsData?.allowFacultyExamGeneration)}
+				currentAllowDepartmentExamGeneration={Boolean(permissionsData?.allowDepartmentExamGeneration)}
+				onSubmit={(data) => setSchoolExamPeriodMutation.mutate(data)}
 				isPending={setSchoolExamPeriodMutation.isPending}
 			/>
 

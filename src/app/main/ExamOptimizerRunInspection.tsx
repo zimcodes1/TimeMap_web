@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
 	getExamOptimizerRun,
 	getExamOptimizerAccess,
+	getOptimizedExamTimetable,
 	approveExamOptimizerRun,
 	publishExamOptimizerRun,
 	type ExamOptimizerResult,
@@ -73,6 +74,36 @@ export default function ExamOptimizerRunInspection() {
 		queryKey: ["programs"],
 		queryFn: () => getPrograms(),
 	});
+
+	// 4. Fetch existing published timetable for this scope to detect overwrites
+	const { data: existingPublishedTimetable } = useQuery({
+		queryKey: [
+			"scheduling",
+			"exam-optimizer-published-scope",
+			run?.semester_id,
+			run?.scope_type,
+			run?.scope_id,
+		],
+		queryFn: () =>
+			getOptimizedExamTimetable(
+				run!.semester_id!,
+				run!.scope_type!,
+				run!.scope_id!,
+			),
+		enabled: Boolean(run?.semester_id && run?.scope_type && run?.scope_id),
+	});
+
+	const existingPublishedInfo =
+		existingPublishedTimetable?.run_id &&
+		String(existingPublishedTimetable.run_id) !== String(run?.run_id)
+			? {
+					hasExisting: true,
+					runId: String(existingPublishedTimetable.run_id),
+					eventsCount: existingPublishedTimetable.events?.length ?? 0,
+					sourceScopeType:
+						existingPublishedTimetable.source_scope_type ?? undefined,
+				}
+			: null;
 
 	// Determine management rights: access.can_optimize or admin role
 	const canManage = Boolean(
@@ -195,6 +226,7 @@ export default function ExamOptimizerRunInspection() {
 			activeTab={activeTab}
 			onTabChange={setActiveTab}
 			currentUser={currentUser}
+			existingPublishedInfo={existingPublishedInfo}
 		/>
 	);
 }

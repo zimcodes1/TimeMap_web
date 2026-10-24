@@ -34,11 +34,15 @@ export function GenerationPermissionsModal({
 
 	const [allowFaculty, setAllowFaculty] = useState(false);
 	const [allowDept, setAllowDept] = useState(false);
+	const [allowFacultyExam, setAllowFacultyExam] = useState(false);
+	const [allowDeptExam, setAllowDeptExam] = useState(false);
 
 	useEffect(() => {
 		if (permission) {
-			setAllowFaculty(permission.allowFacultyGeneration);
-			setAllowDept(permission.allowDepartmentGeneration);
+			setAllowFaculty(Boolean(permission.allowFacultyGeneration));
+			setAllowDept(Boolean(permission.allowDepartmentGeneration));
+			setAllowFacultyExam(Boolean(permission.allowFacultyExamGeneration));
+			setAllowDeptExam(Boolean(permission.allowDepartmentExamGeneration));
 		}
 	}, [permission]);
 
@@ -48,11 +52,16 @@ export function GenerationPermissionsModal({
 				school: schoolId!,
 				allow_faculty_generation: allowFaculty,
 				allow_department_generation: allowDept,
+				allow_faculty_exam_generation: allowFacultyExam,
+				allow_department_exam_generation: allowDeptExam,
 			}),
 		onSuccess: () => {
 			toast.success("Generation permissions updated successfully.");
 			queryClient.invalidateQueries({
 				queryKey: ["scheduling", "generationPermissions"],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "exam-optimizer-access"],
 			});
 			onClose();
 		},
@@ -75,7 +84,7 @@ export function GenerationPermissionsModal({
 					</span>
 				</div>
 			}
-			description="Configure decentralized timetable generation privileges for faculties and departments."
+			description="Configure decentralized timetable generation privileges for faculties and departments across lecture and exam scheduling."
 			size="md"
 		>
 			<div className="space-y-4 pt-1">
@@ -94,45 +103,99 @@ export function GenerationPermissionsModal({
 						Loading permissions...
 					</div>
 				) : (
-					<div className="space-y-3">
-						{/* Faculty Toggle */}
-						<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
-							<div className="space-y-0.5">
-								<p className="text-xs font-semibold text-text-main">
-									Faculty-Level Generation
-								</p>
-								<p className="text-[11px] text-text-muted">
-									Allow faculty administrators to generate and test
-									faculty-scoped timetables.
-								</p>
+					<div className="space-y-4">
+						{/* Group 1: Lecture Timetable Generation */}
+						<div className="space-y-2">
+							<div className="text-xs font-bold text-text-muted uppercase tracking-wider px-1">
+								Lecture Timetable Generation
 							</div>
-							<input
-								type="checkbox"
-								checked={allowFaculty}
-								onChange={(e) => setAllowFaculty(e.target.checked)}
-								disabled={!isSchoolAdmin || updateMutation.isPending}
-								className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
-							/>
+
+							{/* Faculty Toggle */}
+							<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
+								<div className="space-y-0.5">
+									<p className="text-xs font-semibold text-text-main">
+										Faculty-Level Lecture Generation
+									</p>
+									<p className="text-[11px] text-text-muted">
+										Allow faculty administrators to generate and test
+										faculty-scoped lecture timetables.
+									</p>
+								</div>
+								<input
+									type="checkbox"
+									checked={allowFaculty}
+									onChange={(e) => setAllowFaculty(e.target.checked)}
+									disabled={!isSchoolAdmin || updateMutation.isPending}
+									className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
+								/>
+							</div>
+
+							{/* Department Toggle */}
+							<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
+								<div className="space-y-0.5">
+									<p className="text-xs font-semibold text-text-main">
+										Department-Level Lecture Generation
+									</p>
+									<p className="text-[11px] text-text-muted">
+										Allow department administrators to generate and test
+										department-scoped lecture timetables.
+									</p>
+								</div>
+								<input
+									type="checkbox"
+									checked={allowDept}
+									onChange={(e) => setAllowDept(e.target.checked)}
+									disabled={!isSchoolAdmin || updateMutation.isPending}
+									className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
+								/>
+							</div>
 						</div>
 
-						{/* Department Toggle */}
-						<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
-							<div className="space-y-0.5">
-								<p className="text-xs font-semibold text-text-main">
-									Department-Level Generation
-								</p>
-								<p className="text-[11px] text-text-muted">
-									Allow department administrators to generate and test
-									department-scoped timetables.
-								</p>
+						{/* Group 2: Examination Timetable Generation */}
+						<div className="space-y-2 pt-2 border-t border-border">
+							<div className="text-xs font-bold text-text-muted uppercase tracking-wider px-1">
+								Examination Timetable Generation
 							</div>
-							<input
-								type="checkbox"
-								checked={allowDept}
-								onChange={(e) => setAllowDept(e.target.checked)}
-								disabled={!isSchoolAdmin || updateMutation.isPending}
-								className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
-							/>
+
+							{/* Faculty Exam Toggle */}
+							<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
+								<div className="space-y-0.5">
+									<p className="text-xs font-semibold text-text-main">
+										Faculty-Level Exam Generation
+									</p>
+									<p className="text-[11px] text-text-muted">
+										Allow faculty exam officers to independently generate
+										and optimize faculty exam timetables.
+									</p>
+								</div>
+								<input
+									type="checkbox"
+									checked={allowFacultyExam}
+									onChange={(e) => setAllowFacultyExam(e.target.checked)}
+									disabled={!isSchoolAdmin || updateMutation.isPending}
+									className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
+								/>
+							</div>
+
+							{/* Department Exam Toggle */}
+							<div className="p-3 rounded-xl bg-surface-raised border border-border flex items-center justify-between gap-3">
+								<div className="space-y-0.5">
+									<p className="text-xs font-semibold text-text-main">
+										Department-Level Exam Generation
+									</p>
+									<p className="text-[11px] text-text-muted">
+										Allow department exam officers to independently generate
+										and optimize department exam timetables.
+									</p>
+								</div>
+								<input
+									type="checkbox"
+									checked={allowDeptExam}
+									onChange={(e) => setAllowDeptExam(e.target.checked)}
+									disabled={!isSchoolAdmin || updateMutation.isPending}
+									className="w-4 h-4 rounded text-primary focus:ring-primary/20 accent-primary cursor-pointer disabled:cursor-not-allowed"
+								/>
+							</div>
 						</div>
 					</div>
 				)}

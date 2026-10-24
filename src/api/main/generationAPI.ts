@@ -42,6 +42,8 @@ interface RawGenerationScopePermission {
   allow_faculty_generation: boolean;
   allow_department_generation: boolean;
   allow_faculty_exam_period?: boolean;
+  allow_faculty_exam_generation?: boolean;
+  allow_department_exam_generation?: boolean;
   updated_at?: string;
 }
 
@@ -121,6 +123,8 @@ export function mapRawPermissionToPermission(
     allowFacultyGeneration: Boolean(raw.allow_faculty_generation),
     allowDepartmentGeneration: Boolean(raw.allow_department_generation),
     allowFacultyExamPeriod: Boolean(raw.allow_faculty_exam_period),
+    allowFacultyExamGeneration: Boolean(raw.allow_faculty_exam_generation),
+    allowDepartmentExamGeneration: Boolean(raw.allow_department_exam_generation),
     updatedAt: raw.updated_at,
   };
 }
@@ -238,6 +242,8 @@ export async function updateGenerationPermissions(payload: {
   allow_faculty_generation?: boolean;
   allow_department_generation?: boolean;
   allow_faculty_exam_period?: boolean;
+  allow_faculty_exam_generation?: boolean;
+  allow_department_exam_generation?: boolean;
 }): Promise<GenerationScopePermission> {
   const response = await apiClient.patch<RawGenerationScopePermission>(
     "/scheduling/generate/permissions/",
@@ -246,6 +252,8 @@ export async function updateGenerationPermissions(payload: {
       allow_faculty_generation: payload.allow_faculty_generation,
       allow_department_generation: payload.allow_department_generation,
       allow_faculty_exam_period: payload.allow_faculty_exam_period,
+      allow_faculty_exam_generation: payload.allow_faculty_exam_generation,
+      allow_department_exam_generation: payload.allow_department_exam_generation,
     }
   );
   return mapRawPermissionToPermission(response.data);

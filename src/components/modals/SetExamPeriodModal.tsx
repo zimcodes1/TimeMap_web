@@ -12,10 +12,14 @@ interface SetExamPeriodModalProps {
 	onClose: () => void;
 	semester: Semester | null;
 	currentAllowFacultyExamPeriod?: boolean;
+	currentAllowFacultyExamGeneration?: boolean;
+	currentAllowDepartmentExamGeneration?: boolean;
 	onSubmit: (data: {
 		exam_start_date: string;
 		exam_end_date: string;
 		allow_faculty_exam_period?: boolean;
+		allow_faculty_exam_generation?: boolean;
+		allow_department_exam_generation?: boolean;
 	}) => void;
 	isPending?: boolean;
 }
@@ -25,6 +29,8 @@ export default function SetExamPeriodModal({
 	onClose,
 	semester,
 	currentAllowFacultyExamPeriod = false,
+	currentAllowFacultyExamGeneration = false,
+	currentAllowDepartmentExamGeneration = false,
 	onSubmit,
 	isPending = false,
 }: SetExamPeriodModalProps) {
@@ -33,6 +39,12 @@ export default function SetExamPeriodModal({
 	const [allowFacultyOverride, setAllowFacultyOverride] = useState(
 		currentAllowFacultyExamPeriod,
 	);
+	const [allowFacultyExamGen, setAllowFacultyExamGen] = useState(
+		currentAllowFacultyExamGeneration,
+	);
+	const [allowDeptExamGen, setAllowDeptExamGen] = useState(
+		currentAllowDepartmentExamGeneration,
+	);
 
 	useEffect(() => {
 		if (semester) {
@@ -40,7 +52,15 @@ export default function SetExamPeriodModal({
 			setEndDate(semester.examEndDate || "");
 		}
 		setAllowFacultyOverride(currentAllowFacultyExamPeriod);
-	}, [semester, currentAllowFacultyExamPeriod, isOpen]);
+		setAllowFacultyExamGen(currentAllowFacultyExamGeneration);
+		setAllowDeptExamGen(currentAllowDepartmentExamGeneration);
+	}, [
+		semester,
+		currentAllowFacultyExamPeriod,
+		currentAllowFacultyExamGeneration,
+		currentAllowDepartmentExamGeneration,
+		isOpen,
+	]);
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
@@ -68,6 +88,8 @@ export default function SetExamPeriodModal({
 			exam_start_date: startDate,
 			exam_end_date: endDate,
 			allow_faculty_exam_period: allowFacultyOverride,
+			allow_faculty_exam_generation: allowFacultyExamGen,
+			allow_department_exam_generation: allowDeptExamGen,
 		});
 	};
 
@@ -147,14 +169,19 @@ export default function SetExamPeriodModal({
 					</div>
 				</div>
 
-				<div className="p-4 bg-surface-raised border border-border rounded-xl space-y-3">
+				<div className="p-4 bg-surface-raised border border-border rounded-xl space-y-4">
+					<div className="text-xs font-bold text-text-muted uppercase tracking-wider">
+						Scope Permissions & Policy
+					</div>
+
+					{/* Allow Faculty Custom Exam Period */}
 					<div className="flex items-start gap-3">
 						<input
 							type="checkbox"
 							id="allowFacultyExamToggle"
 							checked={allowFacultyOverride}
 							onChange={(e) => setAllowFacultyOverride(e.target.checked)}
-							className="mt-0.5 w-4 h-4 rounded text-primary border-border focus:ring-primary"
+							className="mt-0.5 w-4 h-4 rounded text-primary border-border focus:ring-primary accent-primary cursor-pointer"
 						/>
 						<label
 							htmlFor="allowFacultyExamToggle"
@@ -166,8 +193,7 @@ export default function SetExamPeriodModal({
 							</div>
 							<p className="text-text-muted text-[11px] leading-relaxed">
 								When enabled, faculty administrators can independently specify examination
-								dates for their faculty. When revoked, faculty periods are overwritten and
-								revert to the school schedule.
+								dates for their faculty.
 							</p>
 						</label>
 					</div>
@@ -181,6 +207,54 @@ export default function SetExamPeriodModal({
 							</span>
 						</div>
 					)}
+
+					{/* Allow Faculty Exam Timetable Generation */}
+					<div className="flex items-start gap-3 pt-2 border-t border-border/60">
+						<input
+							type="checkbox"
+							id="allowFacultyExamGenToggle"
+							checked={allowFacultyExamGen}
+							onChange={(e) => setAllowFacultyExamGen(e.target.checked)}
+							className="mt-0.5 w-4 h-4 rounded text-primary border-border focus:ring-primary accent-primary cursor-pointer"
+						/>
+						<label
+							htmlFor="allowFacultyExamGenToggle"
+							className="text-xs text-text-main cursor-pointer space-y-1 block"
+						>
+							<div className="font-bold flex items-center gap-1.5 text-text-main">
+								<ShieldCheck size={14} className="text-primary" />
+								<span>Allow Faculty Exam Officers to generate timetables</span>
+							</div>
+							<p className="text-text-muted text-[11px] leading-relaxed">
+								When enabled, faculty exam officers (or faculty admins) can run the exam optimizer
+								and generate faculty-scoped exam timetables.
+							</p>
+						</label>
+					</div>
+
+					{/* Allow Department Exam Timetable Generation */}
+					<div className="flex items-start gap-3 pt-2 border-t border-border/60">
+						<input
+							type="checkbox"
+							id="allowDeptExamGenToggle"
+							checked={allowDeptExamGen}
+							onChange={(e) => setAllowDeptExamGen(e.target.checked)}
+							className="mt-0.5 w-4 h-4 rounded text-primary border-border focus:ring-primary accent-primary cursor-pointer"
+						/>
+						<label
+							htmlFor="allowDeptExamGenToggle"
+							className="text-xs text-text-main cursor-pointer space-y-1 block"
+						>
+							<div className="font-bold flex items-center gap-1.5 text-text-main">
+								<ShieldCheck size={14} className="text-primary" />
+								<span>Allow Department Exam Officers to generate timetables</span>
+							</div>
+							<p className="text-text-muted text-[11px] leading-relaxed">
+								When enabled, department exam officers (or department admins) can run the exam optimizer
+								and generate department-scoped exam timetables.
+							</p>
+						</label>
+					</div>
 				</div>
 			</form>
 		</Modal>
