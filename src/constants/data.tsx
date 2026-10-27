@@ -2,7 +2,7 @@ import {
 	LayoutDashboard,
 	Calendar,
 	CalendarRange,
-	GraduationCap,
+	NotebookPen,
 	MapPin,
 	AlertTriangle,
 	ClipboardList,
@@ -48,7 +48,7 @@ export function isRouteAllowedForExamOfficer(path: string): boolean {
 		return false;
 	}
 	return EXAM_OFFICER_ALLOWED_ROUTES.some(
-		(allowed) => path === allowed || path.startsWith(`${allowed}/`)
+		(allowed) => path === allowed || path.startsWith(`${allowed}/`),
 	);
 }
 
@@ -74,7 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			{
 				label: "Exam Timetable",
-				icon: <GraduationCap size={18} />,
+				icon: <NotebookPen size={18} />,
 				to: "/exams",
 				adminLevels: ["school", "faculty", "department"],
 			},
