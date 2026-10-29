@@ -77,7 +77,7 @@ export default function SchedulesContainer() {
 		user?.role === "admin" && user?.adminLevel === "faculty";
 	const isDeptAdmin =
 		user?.role === "admin" && user?.adminLevel === "department";
-	const userSchoolId = user?.adminScopeId || user?.schoolId;
+	const userSchoolId = user?.schoolId || (isSchoolAdmin ? user?.adminScopeId : undefined);
 
 	// Modals state
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
@@ -134,13 +134,13 @@ export default function SchedulesContainer() {
 	});
 
 	const { data: academicSessionsData = [] } = useQuery<AcademicSession[]>({
-		queryKey: ["academic-sessions", "list", userSchoolId],
-		queryFn: () => getAcademicSessions({ school: userSchoolId || undefined }),
+		queryKey: ["academic-sessions", "list", userSchoolId || "default"],
+		queryFn: () => getAcademicSessions(userSchoolId ? { school: userSchoolId } : undefined),
 	});
 
 	const { data: semestersData = [] } = useQuery<Semester[]>({
-		queryKey: ["semesters", "list", userSchoolId],
-		queryFn: () => getSemesters({ school: userSchoolId || undefined }),
+		queryKey: ["semesters", "list", userSchoolId || "default"],
+		queryFn: () => getSemesters(userSchoolId ? { school: userSchoolId } : undefined),
 	});
 
 	const { data: coursesData = [] } = useQuery<Course[]>({
@@ -174,9 +174,9 @@ export default function SchedulesContainer() {
 
 	// Generation Scope Permissions Query
 	const { data: scopePermission } = useQuery({
-		queryKey: ["scheduling", "generationPermissions", userSchoolId],
+		queryKey: ["scheduling", "generationPermissions", userSchoolId || "default"],
 		queryFn: () => getGenerationPermissions(userSchoolId),
-		enabled: Boolean(userSchoolId),
+		enabled: true,
 	});
 
 	const allowFacultyGen = scopePermission?.allowFacultyGeneration ?? false;
@@ -190,22 +190,8 @@ export default function SchedulesContainer() {
 
 	const canConfigurePermissions = isSuperuser || isSchoolAdmin;
 
-	// Identify current active academic session set by school/system admin
-	const currentAcademicSession = useMemo(() => {
-		return academicSessionsData.find((s) => s.isCurrent) || null;
-	}, [academicSessionsData]);
-
 	// Identify active semester belonging to the active academic session
 	const activeSemester = useMemo(() => {
-		if (currentAcademicSession) {
-			const activeInSession = semestersData.find(
-				(s) =>
-					s.isActive &&
-					String(s.sessionId) === String(currentAcademicSession.id),
-			);
-			if (activeInSession) return activeInSession;
-		}
-
 		const activeInSchool = semestersData.find(
 			(s) =>
 				s.isActive &&
@@ -214,7 +200,20 @@ export default function SchedulesContainer() {
 		if (activeInSchool) return activeInSchool;
 
 		return semestersData.find((s) => s.isActive) || null;
-	}, [semestersData, currentAcademicSession, userSchoolId]);
+	}, [semestersData, userSchoolId]);
+
+	// Identify current active academic session set by school/system admin
+	const currentAcademicSession = useMemo(() => {
+		const byCurrentFlag = academicSessionsData.find((s) => s.isCurrent);
+		if (byCurrentFlag) return byCurrentFlag;
+		if (activeSemester?.sessionId) {
+			const byActiveSemester = academicSessionsData.find(
+				(s) => String(s.id) === String(activeSemester.sessionId),
+			);
+			if (byActiveSemester) return byActiveSemester;
+		}
+		return academicSessionsData[0] || null;
+	}, [academicSessionsData, activeSemester]);
 
 	const isSemesterConfigured = Boolean(
 		currentAcademicSession && activeSemester?.isActive,
@@ -782,7 +781,7 @@ export default function SchedulesContainer() {
 			<GenerationPermissionsModal
 				isOpen={isPermissionsModalOpen}
 				onClose={() => setIsPermissionsModalOpen(false)}
-				schoolId={userSchoolId}
+				schoolId={userSchoolId || activeSemester?.schoolId}
 			/>
 
 			<ScheduleEntryModal
@@ -799,7 +798,7 @@ export default function SchedulesContainer() {
 				isSlotClick={scheduleEntryDefaults.isSlotClick}
 				userDepartmentId={selectedDepartmentId}
 				userFacultyId={selectedFacultyId}
-				userSchoolId={userSchoolId}
+				userSchoolId={userSchoolId || activeSemester?.schoolId}
 				programId={selectedProgramId}
 				programName={activeProgram?.name}
 				level={selectedLevel}

@@ -579,7 +579,14 @@ export function LiveEntryDetailModal({
 								</div>
 								<div className="font-bold text-text-main truncate">
 									{lecturersList.length > 0
-										? lecturersList.join(", ")
+										? lecturersList
+												.map((x: any) =>
+													typeof x === "string"
+														? x
+														: x?.full_name || x?.name || "",
+												)
+												.filter(Boolean)
+												.join(", ")
 										: "No Lecturer Assigned"}
 								</div>
 								<div className="text-[11px] text-text-muted">

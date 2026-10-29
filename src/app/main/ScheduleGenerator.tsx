@@ -44,7 +44,7 @@ export default function ScheduleGeneratorContainer() {
 	const isDeptAdmin =
 		user?.role === "admin" && user?.adminLevel === "department";
 
-	const userSchoolId = user?.adminScopeId || user?.schoolId;
+	const userSchoolId = user?.schoolId || (isSchoolAdmin ? user?.adminScopeId : undefined);
 
 	// State
 	const [semesterId, setSemesterId] = useState<string>("");

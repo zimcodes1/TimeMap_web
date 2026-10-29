@@ -243,10 +243,14 @@ export default function SemestersContainer() {
 					<ShieldAlert size={28} />
 				</div>
 				<div>
-					<Text variant="h5" weight="bold" className="text-text-main">
+					<Text
+						variant="h5"
+						weight="bold"
+						className="text-text-main text-center"
+					>
 						Access Restricted
 					</Text>
-					<Text variant="body-sm" color="muted" className="mt-1">
+					<Text variant="body-sm" color="muted" className="mt-1 text-center">
 						Academic sessions and semester configuration is exclusively managed
 						by School-Level Administrators.
 					</Text>

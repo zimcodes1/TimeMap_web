@@ -85,15 +85,27 @@ export const LecturerDetailsView: React.FC<LecturerDetailsViewProps> = ({
 					<AlertCircle size={32} />
 				</div>
 				<div className="space-y-1">
-					<Text variant="h4" weight="bold" className="text-text-main">
+					<Text
+						variant="h4"
+						weight="bold"
+						className="text-text-main text-center"
+					>
 						Lecturer Not Found
 					</Text>
-					<Text variant="body-sm" color="muted" className="max-w-md">
-						The requested lecturer record could not be found or is outside your current administrative scope.
+					<Text
+						variant="body-sm"
+						color="muted"
+						className="max-w-md text-center"
+					>
+						The requested lecturer record could not be found or is outside your
+						current administrative scope.
 					</Text>
 				</div>
 				<Link to={"/users" as any}>
-					<Button variant="outline" className="rounded-xl flex items-center gap-2">
+					<Button
+						variant="outline"
+						className="rounded-xl flex items-center gap-2"
+					>
 						<ArrowLeft size={16} />
 						<span>Return to Staff Directory</span>
 					</Button>
