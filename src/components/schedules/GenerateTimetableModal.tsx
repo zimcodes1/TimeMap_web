@@ -11,8 +11,10 @@ import type {
 	Department,
 	TimetableGenerationRun,
 	GenerateTimetablePayload,
+	GenerationProgressEvent,
 } from "@/types";
-import { generateTimetable } from "@/api/main/generationAPI";
+import { generateTimetableStream } from "@/api/main/generationAPI";
+import { GenerationProgressCard } from "@/components/schedules/generator/GenerationProgressCard";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -57,6 +59,8 @@ export function GenerateTimetableModal({
 	const [scopeId, setScopeId] = useState<string>("");
 
 	const [isGenerating, setIsGenerating] = useState(false);
+	const [generationProgress, setGenerationProgress] =
+		useState<GenerationProgressEvent | null>(null);
 
 	// Initialize semester
 	useEffect(() => {
@@ -164,7 +168,9 @@ export function GenerateTimetableModal({
 
 		setIsGenerating(true);
 		try {
-			const run = await generateTimetable(payload);
+			const run = await generateTimetableStream(payload, (evt) =>
+				setGenerationProgress(evt),
+			);
 			toast.success("Timetable generated successfully!");
 			onClose();
 			onGenerationComplete(run);
@@ -177,6 +183,7 @@ export function GenerateTimetableModal({
 			toast.error(errorMsg);
 		} finally {
 			setIsGenerating(false);
+			setGenerationProgress(null);
 		}
 	};
 
@@ -316,19 +323,26 @@ export function GenerateTimetableModal({
 
 					{/* Running State Banner */}
 					{isGenerating && (
-						<div className="p-4 rounded-xl bg-primary/10 border border-primary/20 space-y-2 animate-pulse">
-							<div className="flex items-center gap-2 text-primary font-semibold text-xs">
-								<Cpu size={16} className="animate-spin" />
-								<span>Genetic Algorithm Optimizer is executing...</span>
+						<>
+							<div className="p-4 rounded-xl bg-primary/10 border border-primary/20 space-y-2 animate-pulse">
+								<div className="flex items-center gap-2 text-primary font-semibold text-xs">
+									<Cpu size={16} className="animate-spin" />
+									<span>Genetic Algorithm Optimizer is executing...</span>
+								</div>
+								<p className="text-[11px] text-text-muted leading-relaxed">
+									Evaluating candidate timetables across 24 academic lecture
+									slots. Enforcing zero student cohort clashes, zero lecturer
+									double-bookings, zero venue conflicts, distinct days for
+									multi-session courses, and max 3 lectures/day per program
+									cohort.
+								</p>
 							</div>
-							<p className="text-[11px] text-text-muted leading-relaxed">
-								Evaluating candidate timetables across 24 academic lecture
-								slots. Enforcing zero student cohort clashes, zero lecturer
-								double-bookings, zero venue conflicts, distinct days for
-								multi-session courses, and max 3 lectures/day per program
-								cohort.
-							</p>
-						</div>
+							<GenerationProgressCard
+								progress={generationProgress}
+								scopeType={scopeType}
+								compact={true}
+							/>
+						</>
 					)}
 
 					{/* Footer Actions */}

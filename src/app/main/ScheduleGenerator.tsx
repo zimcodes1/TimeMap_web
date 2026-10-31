@@ -12,7 +12,7 @@ import {
 	getGenerationPermissions,
 	getGenerationRuns,
 	getGenerationRunDetail,
-	generateTimetable,
+	generateTimetableStream,
 	publishGenerationRun,
 	exportSchedulingProblem,
 } from "@/api/main/generationAPI";
@@ -24,6 +24,7 @@ import type {
 	TimetableGenerationRun,
 	GenerateTimetablePayload,
 	GenerationScopePermission,
+	GenerationProgressEvent,
 } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import ScheduleGeneratorView from "@/pages/main/ScheduleGeneratorView";
@@ -59,6 +60,8 @@ export default function ScheduleGeneratorContainer() {
 	);
 	const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 	const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+	const [generationProgress, setGenerationProgress] =
+		useState<GenerationProgressEvent | null>(null);
 	const [pendingGeneratePayload, setPendingGeneratePayload] =
 		useState<GenerateTimetablePayload | null>(null);
 	const [isOverwriteModalOpen, setIsOverwriteModalOpen] = useState(false);
@@ -227,12 +230,13 @@ export default function ScheduleGeneratorContainer() {
 	// Generate Mutation
 	const generateMutation = useMutation({
 		mutationFn: (payload: GenerateTimetablePayload) =>
-			generateTimetable(payload),
+			generateTimetableStream(payload, (evt) => setGenerationProgress(evt)),
 		onSuccess: (run) => {
 			toast.success(
 				"Weekly timetable generated successfully! Opening inspection...",
 			);
 			setActiveRun(run);
+			setGenerationProgress(null);
 			queryClient.invalidateQueries({
 				queryKey: ["scheduling", "generationRuns"],
 			});
@@ -242,6 +246,7 @@ export default function ScheduleGeneratorContainer() {
 			});
 		},
 		onError: (err: any) => {
+			setGenerationProgress(null);
 			const errorMsg =
 				err?.response?.data?.error ||
 				err?.response?.data?.detail ||
@@ -413,6 +418,7 @@ export default function ScheduleGeneratorContainer() {
 				faculties={faculties}
 				departments={departments}
 				isGenerating={generateMutation.isPending}
+				generationProgress={generationProgress}
 				onSubmit={handleSubmit}
 				onExportProblem={handleExportProblem}
 				isExporting={isExporting}

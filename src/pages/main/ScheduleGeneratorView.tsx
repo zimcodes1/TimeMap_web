@@ -11,7 +11,6 @@ import {
 	AlertTriangle,
 	Eye,
 	UploadCloud,
-	Cpu,
 	Check,
 } from "lucide-react";
 import type {
@@ -20,12 +19,14 @@ import type {
 	Faculty,
 	Department,
 	TimetableGenerationRun,
+	GenerationProgressEvent,
 } from "@/types";
 import { GeneratorConfigCard } from "@/components/schedules/generator/GeneratorConfigCard";
 import { GenerationMetricsCards } from "@/components/schedules/generator/GenerationMetricsCards";
 import { ConflictDiagnosticsPanel } from "@/components/schedules/generator/ConflictDiagnosticsPanel";
 import { TimetableInspectionModal } from "@/components/schedules/generator/TimetableInspectionModal";
 import { PublishConfirmModal } from "@/components/schedules/generator/PublishConfirmModal";
+import { GenerationProgressCard } from "@/components/schedules/generator/GenerationProgressCard";
 
 interface ScheduleGeneratorViewProps {
 	semesters: Semester[];
@@ -39,6 +40,7 @@ interface ScheduleGeneratorViewProps {
 	faculties: Faculty[];
 	departments: Department[];
 	isGenerating: boolean;
+	generationProgress?: GenerationProgressEvent | null;
 	onSubmit: (e: React.FormEvent) => void;
 	onExportProblem?: (format?: "json" | "csv") => void;
 	isExporting?: boolean;
@@ -66,6 +68,7 @@ export default function ScheduleGeneratorView({
 	faculties,
 	departments,
 	isGenerating,
+	generationProgress,
 	onSubmit,
 	onExportProblem,
 	isExporting,
@@ -187,44 +190,10 @@ export default function ScheduleGeneratorView({
 				{/* Right Column: Generation Status, Metrics & Inspection */}
 				<div className="lg:col-span-8 xl:col-span-8 space-y-5">
 					{isGenerating ? (
-						/* Live Execution State Banner */
-						<div className="p-6 rounded-2xl bg-surface border border-primary/30 shadow-sm space-y-4 animate-pulse">
-							<div className="flex items-center gap-3">
-								<div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-									<Cpu size={22} className="animate-spin" />
-								</div>
-								<div>
-									<h3 className="font-bold text-base text-text-main">
-										Genetic Algorithm Scheduler Running...
-									</h3>
-									<p className="text-xs text-text-muted">
-										Evaluating candidate timetables across 24 academic weekly
-										slots
-									</p>
-								</div>
-							</div>
-
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-text-muted pt-2 border-t border-border">
-								<div className="flex items-center gap-2">
-									<span className="w-1.5 h-1.5 rounded-full bg-primary" />
-									<span>Student cohort clashes: evaluating no-overlaps</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<span className="w-1.5 h-1.5 rounded-full bg-primary" />
-									<span>
-										Lecturer allocations: checking zero double-bookings
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<span className="w-1.5 h-1.5 rounded-full bg-primary" />
-									<span>Room constraints: verifying venue conflicts</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<span className="w-1.5 h-1.5 rounded-full bg-primary" />
-									<span>Pacing: max 3 lectures/day per cohort</span>
-								</div>
-							</div>
-						</div>
+						<GenerationProgressCard
+							progress={generationProgress ?? null}
+							scopeType={scopeType}
+						/>
 					) : activeRun ? (
 						/* Active Run Results */
 						<div className="space-y-5">

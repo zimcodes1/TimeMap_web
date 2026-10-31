@@ -651,6 +651,33 @@ export interface GenerateTimetablePayload {
   publish_immediately?: boolean;
 }
 
+export interface GenerationFacultyProgressItem {
+  id: number | string;
+  code: string;
+  name: string;
+  population: number;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  occurrencesCount?: number;
+}
+
+export interface GenerationProgressEvent {
+  stage: 'init' | 'core' | 'faculty' | 'finalizing' | 'complete' | 'error';
+  step?: number;
+  totalSteps?: number;
+  percent: number;
+  facultyId?: number | string;
+  facultyName?: string;
+  facultyCode?: string;
+  population?: number;
+  status?: 'running' | 'completed' | 'failed';
+  message: string;
+  occurrencesPlaced?: number;
+  totalOccurrences?: number;
+  runId?: string;
+  run?: TimetableGenerationRun | any;
+  faculties?: GenerationFacultyProgressItem[];
+}
+
 export interface PublishRunResult {
   status: string;
   entries_created: number;

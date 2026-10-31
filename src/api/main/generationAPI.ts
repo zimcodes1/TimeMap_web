@@ -1,4 +1,4 @@
-import apiClient from "@/api/apiClient";
+import apiClient, { API_BASE_URL, TOKEN_KEYS } from "@/api/apiClient";
 import type {
   TimetableGenerationRun,
   GenerationScopePermission,
@@ -6,6 +6,7 @@ import type {
   PublishRunResult,
   GenerationStatus,
   GenerationResultStatus,
+  GenerationProgressEvent,
 } from "@/types";
 
 interface RawGenerationRun {
@@ -164,6 +165,122 @@ export async function generateTimetable(
     requestBody
   );
   return mapRawRunToRun(response.data);
+}
+
+/**
+ * Trigger Genetic Algorithm timetable generation with live Server-Sent Events (SSE) streaming.
+ * Streams real-time progress updates (faculty-by-faculty, percentage, status messages).
+ * Returns the final completed TimetableGenerationRun upon finish.
+ * Falls back to standard generateTimetable if streaming fails.
+ */
+export async function generateTimetableStream(
+  payload: GenerateTimetablePayload,
+  onProgress?: (event: GenerationProgressEvent) => void
+): Promise<TimetableGenerationRun> {
+  const semesterId = Number(payload.semester_id || payload.semester);
+  const scopeId = Number(payload.scope_id);
+
+  if (!semesterId || isNaN(semesterId)) {
+    throw new Error("Invalid semester ID. Please select an active semester.");
+  }
+  if (!scopeId || isNaN(scopeId)) {
+    throw new Error("Invalid scope ID. Please select a valid target scope.");
+  }
+
+  const requestBody: Record<string, any> = {
+    semester_id: semesterId,
+    semester: semesterId,
+    scope_type: payload.scope_type,
+    scope_id: scopeId,
+    publish_immediately: payload.publish_immediately ?? false,
+  };
+
+  if (payload.population_size != null) requestBody.population_size = payload.population_size;
+  if (payload.max_generations != null) requestBody.max_generations = payload.max_generations;
+  if (payload.mutation_rate != null) requestBody.mutation_rate = payload.mutation_rate;
+  if (payload.stagnation_limit != null) requestBody.stagnation_limit = payload.stagnation_limit;
+
+  const token = localStorage.getItem(TOKEN_KEYS.ACCESS);
+  const streamUrl = `${API_BASE_URL}/scheduling/generate/stream/`;
+
+  try {
+    const response = await fetch(streamUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => null);
+      const errMsg =
+        errorJson?.error ||
+        errorJson?.detail ||
+        `HTTP ${response.status}: Failed to start timetable generation`;
+      throw new Error(errMsg);
+    }
+
+    if (!response.body) {
+      throw new Error("ReadableStream not supported on this browser.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let finalRun: TimetableGenerationRun | null = null;
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data:")) continue;
+
+        try {
+          const rawData = JSON.parse(trimmed.slice(5).trim());
+          if (rawData.stage === "error") {
+            throw new Error(
+              rawData.message || "Timetable generation encountered an error."
+            );
+          }
+
+          if (onProgress) {
+            onProgress(rawData as GenerationProgressEvent);
+          }
+
+          if (rawData.stage === "complete" && rawData.run) {
+            finalRun = mapRawRunToRun(rawData.run);
+          }
+        } catch (parseErr: any) {
+          if (parseErr.message && !parseErr.message.includes("JSON")) {
+            throw parseErr;
+          }
+        }
+      }
+    }
+
+    if (finalRun) {
+      return finalRun;
+    }
+
+    // Fallback if stream ended without finalRun payload
+    return await generateTimetable(payload);
+  } catch (err: any) {
+    if (
+      err?.message?.includes("Failed to fetch") ||
+      err?.message?.includes("ReadableStream")
+    ) {
+      return await generateTimetable(payload);
+    }
+    throw err;
+  }
 }
 
 /**
