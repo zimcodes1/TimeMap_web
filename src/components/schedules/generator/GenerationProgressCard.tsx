@@ -2,7 +2,6 @@ import {
 	Cpu,
 	CheckCircle2,
 	Clock,
-	Sparkles,
 	AlertCircle,
 	Layers,
 } from "lucide-react";
