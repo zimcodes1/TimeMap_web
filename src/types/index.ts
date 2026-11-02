@@ -170,8 +170,26 @@ export interface Course {
   examDurationMinutes?: number;
   examDurationPerStudentMinutes?: number;
   isGrantedToScope?: boolean;
+  scopeGrantId?: string;
+  activeGrants?: CourseActiveGrantInfo[];
   canEditExamSettings?: boolean;
   applicableProgramIds?: number[];
+}
+
+export interface CourseActiveGrantInfo {
+  id: string;
+  grantedToLevel: AdminLevel;
+  grantedToDepartmentId?: string;
+  grantedToDepartmentName?: string;
+  grantedToFacultyId?: string;
+  grantedToFacultyName?: string;
+  grantedToSchoolId?: string;
+  grantedToSchoolName?: string;
+  grantScope?: 'general' | 'program';
+  targetProgramId?: string;
+  targetProgramName?: string;
+  recipientLabel: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface CourseExamSettingsAccess {
@@ -185,6 +203,9 @@ export interface CourseAccessGrant {
   courseId: string;
   courseCode: string;
   courseTitle: string;
+  courseOwningDepartmentName?: string;
+  courseOwningFacultyName?: string;
+  courseOwningSchoolName?: string;
   grantedToLevel: AdminLevel;
   grantedToDepartmentId?: string;
   grantedToDepartmentName?: string;

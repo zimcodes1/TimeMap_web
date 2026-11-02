@@ -36,6 +36,22 @@ interface RawCourse {
   exam_duration_minutes?: number | null;
   exam_duration_per_student_minutes?: number | null;
   is_granted_to_scope?: boolean;
+  scope_grant_id?: number | string | null;
+  active_grants?: {
+    id: number | string;
+    granted_to_level: AdminLevel;
+    granted_to_department_id?: number | string | null;
+    granted_to_department_name?: string | null;
+    granted_to_faculty_id?: number | string | null;
+    granted_to_faculty_name?: string | null;
+    granted_to_school_id?: number | string | null;
+    granted_to_school_name?: string | null;
+    grant_scope?: "general" | "program";
+    target_program_id?: number | string | null;
+    target_program_name?: string | null;
+    recipient_label?: string;
+    status: "pending" | "approved" | "rejected";
+  }[];
   can_edit_exam_settings?: boolean;
   applicable_program_ids?: number[];
 }
@@ -45,6 +61,9 @@ interface RawGrant {
   course: number | string;
   course_code?: string;
   course_title?: string;
+  course_owning_department_name?: string;
+  course_owning_faculty_name?: string;
+  course_owning_school_name?: string;
   granted_to_level: AdminLevel;
   granted_to_department?: number | string | null;
   granted_to_department_name?: string;
@@ -138,6 +157,29 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     examDurationMinutes: raw.exam_duration_minutes || undefined,
     examDurationPerStudentMinutes: raw.exam_duration_per_student_minutes || undefined,
     isGrantedToScope: Boolean(raw.is_granted_to_scope),
+    scopeGrantId: raw.scope_grant_id ? String(raw.scope_grant_id) : undefined,
+    activeGrants: Array.isArray(raw.active_grants)
+      ? raw.active_grants.map((g) => ({
+          id: String(g.id),
+          grantedToLevel: g.granted_to_level,
+          grantedToDepartmentId: g.granted_to_department_id ? String(g.granted_to_department_id) : undefined,
+          grantedToDepartmentName: g.granted_to_department_name || undefined,
+          grantedToFacultyId: g.granted_to_faculty_id ? String(g.granted_to_faculty_id) : undefined,
+          grantedToFacultyName: g.granted_to_faculty_name || undefined,
+          grantedToSchoolId: g.granted_to_school_id ? String(g.granted_to_school_id) : undefined,
+          grantedToSchoolName: g.granted_to_school_name || undefined,
+          grantScope: g.grant_scope,
+          targetProgramId: g.target_program_id ? String(g.target_program_id) : undefined,
+          targetProgramName: g.target_program_name || undefined,
+          recipientLabel:
+            g.recipient_label ||
+            g.granted_to_department_name ||
+            g.granted_to_faculty_name ||
+            g.granted_to_school_name ||
+            "All Scopes",
+          status: g.status,
+        }))
+      : [],
     canEditExamSettings: Boolean(raw.can_edit_exam_settings),
     applicableProgramIds: raw.applicable_program_ids || [],
   };
@@ -149,6 +191,9 @@ export function mapRawGrantToGrant(raw: RawGrant): CourseAccessGrant {
     courseId: String(raw.course),
     courseCode: raw.course_code || "",
     courseTitle: raw.course_title || "",
+    courseOwningDepartmentName: raw.course_owning_department_name,
+    courseOwningFacultyName: raw.course_owning_faculty_name,
+    courseOwningSchoolName: raw.course_owning_school_name,
     grantedToLevel: raw.granted_to_level || "department",
     grantedToDepartmentId: raw.granted_to_department ? String(raw.granted_to_department) : undefined,
     grantedToDepartmentName: raw.granted_to_department_name,
@@ -323,6 +368,13 @@ export async function approveCourseGrantAPI(id: string): Promise<CourseAccessGra
 export async function rejectCourseGrantAPI(id: string): Promise<CourseAccessGrant> {
   const response = await apiClient.post<RawGrant>(`/courses/grants/${id}/reject/`);
   return mapRawGrantToGrant(response.data);
+}
+
+/**
+ * POST /api/courses/grants/{id}/cancel/
+ */
+export async function cancelCourseGrantAPI(id: string): Promise<void> {
+  await apiClient.post(`/courses/grants/${id}/cancel/`);
 }
 
 /**

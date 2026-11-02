@@ -23,6 +23,7 @@ import {
 	Trash2,
 	Lock,
 	SlidersHorizontal,
+	Undo2,
 } from "lucide-react";
 import type {
 	Course,
@@ -51,6 +52,8 @@ interface CoursesViewProps {
 	onDeleteCourse?: (id: string) => void;
 	onApproveGrant: (id: string) => void;
 	onRejectGrant: (id: string) => void;
+	onCancelGrantForCourse?: (course: Course) => void;
+	onCancelGrantRecord?: (grant: CourseAccessGrant) => void;
 	isExamOfficer?: boolean;
 	canAccessExamTab?: boolean;
 	hasScopeExamOfficer?: boolean;
@@ -74,6 +77,8 @@ export default function CoursesView({
 	onDeleteCourse,
 	onApproveGrant,
 	onRejectGrant,
+	onCancelGrantForCourse,
+	onCancelGrantRecord,
 	isExamOfficer: propIsExamOfficer,
 	canAccessExamTab: propCanAccessExamTab,
 	hasScopeExamOfficer: propHasScopeExamOfficer,
@@ -750,6 +755,21 @@ export default function CoursesView({
 									accessor: (c: Course) => {
 										const isOwner = canManageCourse(c);
 										if (!isOwner) {
+											if (c.isGrantedToScope) {
+												return (
+													<div className="flex items-center justify-end gap-1.5">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => onCancelGrantForCourse?.(c)}
+															title={`Undo / Cancel access grant for ${c.code}`}
+															className="h-8 px-2.5 text-xs text-warning hover:bg-warning-surface border-warning-surface cursor-pointer"
+														>
+															<Undo2 size={13} className="mr-1 text-warning" /> Undo Grant
+														</Button>
+													</div>
+												);
+											}
 											return (
 												<div className="flex items-center justify-end gap-1 text-[11px] text-text-subtle italic">
 													<Lock size={12} className="text-text-subtle" />
@@ -757,6 +777,7 @@ export default function CoursesView({
 												</div>
 											);
 										}
+
 										return (
 											<div className="flex items-center justify-end gap-1.5">
 												<Button
@@ -917,10 +938,48 @@ export default function CoursesView({
 									header: "Actions",
 									align: "right",
 									accessor: (g: CourseAccessGrant) => {
+										if (g.status === "approved") {
+											const myDeptId =
+												currentUser?.adminScopeId || currentUser?.departmentId;
+											const myFacId =
+												currentUser?.adminScopeId || currentUser?.facultyId;
+											const isRecipient =
+												(adminLevel === "department" &&
+													(String(g.grantedToDepartmentId) === String(myDeptId) ||
+														g.grantedToDepartmentName === currentUser?.departmentName)) ||
+												(adminLevel === "faculty" &&
+													(String(g.grantedToFacultyId) === String(myFacId) ||
+														g.grantedToFacultyName === currentUser?.facultyName)) ||
+												adminLevel === "school" ||
+												adminLevel === "system" ||
+												adminLevel === "university";
+
+											if (isRecipient) {
+												return (
+													<div className="flex items-center justify-end gap-1.5">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => onCancelGrantRecord?.(g)}
+															title={`Undo access grant for ${g.courseCode}`}
+															className="h-8 px-2.5 text-xs text-warning hover:bg-warning-surface border-warning-surface cursor-pointer"
+														>
+															<Undo2 size={13} className="mr-1 text-warning" /> Undo Grant
+														</Button>
+													</div>
+												);
+											}
+
+											return (
+												<span className="text-xs text-text-subtle font-medium italic capitalize">
+													Approved
+												</span>
+											);
+										}
 										if (g.status !== "pending") {
 											return (
-												<span className="text-xs text-text-subtle font-medium italic">
-													Decided
+												<span className="text-xs text-text-subtle font-medium italic capitalize">
+													{g.status}
 												</span>
 											);
 										}

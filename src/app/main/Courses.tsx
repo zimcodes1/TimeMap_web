@@ -8,6 +8,9 @@ import DeleteConfirmModal from "@/components/modals/DeleteConfirmModal";
 import OfferAccessGrantModal from "@/components/modals/OfferAccessGrantModal";
 import RequestAccessGrantModal from "@/components/modals/RequestAccessGrantModal";
 import CourseRegistrationModal from "@/components/modals/CourseRegistrationModal";
+import CancelAccessGrantModal, {
+	type CancelAccessGrantModalTarget,
+} from "@/components/modals/CancelAccessGrantModal";
 import {
 	getCoursesList,
 	createCourseAPI,
@@ -17,6 +20,7 @@ import {
 	createCourseGrantAPI,
 	approveCourseGrantAPI,
 	rejectCourseGrantAPI,
+	cancelCourseGrantAPI,
 	createCourseRegistrationAPI,
 	updateCourseExamSettingsAPI,
 	getCourseExamSettingsAccessAPI,
@@ -31,7 +35,7 @@ import {
 import { getPrograms } from "@/api/main/programsAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { useAuth } from "@/hooks/useAuth";
-import type { Course, AdminLevel } from "@/types";
+import type { Course, CourseAccessGrant, AdminLevel } from "@/types";
 import { toast } from "sonner";
 
 export default function CoursesContainer() {
@@ -46,6 +50,8 @@ export default function CoursesContainer() {
 	const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 	const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
 	const [examConfigCourse, setExamConfigCourse] = useState<Course | null>(null);
+	const [cancelGrantTarget, setCancelGrantTarget] =
+		useState<CancelAccessGrantModalTarget | null>(null);
 
 	// Exam Settings Access Query
 	const { data: examAccess } = useQuery({
@@ -272,6 +278,23 @@ export default function CoursesContainer() {
 		onError: () => toast.error("Failed to reject access grant."),
 	});
 
+	const cancelGrantMutation = useMutation({
+		mutationFn: (id: string) => cancelCourseGrantAPI(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["courses", "grants"] });
+			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			toast.success("Course access grant cancelled successfully.");
+			setCancelGrantTarget(null);
+		},
+		onError: (err: any) => {
+			const detail =
+				err?.response?.data?.detail || "Failed to cancel course access grant.";
+			toast.error(detail);
+		},
+	});
+
 	const registerStudentMutation = useMutation({
 		mutationFn: (data: {
 			courseId: string;
@@ -360,6 +383,60 @@ export default function CoursesContainer() {
 		registerStudentMutation.mutate(data);
 	};
 
+	const handleCancelGrantForCourse = (course: Course) => {
+		// Used by grantee / recipient on the Course Catalog table
+		let grantId = course.scopeGrantId;
+		if (!grantId) {
+			const matching = grants.find(
+				(g) =>
+					String(g.courseId) === String(course.id) &&
+					g.status === "approved" &&
+					(g.grantedToDepartmentId === userDeptId ||
+						g.grantedToFacultyId === currentUser?.facultyId),
+			);
+			grantId = matching?.id;
+		}
+
+		if (!grantId) {
+			toast.error("Could not find the active access grant for this course.");
+			return;
+		}
+
+		setCancelGrantTarget({
+			grantId,
+			courseCode: course.code,
+			courseTitle: course.title,
+			recipientScope: currentUser?.departmentName || "Your Department",
+			granterScope:
+				course.departmentName ||
+				course.facultyName ||
+				"Originating Department",
+			status: "approved",
+			isOriginatingOwner: false,
+		});
+	};
+
+	const handleCancelGrantRecord = (grant: CourseAccessGrant) => {
+		setCancelGrantTarget({
+			grantId: grant.id,
+			courseCode: grant.courseCode,
+			courseTitle: grant.courseTitle,
+			recipientScope:
+				grant.grantedToDepartmentName ||
+				grant.grantedToFacultyName ||
+				grant.grantedToSchoolName ||
+				"Your Scope",
+			granterScope:
+				grant.courseOwningDepartmentName ||
+				grant.courseOwningFacultyName ||
+				"Originating Department",
+			targetProgramName: grant.targetProgramName,
+			direction: grant.direction,
+			status: grant.status,
+			isOriginatingOwner: false,
+		});
+	};
+
 	const handleManualRefresh = () => {
 		refetchCourses();
 		refetchGrants();
@@ -384,6 +461,8 @@ export default function CoursesContainer() {
 				onDeleteCourse={handleDeleteCourse}
 				onApproveGrant={(id) => approveGrantMutation.mutate(id)}
 				onRejectGrant={(id) => rejectGrantMutation.mutate(id)}
+				onCancelGrantForCourse={handleCancelGrantForCourse}
+				onCancelGrantRecord={handleCancelGrantRecord}
 				isExamOfficer={isExamOfficer}
 				canAccessExamTab={canAccessExamTab}
 				hasScopeExamOfficer={hasScopeExamOfficer}
@@ -466,6 +545,14 @@ export default function CoursesContainer() {
 				}}
 				course={examConfigCourse}
 				isSubmitting={updateExamSettingsMutation.isPending}
+			/>
+
+			<CancelAccessGrantModal
+				isOpen={Boolean(cancelGrantTarget)}
+				onClose={() => setCancelGrantTarget(null)}
+				onConfirm={(grantId) => cancelGrantMutation.mutate(grantId)}
+				target={cancelGrantTarget}
+				isLoading={cancelGrantMutation.isPending}
 			/>
 		</>
 	);

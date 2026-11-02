@@ -1,10 +1,4 @@
-import {
-	Cpu,
-	CheckCircle2,
-	Clock,
-	AlertCircle,
-	Layers,
-} from "lucide-react";
+import { Cpu, CheckCircle2, Clock, AlertCircle, Layers } from "lucide-react";
 import type { GenerationProgressEvent } from "@/types";
 
 interface GenerationProgressCardProps {
@@ -81,9 +75,9 @@ export function GenerationProgressCard({
 
 			{/* Animated Progress Bar */}
 			<div className="space-y-1.5">
-				<div className="w-full h-2.5 bg-surface-raised rounded-full overflow-hidden border border-border">
+				<div className="w-full h-2.5 bg-surface-raised rounded-full overflow-hidden border/50 border-border">
 					<div
-						className="h-full bg-linear-to-r from-primary to-primary-light transition-all duration-500 rounded-full relative"
+						className="h-full bg-primary transition-all duration-500 rounded-full relative"
 						style={{ width: `${percent}%` }}
 					>
 						<div className="absolute inset-0 bg-white/20 animate-pulse" />
