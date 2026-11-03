@@ -1,5 +1,4 @@
 import React from "react";
-import { BadgeX } from "lucide-react";
 
 interface TimetableDiagnosticsBannerProps {
 	hasPublishedTimetable?: boolean;
