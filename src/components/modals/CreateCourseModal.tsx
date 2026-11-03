@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
+import LecturerAssignmentSelector from "@/components/courses/LecturerAssignmentSelector";
 import type {
 	Course,
 	Department,
@@ -59,10 +60,10 @@ export default function CreateCourseModal({
 
 	const [code, setCode] = useState(initialData?.code || "");
 	const [title, setTitle] = useState(initialData?.title || "");
-	const [level, setLevel] = useState(initialData?.level || 300);
+	const [level, setLevel] = useState(initialData?.level || 100);
 	const [semesterId, setSemesterId] = useState(initialData?.semesterId || "");
 	const [programScope, setProgramScope] = useState<"general" | "program">(
-		initialData?.programScope || "general",
+		initialData?.programScope === "program" ? "program" : "general",
 	);
 	const [targetProgramId, setTargetProgramId] = useState(
 		initialData?.targetProgramId || "",
@@ -75,8 +76,15 @@ export default function CreateCourseModal({
 		initialData?.departmentId || "",
 	);
 	const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>(
-		initialData?.lecturers?.map((l) => l.id) || [],
+		initialData?.lecturerIds?.map(String) ||
+			initialData?.lecturers?.map((l) => String(l.id)) ||
+			[],
 	);
+	const [courseType, setCourseType] = useState<"lecture" | "practical">(
+		initialData?.courseType || "lecture",
+	);
+	const [requiredOccurrencesPerWeek, setRequiredOccurrencesPerWeek] =
+		useState<number>(initialData?.requiredOccurrencesPerWeek || 1);
 
 	useEffect(() => {
 		if (!semesterId && semesters.length > 0) {
@@ -153,9 +161,12 @@ export default function CreateCourseModal({
 		}
 	};
 
-	const toggleLecturer = (id: string) => {
+	const toggleLecturer = (id: string | number) => {
+		const strId = String(id);
 		setSelectedLecturerIds((prev) =>
-			prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+			prev.includes(strId)
+				? prev.filter((item) => item !== strId)
+				: [...prev, strId],
 		);
 	};
 
@@ -171,9 +182,11 @@ export default function CreateCourseModal({
 					: schools[0]?.id) ||
 			"";
 		const assignedLecturers = lecturers.filter((l) =>
-			selectedLecturerIds.includes(l.id),
+			selectedLecturerIds.includes(String(l.id)),
 		);
-		const dept = departments.find((d) => d.id === activeScopeId);
+		const dept = departments.find(
+			(d) => String(d.id) === String(activeScopeId),
+		);
 
 		onSubmit({
 			code: code.trim().toUpperCase(),
@@ -191,6 +204,8 @@ export default function CreateCourseModal({
 			scopeId: activeScopeId,
 			lecturers: assignedLecturers,
 			lecturerIds: selectedLecturerIds,
+			courseType,
+			requiredOccurrencesPerWeek,
 		});
 		onClose();
 	};
@@ -262,6 +277,43 @@ export default function CreateCourseModal({
 								value: s.id,
 								label: `${s.displayName || (s.name === "first" ? "First Semester" : "Second Semester")}${s.isActive ? " (Active)" : ""}`,
 							}))}
+						/>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div className="space-y-1">
+						<Text variant="caption" className="font-semibold mb-1 block">
+							Course Type
+						</Text>
+						<Select
+							value={courseType}
+							onChange={(e) =>
+								setCourseType(e.target.value as "lecture" | "practical")
+							}
+							options={[
+								{ value: "lecture", label: "Lecture (Lecture Halls / Multi)" },
+								{
+									value: "practical",
+									label: "Practical / Lab (Strictly Labs)",
+								},
+							]}
+						/>
+					</div>
+					<div className="space-y-1">
+						<Text variant="caption" className="font-semibold mb-1 block">
+							Weekly Frequency
+						</Text>
+						<Select
+							value={requiredOccurrencesPerWeek}
+							onChange={(e) =>
+								setRequiredOccurrencesPerWeek(Number(e.target.value))
+							}
+							options={[
+								{ value: 1, label: "1 Session / Week (2 hrs)" },
+								{ value: 2, label: "2 Sessions / Week (4 hrs)" },
+								{ value: 3, label: "3 Sessions / Week (6 hrs)" },
+							]}
 						/>
 					</div>
 				</div>
@@ -384,45 +436,11 @@ export default function CreateCourseModal({
 				)}
 
 				{/* Assigned Lecturers Selection */}
-				<div className="space-y-2 pt-2 border-t border-border">
-					<Text variant="caption" className="font-semibold block">
-						Assign Lecturers ({selectedLecturerIds.length} Selected)
-					</Text>
-					<div className="max-h-36 overflow-y-auto space-y-1.5 border border-border rounded-xl p-2 bg-surface">
-						{lecturers.length === 0 ? (
-							<Text
-								variant="caption"
-								color="muted"
-								className="p-2 block text-center"
-							>
-								No lecturers available to assign.
-							</Text>
-						) : (
-							lecturers.map((lec) => {
-								const isSelected = selectedLecturerIds.includes(lec.id);
-								return (
-									<button
-										key={lec.id}
-										type="button"
-										onClick={() => toggleLecturer(lec.id)}
-										className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors cursor-pointer ${
-											isSelected
-												? "bg-primary/10 border border-primary/20 text-primary font-semibold"
-												: "bg-surface-raised hover:bg-surface-raised/80 text-text-main border border-border"
-										}`}
-									>
-										<span>
-											{lec.name} ({lec.identifier || lec.email})
-										</span>
-										<span className="text-[10px] font-bold">
-											{isSelected ? "Assigned" : "Assign"}
-										</span>
-									</button>
-								);
-							})
-						)}
-					</div>
-				</div>
+				<LecturerAssignmentSelector
+					lecturers={lecturers}
+					selectedLecturerIds={selectedLecturerIds}
+					onToggleLecturer={toggleLecturer}
+				/>
 
 				<div className="flex justify-end gap-2 pt-3 border-t border-border">
 					<Button

@@ -1,20 +1,41 @@
 import { useState, useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { TabSwitcher } from "@/components/ui/tabs";
-import { Plus, LayoutGrid, List, RefreshCw, CalendarOff } from "lucide-react";
+import {
+	Plus,
+	LayoutGrid,
+	List,
+	Sparkles,
+	ShieldCheck,
+	Lock,
+	Calendar,
+} from "lucide-react";
 import type {
 	TimetableEntry,
 	LectureSession,
 	Program,
 	Semester,
+	AcademicSession,
+	Faculty,
+	GenerationConflictReport,
 } from "@/types";
 import type { WeekRange, WeekDayInfo } from "@/utils/semesterWeeks";
 import { TimetableAcademicGrid } from "@/components/schedules/TimetableAcademicGrid";
 import { TimetableListView } from "@/components/schedules/TimetableListView";
 import { TimetableTitle } from "@/components/schedules/TimetableTitle";
 import { WeekNavigator } from "@/components/schedules/WeekNavigator";
-import { TimetableFilterBar } from "@/components/schedules/TimetableFilterBar";
+import { SemesterNotConfiguredBanner } from "@/components/schedules/SemesterNotConfiguredBanner";
+import { TimetableUnconfiguredPlaceholder } from "@/components/schedules/TimetableUnconfiguredPlaceholder";
+import { TimetableDiagnosticsBanner } from "@/components/schedules/TimetableDiagnosticsBanner";
+import { TimetableEmptyState } from "@/components/schedules/TimetableEmptyState";
+import {
+	DepartmentLoopBar,
+	type DepartmentOption,
+} from "@/components/schedules/generator/DepartmentLoopBar";
+import { FacultySubFilterBar } from "@/components/schedules/generator/FacultySubFilterBar";
+import { RunProgramLevelFilterBar } from "@/components/schedules/generator/RunProgramLevelFilterBar";
 
 interface SchedulesViewProps {
 	entries: TimetableEntry[] | undefined;
@@ -22,11 +43,21 @@ interface SchedulesViewProps {
 	sessions: LectureSession[] | undefined;
 	sessionsLoading?: boolean;
 	isRefetching?: boolean;
-	programs?: Program[];
-	selectedProgramId: string;
-	onSelectProgram: (programId: string) => void;
+	// Scope Hierarchy
+	faculties?: Faculty[];
+	selectedFacultyId?: string;
+	onSelectFaculty?: (facId: string) => void;
+	departments?: DepartmentOption[];
+	selectedDepartmentId: string | number;
+	onSelectDepartment: (deptId: string | number) => void;
+	departmentPrograms?: Program[];
+	selectedProgramId: string | number;
+	onSelectProgram: (programId: string | number) => void;
 	selectedLevel: number;
 	onSelectLevel: (level: number) => void;
+	searchQuery?: string;
+	onSearchChange?: (query: string) => void;
+	// Week & Semester
 	currentWeek: number;
 	totalWeeks: number;
 	onPreviousWeek: () => void;
@@ -35,13 +66,38 @@ interface SchedulesViewProps {
 	isCurrentWeekActive: boolean;
 	weekRange: WeekRange;
 	weekDayDates: WeekDayInfo[];
-	activeSemester?: Semester;
+	activeSemester?: Semester | null;
+	currentAcademicSession?: AcademicSession | null;
+	isSemesterConfigured?: boolean;
+	hasPublishedTimetable?: boolean;
+	publishedDiagnostics?: {
+		scheduled?: number;
+		conflicts?: number;
+	};
+	// Conflicts & Diagnostics
+	conflictReport?: GenerationConflictReport;
+	// Action Handlers
 	onManualRefresh: () => void;
 	onOpenScheduleEntry: (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
+		defaultDate?: string,
+		isSlotClick?: boolean,
 	) => void;
+	onOpenScheduleEvent?: () => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
+	onCancelSessionTrigger?: (session: LectureSession) => void;
+	onOpenPermissions?: () => void;
+	onOpenGenerator?: () => void;
+	onOpenHistory?: () => void;
+	canGenerate?: boolean;
+	canConfigurePermissions?: boolean;
+	// Scope Admin Levels
+	isDeptAdmin?: boolean;
+	isFacultyAdmin?: boolean;
+	isSchoolAdmin?: boolean;
+	isSuperuser?: boolean;
+	scopeLabel?: { title: string; subtitle?: string; level: string };
 }
 
 export default function SchedulesView({
@@ -49,12 +105,19 @@ export default function SchedulesView({
 	entriesLoading = false,
 	sessions,
 	sessionsLoading = false,
-	isRefetching = false,
-	programs = [],
+	faculties = [],
+	selectedFacultyId = "",
+	onSelectFaculty,
+	departments = [],
+	selectedDepartmentId,
+	onSelectDepartment,
+	departmentPrograms = [],
 	selectedProgramId,
 	onSelectProgram,
 	selectedLevel,
 	onSelectLevel,
+	searchQuery = "",
+	onSearchChange = () => {},
 	currentWeek,
 	totalWeeks,
 	onPreviousWeek,
@@ -64,161 +127,346 @@ export default function SchedulesView({
 	weekRange,
 	weekDayDates,
 	activeSemester,
-	onManualRefresh,
+	currentAcademicSession,
+	isSemesterConfigured = true,
+	hasPublishedTimetable = false,
+	publishedDiagnostics,
+	conflictReport,
 	onOpenScheduleEntry,
+	onOpenScheduleEvent,
 	onShiftSessionTrigger,
+	onCancelSessionTrigger,
+	onOpenPermissions,
+	canGenerate = false,
+	canConfigurePermissions = false,
+	isDeptAdmin = false,
+	isSchoolAdmin = false,
+	isSuperuser = false,
+	scopeLabel,
 }: SchedulesViewProps) {
 	// Main view modes: List and Grid are the primary tabs
-	const [activeTab, setActiveTab] = useState<"list" | "grid">("grid");
+	const [activeTab, setActiveTab] = useState<"grid" | "list">("grid");
 
 	const today = new Date();
 	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-	// Find active program name
-	const currentProgram = useMemo(() => {
-		return programs.find((p) => p.id === selectedProgramId) || programs[0];
-	}, [programs, selectedProgramId]);
+	// Find active department and program display name
+	const activeDept = useMemo(() => {
+		return departments.find(
+			(d) => String(d.id) === String(selectedDepartmentId),
+		);
+	}, [departments, selectedDepartmentId]);
 
-	const programDisplayName = currentProgram?.name || "Department";
+	const activeProg = useMemo(() => {
+		if (selectedProgramId === "ALL") return null;
+		return departmentPrograms.find(
+			(p) => String(p.id) === String(selectedProgramId),
+		);
+	}, [departmentPrograms, selectedProgramId]);
+
+	const cohortDisplayName = activeProg
+		? activeProg.name
+		: activeDept
+			? `Department of ${activeDept.name}`
+			: "Department Timetable";
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
+			{/* Top Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
 					<Text variant="h3" weight="bold" className="text-text-main">
 						Lecture Timetables
 					</Text>
 					<Text variant="body-sm" color="muted">
-						Weekly academic schedule per program and level with Conflict
-						Detection integration.
+						Weekly academic schedule per department, program and level with
+						Conflict Detection & automated scheduling integration.
 					</Text>
 				</div>
 
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onManualRefresh}
-						disabled={isRefetching}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<RefreshCw
-							size={13}
-							className={isRefetching ? "animate-spin text-primary" : ""}
-						/>
-						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
-					</Button>
+				<div className="flex flex-wrap justify-end items-center gap-2">
+					{canConfigurePermissions && onOpenPermissions && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onOpenPermissions}
+							className="h-9 gap-1.5 text-xs cursor-pointer"
+						>
+							<ShieldCheck size={14} />
+							<span>Scope Policy</span>
+						</Button>
+					)}
+
+					{canGenerate && (
+						!isSemesterConfigured ? (
+							<Button
+								variant="primary"
+								size="sm"
+								disabled
+								className="h-9 gap-1.5 text-xs opacity-50 cursor-not-allowed shadow-none"
+								title="Semester not configured - timetable generation locked"
+							>
+								<Sparkles size={14} />
+								<span>Generate Timetable</span>
+							</Button>
+						) : (
+							<Link to="/schedules/generator">
+								<Button
+									variant="primary"
+									size="sm"
+									className="h-9 gap-1.5 text-xs cursor-pointer shadow-sm"
+								>
+									<Sparkles size={14} />
+									<span>Generate Timetable</span>
+								</Button>
+							</Link>
+						)
+					)}
 
 					<Button
-						variant="primary"
+						variant={canGenerate ? "outline" : "primary"}
 						size="sm"
 						onClick={() => onOpenScheduleEntry()}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
+						disabled={!isSemesterConfigured}
+						className={
+							!isSemesterConfigured
+								? "h-9 gap-1.5 text-xs opacity-50 cursor-not-allowed"
+								: "h-9 gap-1.5 text-xs cursor-pointer"
+						}
+						title={
+							!isSemesterConfigured
+								? "Semester not configured - lecture booking locked"
+								: undefined
+						}
 					>
 						<Plus size={15} />
 						<span>Schedule Lecture</span>
 					</Button>
+
+					{onOpenScheduleEvent && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onOpenScheduleEvent}
+							disabled={!isSemesterConfigured}
+							className={
+								!isSemesterConfigured
+									? "h-9 gap-1.5 text-xs opacity-50 cursor-not-allowed"
+									: "h-9 gap-1.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10 cursor-pointer"
+							}
+							title={
+								!isSemesterConfigured
+									? "Semester not configured - event scheduling locked"
+									: undefined
+							}
+						>
+							<Calendar size={14} className="text-purple-400" />
+							<span>Schedule Event</span>
+						</Button>
+					)}
 				</div>
 			</div>
 
-			{/* Warning if no active semester configured */}
-			{!activeSemester && (
-				<div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center gap-3">
-					<CalendarOff size={20} className="shrink-0 text-amber-400" />
-					<div className="text-xs">
-						<span className="font-bold">No active semester detected.</span>{" "}
-						Please configure and activate a semester in Sessions & Semesters to
-						enable week-based schedule tracking.
+			{/* Semester configuration banner */}
+			<SemesterNotConfiguredBanner
+				isSchoolAdmin={isSchoolAdmin}
+				currentAcademicSession={currentAcademicSession}
+				activeSemester={activeSemester}
+			/>
+
+			{/* 1. School Admin / Superuser Faculty Sub-Filter */}
+			{(isSchoolAdmin || isSuperuser) &&
+				faculties.length > 1 &&
+				onSelectFaculty && (
+					<FacultySubFilterBar
+						faculties={faculties}
+						selectedFacultyId={selectedFacultyId}
+						onSelectFaculty={onSelectFaculty}
+						schoolName={scopeLabel?.title}
+					/>
+				)}
+
+			{/* 2. Department Loop Navigation Bar */}
+			{departments.length > 0 ? (
+				<DepartmentLoopBar
+					departments={departments}
+					selectedDepartmentId={selectedDepartmentId}
+					onSelectDepartment={onSelectDepartment}
+					isDeptAdmin={isDeptAdmin}
+					adminLevel={isDeptAdmin ? "department" : undefined}
+				/>
+			) : (
+				<div className="p-6 text-center border border-dashed border-border rounded-2xl bg-surface-raised/30 space-y-2">
+					<Lock size={22} className="mx-auto text-text-muted" />
+					<div className="text-xs font-bold text-text-main">
+						No Accessible Departments in Scope
 					</div>
+					<p className="text-[11px] text-text-muted max-w-md mx-auto">
+						{isDeptAdmin
+							? "You only have permission to view your assigned department."
+							: "No departments matching your active scope filter were found."}
+					</p>
 				</div>
 			)}
 
-			{/* Program and Level Filter Bar */}
-			<TimetableFilterBar
-				programs={programs}
-				selectedProgramId={selectedProgramId}
-				onSelectProgram={onSelectProgram}
-				selectedLevel={selectedLevel}
-				onSelectLevel={onSelectLevel}
-			/>
-
-			{/* Bold Top-Center Timetable Title */}
-			<TimetableTitle
-				programName={programDisplayName}
-				level={selectedLevel}
-				weekNumber={currentWeek}
-				totalWeeks={totalWeeks}
-				dateRangeLabel={weekRange.rangeLabel}
-				semesterName={activeSemester?.displayName || activeSemester?.name}
-			/>
-
-			{/* Main Tabs: List View & Grid View */}
-			<div className="flex justify-center">
-				<TabSwitcher<"grid" | "list">
-					tabs={[
-						{
-							id: "grid",
-							label: "Grid View",
-							icon: LayoutGrid,
-						},
-						{
-							id: "list",
-							label: "List View",
-							icon: List,
-							count: sessions?.length,
-						},
-					]}
-					activeTab={activeTab}
-					onChange={(tab) => setActiveTab(tab)}
+			{/* 3. Program, Level & Search Filter Bar (strictly individual degree program) */}
+			{departments.length > 0 && (
+				<RunProgramLevelFilterBar
+					programs={departmentPrograms}
+					selectedProgramId={selectedProgramId}
+					onSelectProgram={onSelectProgram}
+					selectedLevel={selectedLevel}
+					onSelectLevel={onSelectLevel}
+					searchQuery={searchQuery}
+					onSearchChange={onSearchChange}
+					allowAllPrograms={false}
 				/>
-			</div>
+			)}
 
-			{/* Content Rendering */}
-			{activeTab === "grid" ? (
-				entriesLoading ? (
-					<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-						Loading timetable grid...
-					</div>
-				) : (
-					<TimetableAcademicGrid
-						entries={entries || []}
-						selectedProgramId={selectedProgramId}
-						selectedLevel={selectedLevel}
-						weekDayDates={weekDayDates}
-						onOpenCreateEntry={(defaultDay, defaultSlot) =>
-							onOpenScheduleEntry(
-								defaultDay,
-								defaultSlot
-									? { start: defaultSlot.start, end: defaultSlot.end }
-									: undefined,
-							)
+			{!isSemesterConfigured ? (
+				<TimetableUnconfiguredPlaceholder
+					isSchoolAdmin={isSchoolAdmin}
+					hasSession={Boolean(currentAcademicSession)}
+					hasSemester={Boolean(activeSemester?.isActive)}
+				/>
+			) : (
+				<>
+					{/* Diagnostics Banner matching ExamsView */}
+					<TimetableDiagnosticsBanner
+						hasPublishedTimetable={hasPublishedTimetable}
+						scheduledCount={
+							publishedDiagnostics?.scheduled ?? entries?.length ?? 0
+						}
+						attentionCount={
+							publishedDiagnostics?.conflicts ??
+							conflictReport?.hard_conflicts_total ??
+							0
+						}
+						unscheduledItems={
+							Array.isArray(conflictReport?.unscheduled)
+								? conflictReport.unscheduled
+								: undefined
 						}
 					/>
-				)
-			) : sessionsLoading ? (
-				<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-					Loading weekly lecture sessions...
-				</div>
-			) : (
-				<TimetableListView
-					sessions={sessions || []}
-					weekDayDates={weekDayDates}
-					todayStr={todayStr}
-					onShiftSessionTrigger={onShiftSessionTrigger}
-				/>
-			)}
 
-			{/* Bottom Next/Previous Controls */}
-			<WeekNavigator
-				currentWeek={currentWeek}
-				totalWeeks={totalWeeks}
-				onPrevious={onPreviousWeek}
-				onNext={onNextWeek}
-				onResetToCurrent={onResetToCurrentWeek}
-				isCurrentWeekActive={isCurrentWeekActive}
-				dateRangeLabel={weekRange.rangeLabel}
-			/>
+					{/* Bold Top-Center Timetable Title */}
+					<TimetableTitle
+						programName={cohortDisplayName}
+						level={selectedLevel}
+						weekNumber={currentWeek}
+						totalWeeks={totalWeeks}
+						dateRangeLabel={weekRange.rangeLabel}
+						semesterName={activeSemester?.displayName || activeSemester?.name}
+						isCurrentWeek={isCurrentWeekActive}
+					/>
+
+					{!hasPublishedTimetable ? (
+						<TimetableEmptyState
+							currentWeek={currentWeek}
+							weekRangeLabel={weekRange.rangeLabel}
+							canGenerate={canGenerate}
+							isSemesterConfigured={isSemesterConfigured}
+							onOpenScheduleEntry={() => onOpenScheduleEntry()}
+						/>
+					) : (
+						<>
+							{/* Main Tabs: Grid View & List View */}
+							<div className="flex justify-center">
+								<TabSwitcher<"grid" | "list">
+									tabs={[
+										{
+											id: "grid",
+											label: "Grid View",
+											icon: LayoutGrid,
+											count: entries?.length,
+										},
+										{
+											id: "list",
+											label: "List View",
+											icon: List,
+											count: sessions?.length,
+										},
+									]}
+									activeTab={activeTab}
+									onChange={(tab) => setActiveTab(tab)}
+								/>
+							</div>
+
+							{/* Content Rendering */}
+							{activeTab === "grid" ? (
+								entriesLoading ? (
+									<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+										Loading timetable grid...
+									</div>
+								) : !entries || entries.length === 0 ? (
+									<TimetableEmptyState
+										currentWeek={currentWeek}
+										weekRangeLabel={weekRange.rangeLabel}
+										canGenerate={canGenerate}
+										isSemesterConfigured={isSemesterConfigured}
+										onOpenScheduleEntry={() => onOpenScheduleEntry()}
+									/>
+								) : (
+									<TimetableAcademicGrid
+										entries={entries || []}
+										sessions={sessions || []}
+										selectedDepartmentId={selectedDepartmentId}
+										selectedProgramId={selectedProgramId}
+										selectedLevel={selectedLevel}
+										searchQuery={searchQuery}
+										conflictReport={conflictReport}
+										weekDayDates={weekDayDates}
+										onShiftSessionTrigger={onShiftSessionTrigger}
+										onCancelSessionTrigger={onCancelSessionTrigger}
+										onOpenCreateEntry={(defaultDay, defaultSlot, defaultDate) =>
+											onOpenScheduleEntry(
+												defaultDay,
+												defaultSlot
+													? { start: defaultSlot.start, end: defaultSlot.end }
+													: undefined,
+												defaultDate,
+												true,
+											)
+										}
+									/>
+								)
+							) : sessionsLoading ? (
+								<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+									Loading weekly lecture sessions...
+								</div>
+							) : !sessions || sessions.length === 0 ? (
+								<TimetableEmptyState
+									currentWeek={currentWeek}
+									weekRangeLabel={weekRange.rangeLabel}
+									canGenerate={canGenerate}
+									isSemesterConfigured={isSemesterConfigured}
+									onOpenScheduleEntry={() => onOpenScheduleEntry()}
+								/>
+							) : (
+								<TimetableListView
+									sessions={sessions || []}
+									entries={entries || []}
+									weekDayDates={weekDayDates}
+									todayStr={todayStr}
+									onShiftSessionTrigger={onShiftSessionTrigger}
+									onCancelSessionTrigger={onCancelSessionTrigger}
+								/>
+							)}
+
+							{/* Bottom Next/Previous Week Controls */}
+							<WeekNavigator
+								currentWeek={currentWeek}
+								totalWeeks={totalWeeks}
+								onPrevious={onPreviousWeek}
+								onNext={onNextWeek}
+								onResetToCurrent={onResetToCurrentWeek}
+								isCurrentWeekActive={isCurrentWeekActive}
+								dateRangeLabel={weekRange.rangeLabel}
+							/>
+						</>
+					)}
+				</>
+			)}
 		</div>
 	);
 }

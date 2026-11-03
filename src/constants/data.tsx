@@ -2,7 +2,7 @@ import {
 	LayoutDashboard,
 	Calendar,
 	CalendarRange,
-	GraduationCap,
+	NotebookPen,
 	MapPin,
 	AlertTriangle,
 	ClipboardList,
@@ -10,6 +10,7 @@ import {
 	Settings,
 	Building2,
 	Users,
+	UserShield,
 	ShieldCheck,
 	Bell,
 } from "lucide-react";
@@ -34,6 +35,23 @@ export interface NavGroup {
 	items: NavItem[];
 }
 
+export const EXAM_OFFICER_ALLOWED_ROUTES: readonly string[] = [
+	"/dashboard",
+	"/exams",
+	"/venues",
+	"/notifications",
+	"/settings",
+] as const;
+
+export function isRouteAllowedForExamOfficer(path: string): boolean {
+	if (path.startsWith("/dashboard/analytics")) {
+		return false;
+	}
+	return EXAM_OFFICER_ALLOWED_ROUTES.some(
+		(allowed) => path === allowed || path.startsWith(`${allowed}/`),
+	);
+}
+
 export const NAV_GROUPS: NavGroup[] = [
 	{
 		title: "Overview",
@@ -52,11 +70,13 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Timetables",
 				icon: <Calendar size={18} />,
 				to: "/schedules",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Exam Timetable",
-				icon: <GraduationCap size={18} />,
+				icon: <NotebookPen size={18} />,
 				to: "/exams",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Sessions & Semesters",
@@ -68,6 +88,7 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Venues & Facilities",
 				icon: <MapPin size={18} />,
 				to: "/venues",
+				adminLevels: ["school", "faculty", "department"],
 			},
 		],
 	},
@@ -83,16 +104,19 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Courses & Sharing",
 				icon: <BookOpen size={18} />,
 				to: "/courses",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Discrepancy Requests",
 				icon: <AlertTriangle size={18} />,
 				to: "/requests",
+				adminLevels: ["school", "faculty", "department"],
 			},
 			{
 				label: "Class Rep Reports",
 				icon: <ClipboardList size={18} />,
 				to: "/reports",
+				adminLevels: ["department"],
 			},
 			{
 				label: "Students",
@@ -101,7 +125,7 @@ export const NAV_GROUPS: NavGroup[] = [
 			},
 			{
 				label: "Staff Directory",
-				icon: <Users size={18} />,
+				icon: <UserShield size={18} />,
 				to: "/users",
 			},
 		],
@@ -113,6 +137,7 @@ export const NAV_GROUPS: NavGroup[] = [
 				label: "Audit Logs",
 				icon: <ShieldCheck size={18} />,
 				to: "/audit-logs",
+				adminLevels: ["system"],
 			},
 			{
 				label: "Notifications",

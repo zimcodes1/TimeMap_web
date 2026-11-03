@@ -14,7 +14,19 @@ import {
 	type CreateScheduleEntryPayload,
 } from "@/api/main/schedulesAPI";
 import { getPrograms } from "@/api/main/programsAPI";
-import { getSemesters } from "@/api/main/semestersAPI";
+import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
+import {
+	getSemesters,
+	setSemesterExamPeriod,
+	getFacultyExamPeriods,
+	setFacultyExamPeriod,
+	deleteFacultyExamPeriod,
+	getEffectiveExamPeriod,
+} from "@/api/main/semestersAPI";
+import {
+	getGenerationPermissions,
+	updateGenerationPermissions,
+} from "@/api/main/generationAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -23,7 +35,11 @@ import type {
 	Venue,
 	User,
 	Program,
+	Department,
+	Faculty,
 	Semester,
+	EffectiveExamPeriod,
+	FacultyExamPeriod,
 } from "@/types";
 import {
 	getCurrentWeekNumber,
@@ -31,24 +47,32 @@ import {
 	getWeekRange,
 	getWeekDayDates,
 } from "@/utils/semesterWeeks";
+import { useAuth } from "@/hooks/useAuth";
 import ExamsView from "@/pages/main/ExamsView";
 import CreateExamSittingModal from "@/components/modals/CreateExamSittingModal";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
+import SetExamPeriodModal from "@/components/modals/SetExamPeriodModal";
+import SetFacultyExamPeriodModal from "@/components/modals/SetFacultyExamPeriodModal";
+import { getExamOptimizerAccess, getOptimizedExamTimetable } from "@/api/main/examOptimizerAPI";
 
 export default function ExamsContainer() {
 	const queryClient = useQueryClient();
+	const { user } = useAuth();
 
 	// Modals state
 	const [isExamSittingOpen, setIsExamSittingOpen] = useState(false);
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
+	const [isSetSchoolExamPeriodOpen, setIsSetSchoolExamPeriodOpen] = useState(false);
+	const [isSetFacultyExamPeriodOpen, setIsSetFacultyExamPeriodOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
 
 	// Defaults when clicking a slot in the grid
 	const [scheduleEntryDefaults, setScheduleEntryDefaults] = useState<{
 		day?: string;
+		date?: string;
 		startTime?: string;
 		endTime?: string;
 	}>({});
@@ -70,7 +94,24 @@ export default function ExamsContainer() {
 		}>
 	>([]);
 
-	// Base Queries
+	// Scope selection state
+	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+	const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("ALL");
+	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+	const [selectedLevel, setSelectedLevel] = useState<number | "ALL">(100);
+	const [currentWeek, setCurrentWeek] = useState<number>(1);
+
+	// Hierarchy Queries
+	const { data: facultiesData = [] } = useQuery<Faculty[]>({
+		queryKey: ["hierarchy", "faculties"],
+		queryFn: getFacultiesList,
+	});
+
+	const { data: departmentsData = [] } = useQuery<Department[]>({
+		queryKey: ["hierarchy", "departments"],
+		queryFn: getDepartmentsList,
+	});
+
 	const { data: programsData = [] } = useQuery<Program[]>({
 		queryKey: ["programs", "list"],
 		queryFn: () => getPrograms(),
@@ -79,11 +120,6 @@ export default function ExamsContainer() {
 	const { data: semestersData = [] } = useQuery<Semester[]>({
 		queryKey: ["semesters", "list"],
 		queryFn: () => getSemesters(),
-	});
-
-	const { data: coursesData = [] } = useQuery<Course[]>({
-		queryKey: ["courses", "list"],
-		queryFn: getCoursesOptions,
 	});
 
 	const { data: venuesData = [] } = useQuery<Venue[]>({
@@ -110,37 +146,158 @@ export default function ExamsContainer() {
 		return semestersData.find((s) => s.isActive) || semestersData[0];
 	}, [semestersData]);
 
-	// Exam period weeks calculation (uses examStartDate & examEndDate, or defaults to 4 weeks)
-	const totalWeeks = useMemo(() => {
-		return getTotalWeeks(
-			activeSemester?.examStartDate || activeSemester?.startDate,
-			activeSemester?.examEndDate || activeSemester?.endDate,
-			4,
-		);
-	}, [activeSemester]);
+	const { data: coursesData = [] } = useQuery<Course[]>({
+		queryKey: ["courses", "list", activeSemester?.id],
+		queryFn: () =>
+			getCoursesOptions(
+				activeSemester?.id ? { semester: activeSemester.id } : undefined,
+			),
+	});
+	const isSchoolAdmin =
+		user?.role === "admin" &&
+		(user?.adminLevel === "school" || user?.adminLevel === "system" || user?.adminLevel === "university");
+	const isFacultyAdmin =
+		user?.role === "admin" && user?.adminLevel === "faculty";
+	const isDeptAdmin =
+		user?.role === "admin" && user?.adminLevel === "department";
 
-	const defaultCurrentWeek = useMemo(() => {
-		return getCurrentWeekNumber(
-			activeSemester?.examStartDate || activeSemester?.startDate,
-			activeSemester?.examEndDate || activeSemester?.endDate,
-			totalWeeks,
-		);
-	}, [activeSemester, totalWeeks]);
+	const resolvedSchoolId =
+		user?.schoolId ||
+		(isSchoolAdmin ? user?.adminScopeId : undefined) ||
+		activeSemester?.schoolId ||
+		(activeSemester as any)?.session?.schoolId;
 
-	// Program, Level, and Week state
-	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
-	const [selectedLevel, setSelectedLevel] = useState<number>(100);
-	const [currentWeek, setCurrentWeek] = useState<number>(1);
+	// Base scope of the logged-in admin/exam officer (not narrowed by cohort display filters)
+	const examScopeType = isDeptAdmin
+		? "department"
+		: isFacultyAdmin
+			? "faculty"
+			: "school";
 
+	const examScopeId = isDeptAdmin
+		? (user?.adminScopeId || user?.departmentId)
+		: isFacultyAdmin
+			? (user?.adminScopeId || user?.facultyId || facultiesData[0]?.id)
+			: (resolvedSchoolId || facultiesData[0]?.schoolId || 1);
+
+	const examAccessQuery = useQuery({
+		queryKey: ["scheduling", "exam-optimizer-access", activeSemester?.id, examScopeType, examScopeId],
+		queryFn: () => getExamOptimizerAccess(activeSemester!.id, examScopeType, examScopeId!),
+		enabled: Boolean(activeSemester?.id && examScopeId && user?.role === "admin"),
+	});
+	const optimizedTimetableQuery = useQuery({
+		queryKey: ["scheduling", "exam-optimizer", activeSemester?.id, examScopeType, examScopeId],
+		queryFn: () => getOptimizedExamTimetable(activeSemester!.id, examScopeType, examScopeId!),
+		enabled: Boolean((isSchoolAdmin || examAccessQuery.data?.can_view) && activeSemester?.id && examScopeId),
+	});
+
+	// Auto-initialize selected faculty and department based on user scope
 	useEffect(() => {
-		if (programsData.length > 0 && !selectedProgramId) {
-			const defaultProg =
-				programsData.find((p) => p.isDefault) || programsData[0];
-			if (defaultProg) {
-				setSelectedProgramId(defaultProg.id);
+		if (user) {
+			if (user.facultyId && !selectedFacultyId) {
+				setSelectedFacultyId(user.facultyId);
+			} else if (!selectedFacultyId && facultiesData.length > 0) {
+				setSelectedFacultyId(String(facultiesData[0].id));
+			}
+
+			if (user.departmentId && selectedDepartmentId === "ALL" && user.adminLevel === "department") {
+				setSelectedDepartmentId(user.departmentId);
+			}
+		} else if (!selectedFacultyId && facultiesData.length > 0) {
+			setSelectedFacultyId(String(facultiesData[0].id));
+		}
+	}, [user, facultiesData, selectedFacultyId, selectedDepartmentId]);
+
+	// Auto-initialize program selection to default program and level to lowest level
+	useEffect(() => {
+		if (programsData.length === 0) return;
+
+		const scopedPrograms = programsData.filter((p) => {
+			if (user?.role === "admin" && user?.adminLevel === "department" && user?.departmentId) {
+				return String(p.departmentId) === String(user.departmentId);
+			}
+			if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
+				return String(p.departmentId) === String(selectedDepartmentId);
+			}
+			if (selectedFacultyId && p.facultyId) {
+				return String(p.facultyId) === String(selectedFacultyId);
+			}
+			return true;
+		});
+
+		const defaultProg =
+			scopedPrograms.find((p) => p.isDefault) ||
+			scopedPrograms[0] ||
+			programsData.find((p) => p.isDefault) ||
+			programsData[0];
+
+		if (defaultProg) {
+			if (!selectedProgramId || selectedProgramId === "ALL" || !scopedPrograms.some((p) => String(p.id) === String(selectedProgramId))) {
+				setSelectedProgramId(String(defaultProg.id));
 			}
 		}
-	}, [programsData, selectedProgramId]);
+
+		if (selectedLevel === "ALL") {
+			setSelectedLevel(100);
+		}
+	}, [programsData, selectedFacultyId, selectedDepartmentId, user, selectedProgramId, selectedLevel]);
+
+	// Effective Exam Period Query
+	const effectiveTargetFaculty = selectedFacultyId || user?.facultyId;
+	const effectiveTargetDept = selectedDepartmentId !== "ALL" ? selectedDepartmentId : user?.departmentId;
+
+	const { data: effectiveExamPeriod } = useQuery<EffectiveExamPeriod>({
+		queryKey: [
+			"scheduling",
+			"effective-exam-period",
+			activeSemester?.id,
+			effectiveTargetFaculty,
+			effectiveTargetDept,
+		],
+		queryFn: () =>
+			getEffectiveExamPeriod(activeSemester!.id, {
+				faculty: effectiveTargetFaculty || undefined,
+				department: effectiveTargetDept || undefined,
+			}),
+		enabled: Boolean(activeSemester?.id),
+	});
+
+	// Generation & Exam Permissions Query
+	const schoolId = resolvedSchoolId || user?.schoolId || activeSemester?.schoolId;
+	const { data: permissionsData } = useQuery({
+		queryKey: ["generation", "permissions", schoolId],
+		queryFn: () => getGenerationPermissions(schoolId!),
+		enabled: Boolean(schoolId),
+	});
+
+	// Faculty-specific exam periods for current faculty
+	const { data: facultyExamPeriods = [] } = useQuery<FacultyExamPeriod[]>({
+		queryKey: [
+			"scheduling",
+			"faculty-exam-periods",
+			activeSemester?.id,
+			effectiveTargetFaculty,
+		],
+		queryFn: () =>
+			getFacultyExamPeriods(activeSemester!.id, effectiveTargetFaculty || undefined),
+		enabled: Boolean(activeSemester?.id && effectiveTargetFaculty),
+	});
+
+	const currentFacultyPeriod = facultyExamPeriods.find(
+		(fep) => String(fep.facultyId) === String(effectiveTargetFaculty),
+	);
+
+	// Total weeks and current week calculations using the effective exam period
+	const examStartDate = effectiveExamPeriod?.effectiveStartDate || activeSemester?.examStartDate || activeSemester?.startDate;
+	const examEndDate = effectiveExamPeriod?.effectiveEndDate || activeSemester?.examEndDate || activeSemester?.endDate;
+
+	const totalWeeks = useMemo(() => {
+		return getTotalWeeks(examStartDate, examEndDate, 4);
+	}, [examStartDate, examEndDate]);
+
+	const defaultCurrentWeek = useMemo(() => {
+		return getCurrentWeekNumber(examStartDate, examEndDate, totalWeeks);
+	}, [examStartDate, examEndDate, totalWeeks]);
 
 	useEffect(() => {
 		if (defaultCurrentWeek) {
@@ -150,11 +307,8 @@ export default function ExamsContainer() {
 
 	// Week range and day dates
 	const weekRange = useMemo(() => {
-		return getWeekRange(
-			activeSemester?.examStartDate || activeSemester?.startDate,
-			currentWeek,
-		);
-	}, [activeSemester, currentWeek]);
+		return getWeekRange(examStartDate, currentWeek);
+	}, [examStartDate, currentWeek]);
 
 	const weekDayDates = useMemo(() => {
 		return getWeekDayDates(weekRange.startDate);
@@ -174,16 +328,21 @@ export default function ExamsContainer() {
 			"entries",
 			"exam",
 			activeSemester?.id,
+			selectedFacultyId,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 		],
 		queryFn: () =>
 			getTimetableEntries({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
-				level: selectedLevel || undefined,
+				faculty: selectedFacultyId || undefined,
+				department: selectedDepartmentId !== "ALL" ? selectedDepartmentId : undefined,
+				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
+				level: selectedLevel !== "ALL" ? selectedLevel : undefined,
 				entry_type: "exam",
 			}),
+		enabled: Boolean(activeSemester?.id),
 	});
 
 	// Exam Sessions Query (entry_type="exam")
@@ -198,6 +357,8 @@ export default function ExamsContainer() {
 			"sessions",
 			"exam",
 			activeSemester?.id,
+			selectedFacultyId,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 			currentWeek,
@@ -207,17 +368,99 @@ export default function ExamsContainer() {
 		queryFn: () =>
 			getLectureSessions({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
-				level: selectedLevel || undefined,
+				faculty: selectedFacultyId || undefined,
+				department: selectedDepartmentId !== "ALL" ? selectedDepartmentId : undefined,
+				program: selectedProgramId !== "ALL" ? selectedProgramId : undefined,
+				level: selectedLevel !== "ALL" ? selectedLevel : undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
 				entry_type: "exam",
 			}),
+		enabled: Boolean(activeSemester?.id),
 	});
 
 	const isRefetching = entriesRefetching || sessionsRefetching;
 
 	// Mutations
+	const setSchoolExamPeriodMutation = useMutation({
+		mutationFn: async (data: {
+			exam_start_date: string;
+			exam_end_date: string;
+			allow_faculty_exam_period?: boolean;
+			allow_faculty_exam_generation?: boolean;
+			allow_department_exam_generation?: boolean;
+		}) => {
+			if (!activeSemester) throw new Error("No active semester.");
+			await setSemesterExamPeriod(activeSemester.id, {
+				exam_start_date: data.exam_start_date,
+				exam_end_date: data.exam_end_date,
+			});
+
+			if (schoolId) {
+				await updateGenerationPermissions({
+					school: schoolId,
+					allow_faculty_exam_period: data.allow_faculty_exam_period,
+					allow_faculty_exam_generation: data.allow_faculty_exam_generation,
+					allow_department_exam_generation: data.allow_department_exam_generation,
+				});
+			}
+		},
+		onSuccess: () => {
+			toast.success("School examination period and permissions updated!");
+			setIsSetSchoolExamPeriodOpen(false);
+			queryClient.invalidateQueries({ queryKey: ["semesters"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
+			queryClient.invalidateQueries({ queryKey: ["generation", "permissions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer-access"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		},
+		onError: (err: any) => {
+			toast.error(err?.response?.data?.error || err?.message || "Failed to set exam period.");
+		},
+	});
+
+	const setFacultyExamPeriodMutation = useMutation({
+		mutationFn: async (data: { start_date: string; end_date: string }) => {
+			if (!activeSemester) throw new Error("No active semester.");
+			if (!effectiveTargetFaculty) throw new Error("No faculty selected.");
+			return setFacultyExamPeriod(activeSemester.id, {
+				faculty: effectiveTargetFaculty,
+				start_date: data.start_date,
+				end_date: data.end_date,
+			});
+		},
+		onSuccess: () => {
+			toast.success("Faculty examination period customized successfully!");
+			setIsSetFacultyExamPeriodOpen(false);
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "faculty-exam-periods"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		},
+		onError: (err: any) => {
+			toast.error(err?.response?.data?.detail || err?.response?.data?.error || err?.message || "Failed to set faculty exam period.");
+		},
+	});
+
+	const resetFacultyExamPeriodMutation = useMutation({
+		mutationFn: async () => {
+			if (!activeSemester || !effectiveTargetFaculty) return;
+			await deleteFacultyExamPeriod(activeSemester.id, effectiveTargetFaculty);
+		},
+		onSuccess: () => {
+			toast.success("Faculty exam period reset to school default.");
+			setIsSetFacultyExamPeriodOpen(false);
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "faculty-exam-periods"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		},
+		onError: (err: any) => {
+			toast.error(err?.message || "Failed to reset faculty exam period.");
+		},
+	});
+
 	const createExamSittingMutation = useMutation({
 		mutationFn: (data: {
 			timetable_entry: string | number;
@@ -226,9 +469,8 @@ export default function ExamsContainer() {
 		onSuccess: () => {
 			toast.success("Exam sitting created and invigilators assigned!");
 			setIsExamSittingOpen(false);
-			queryClient.invalidateQueries({
-				queryKey: ["scheduling", "exam-sittings"],
-			});
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-sittings"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
 		},
 		onError: (err: Error) => {
 			toast.error(err.message || "Failed to create exam sitting.");
@@ -244,6 +486,7 @@ export default function ExamsContainer() {
 				setIsScheduleEntryOpen(false);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+				queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-sittings"] });
 			} else if (result.outcome === "ROUTE_APPROVAL") {
 				setIsScheduleEntryOpen(false);
 				setConflictOutcome("ROUTE_APPROVAL");
@@ -267,8 +510,9 @@ export default function ExamsContainer() {
 				setIsConflictModalOpen(true);
 			}
 		},
-		onError: (error: Error) => {
-			toast.error(error.message || "Failed to create exam entry.");
+		onError: (error: any) => {
+			const detail = error?.response?.data?.detail || error?.response?.data?.recurrence_start_date || error.message;
+			toast.error(detail || "Failed to create exam entry.");
 		},
 	});
 
@@ -316,15 +560,20 @@ export default function ExamsContainer() {
 		refetchEntries();
 		refetchSessions();
 		refetchExams();
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "effective-exam-period"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "exam-optimizer-access"] });
 		toast.info("Refreshing exam schedule data...");
 	};
 
 	const handleOpenCreateExamEntry = (
 		defaultDay?: string,
+		defaultDate?: string,
 		defaultSlot?: { start: string; end: string },
 	) => {
 		setScheduleEntryDefaults({
 			day: defaultDay,
+			date: defaultDate,
 			startTime: defaultSlot?.start,
 			endTime: defaultSlot?.end,
 		});
@@ -340,9 +589,9 @@ export default function ExamsContainer() {
 			start_time: data.startTime as string,
 			end_time: data.endTime as string,
 			recurrence_rule: data.recurrenceRule as string | undefined,
-			recurrence_start_date: data.startDate as string | undefined,
-			recurrence_end_date: data.endDate as string | undefined,
-			semester: data.semesterId as string | undefined,
+			recurrence_start_date: (data.recurrence_start_date || data.startDate) as string | undefined,
+			recurrence_end_date: (data.recurrence_end_date || data.endDate) as string | undefined,
+			semester: data.semester as string | undefined,
 			program: data.targetProgramId as string | undefined,
 		});
 	};
@@ -357,6 +606,9 @@ export default function ExamsContainer() {
 		});
 	};
 
+	const currentFacultyObj =
+		facultiesData.find((f) => String(f.id) === String(selectedFacultyId)) || facultiesData[0];
+
 	return (
 		<>
 			<ExamsView
@@ -367,6 +619,14 @@ export default function ExamsContainer() {
 				examSittings={examSittingsData}
 				examSittingsLoading={examSittingsLoading}
 				isRefetching={isRefetching}
+				currentUser={user}
+				effectiveExamPeriod={effectiveExamPeriod}
+				faculties={facultiesData}
+				selectedFacultyId={selectedFacultyId}
+				onSelectFaculty={setSelectedFacultyId}
+				departments={departmentsData}
+				selectedDepartmentId={selectedDepartmentId}
+				onSelectDepartment={setSelectedDepartmentId}
 				programs={programsData}
 				selectedProgramId={selectedProgramId}
 				onSelectProgram={setSelectedProgramId}
@@ -381,12 +641,46 @@ export default function ExamsContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
+				optimizedEvents={optimizedTimetableQuery.data?.events || []}
+				optimizerDiagnostics={optimizedTimetableQuery.data?.diagnostics}
+				canViewOptimizedTimetable={isSchoolAdmin || Boolean(examAccessQuery.data?.can_view)}
+				canOptimize={isSchoolAdmin || Boolean(examAccessQuery.data?.can_optimize)}
 				onManualRefresh={handleManualRefresh}
 				onOpenCreateExamEntry={handleOpenCreateExamEntry}
 				onOpenExamSitting={() => setIsExamSittingOpen(true)}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
+				onOpenSetSchoolExamPeriod={() => setIsSetSchoolExamPeriodOpen(true)}
+				onOpenSetFacultyExamPeriod={() => setIsSetFacultyExamPeriodOpen(true)}
 			/>
 
+			{/* Set School Exam Period Modal */}
+			<SetExamPeriodModal
+				isOpen={isSetSchoolExamPeriodOpen}
+				onClose={() => setIsSetSchoolExamPeriodOpen(false)}
+				semester={activeSemester || null}
+				currentAllowFacultyExamPeriod={Boolean(permissionsData?.allowFacultyExamPeriod)}
+				currentAllowFacultyExamGeneration={Boolean(permissionsData?.allowFacultyExamGeneration)}
+				currentAllowDepartmentExamGeneration={Boolean(permissionsData?.allowDepartmentExamGeneration)}
+				onSubmit={(data) => setSchoolExamPeriodMutation.mutate(data)}
+				isPending={setSchoolExamPeriodMutation.isPending}
+			/>
+
+			{/* Set Faculty Exam Period Modal */}
+			<SetFacultyExamPeriodModal
+				isOpen={isSetFacultyExamPeriodOpen}
+				onClose={() => setIsSetFacultyExamPeriodOpen(false)}
+				semester={activeSemester || null}
+				facultyId={selectedFacultyId}
+				facultyName={currentFacultyObj?.name || "Faculty"}
+				currentPeriod={currentFacultyPeriod}
+				onSubmit={(data: { start_date: string; end_date: string }) =>
+					setFacultyExamPeriodMutation.mutate(data)
+				}
+				onResetToSchool={() => resetFacultyExamPeriodMutation.mutate()}
+				isPending={setFacultyExamPeriodMutation.isPending || resetFacultyExamPeriodMutation.isPending}
+			/>
+
+			{/* Create Exam Sitting / Assign Invigilators Modal */}
 			<CreateExamSittingModal
 				isOpen={isExamSittingOpen}
 				onClose={() => setIsExamSittingOpen(false)}
@@ -395,19 +689,22 @@ export default function ExamsContainer() {
 				lecturers={lecturersData}
 			/>
 
+			{/* Schedule Entry Modal */}
 			<ScheduleEntryModal
 				isOpen={isScheduleEntryOpen}
 				onClose={() => setIsScheduleEntryOpen(false)}
 				onSubmit={handleCreateScheduleEntrySubmit}
 				courses={coursesData}
 				venues={venuesData}
-				semesters={semestersData}
-				programs={programsData}
+				activeSemester={activeSemester}
+				defaultEntryType="exam"
 				defaultDay={scheduleEntryDefaults.day}
+				defaultDate={scheduleEntryDefaults.date}
 				defaultStartTime={scheduleEntryDefaults.startTime}
 				defaultEndTime={scheduleEntryDefaults.endTime}
 			/>
 
+			{/* Shift Session Modal */}
 			<SessionShiftModal
 				isOpen={Boolean(selectedSessionForShift)}
 				onClose={() => setSelectedSessionForShift(null)}
@@ -425,6 +722,7 @@ export default function ExamsContainer() {
 				venues={venuesData}
 			/>
 
+			{/* Conflict Feedback Modal */}
 			{conflictOutcome && (
 				<ConflictFeedbackModal
 					isOpen={isConflictModalOpen}

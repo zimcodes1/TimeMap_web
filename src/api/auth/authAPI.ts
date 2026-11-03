@@ -7,6 +7,7 @@ export interface ApiUserRaw {
   role: UserRole;
   requires_password_reset: boolean;
   is_active: boolean;
+  is_superuser?: boolean;
   last_login_at?: string | null;
   created_at?: string;
 }
@@ -16,14 +17,27 @@ export interface ApiProfileRaw {
   matric_number?: string;
   staff_id?: string;
   full_name?: string;
-  department?: number;
+  department?: number | string;
+  department_id?: number | string;
   department_name?: string;
-  scope_level?: "department" | "faculty" | "school" | "university";
-  scope_id?: number;
+  scope_level?: "department" | "faculty" | "school" | "university" | "system";
+  scope_id?: number | string;
   scope_name?: string;
+  scope_department_id?: number | string;
+  scope_faculty_id?: number | string;
+  scope_school_id?: number | string;
+  faculty_id?: number | string;
+  faculty_name?: string;
+  school_id?: number | string;
+  school_name?: string;
   level?: number;
   is_class_rep?: boolean;
   email?: string;
+  is_lecturer?: boolean;
+  lecturer_department_id?: number | string;
+  lecturer_department_name?: string;
+  is_exam_officer?: boolean;
+  has_scope_exam_officer?: boolean;
   [key: string]: unknown;
 }
 

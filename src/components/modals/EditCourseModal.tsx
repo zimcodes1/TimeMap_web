@@ -4,6 +4,7 @@ import { Text } from "../ui/text";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";
+import LecturerAssignmentSelector from "@/components/courses/LecturerAssignmentSelector";
 import type { Course, Department, Program, Semester, User } from "@/types";
 
 interface EditCourseModalProps {
@@ -29,7 +30,7 @@ export default function EditCourseModal({
 }: EditCourseModalProps) {
 	const [code, setCode] = useState("");
 	const [title, setTitle] = useState("");
-	const [level, setLevel] = useState<number>(300);
+	const [level, setLevel] = useState<number>(100);
 	const [semesterId, setSemesterId] = useState("");
 	const [programScope, setProgramScope] = useState<"general" | "program">(
 		"general",
@@ -37,6 +38,11 @@ export default function EditCourseModal({
 	const [targetProgramId, setTargetProgramId] = useState("");
 	const [departmentId, setDepartmentId] = useState("");
 	const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>([]);
+	const [courseType, setCourseType] = useState<"lecture" | "practical">(
+		"lecture",
+	);
+	const [requiredOccurrencesPerWeek, setRequiredOccurrencesPerWeek] =
+		useState<number>(1);
 
 	useEffect(() => {
 		if (course) {
@@ -44,10 +50,16 @@ export default function EditCourseModal({
 			setTitle(course.title || "");
 			setLevel(course.level || 300);
 			setSemesterId(course.semesterId || "");
-			setProgramScope(course.programScope || "general");
+			setProgramScope(course.programScope === "program" ? "program" : "general");
 			setTargetProgramId(course.targetProgramId || "");
 			setDepartmentId(course.departmentId || "");
-			setSelectedLecturerIds((course.lecturers || []).map((l) => l.id));
+			const initialIds =
+				course.lecturerIds && course.lecturerIds.length > 0
+					? course.lecturerIds.map(String)
+					: (course.lecturers || []).map((l) => String(l.id));
+			setSelectedLecturerIds(initialIds);
+			setCourseType(course.courseType || "lecture");
+			setRequiredOccurrencesPerWeek(course.requiredOccurrencesPerWeek || 1);
 		}
 	}, [course]);
 
@@ -58,9 +70,10 @@ export default function EditCourseModal({
 		);
 	}, [programs, departmentId]);
 
-	const toggleLecturer = (id: string) => {
+	const toggleLecturer = (id: string | number) => {
+		const strId = String(id);
 		setSelectedLecturerIds((prev) =>
-			prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+			prev.includes(strId) ? prev.filter((i) => i !== strId) : [...prev, strId],
 		);
 	};
 
@@ -68,11 +81,13 @@ export default function EditCourseModal({
 		e.preventDefault();
 		if (course && code && title) {
 			const assignedLecturers = lecturers.filter((l) =>
-				selectedLecturerIds.includes(l.id),
+				selectedLecturerIds.includes(String(l.id)),
 			);
-			const targetDept = departments.find((d) => d.id === departmentId);
+			const targetDept = departments.find(
+				(d) => String(d.id) === String(departmentId),
+			);
 			const targetProg = availablePrograms.find(
-				(p) => p.id === targetProgramId,
+				(p) => String(p.id) === String(targetProgramId),
 			);
 
 			onSubmit(course.id, {
@@ -80,6 +95,11 @@ export default function EditCourseModal({
 				title: title.trim(),
 				level,
 				semesterId: semesterId || undefined,
+				owningLevel: course.owningLevel,
+				departmentId: course.departmentId,
+				owningDepartment: course.owningDepartment,
+				owningFaculty: course.owningFaculty,
+				owningSchool: course.owningSchool,
 				programScope:
 					course.owningLevel === "department" ? programScope : "general",
 				targetProgramId:
@@ -87,9 +107,11 @@ export default function EditCourseModal({
 						? targetProgramId
 						: undefined,
 				targetProgramName: targetProg?.name,
-				departmentId,
 				departmentName: targetDept?.name,
 				lecturers: assignedLecturers,
+				lecturerIds: selectedLecturerIds,
+				courseType,
+				requiredOccurrencesPerWeek,
 			});
 			onClose();
 		}
@@ -171,6 +193,43 @@ export default function EditCourseModal({
 					</div>
 				</div>
 
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div className="space-y-1">
+						<label className="text-xs font-semibold text-text-main">
+							Course Type
+						</label>
+						<Select
+							value={courseType}
+							onChange={(e) =>
+								setCourseType(e.target.value as "lecture" | "practical")
+							}
+							options={[
+								{ value: "lecture", label: "Lecture (Lecture Halls / Multi)" },
+								{
+									value: "practical",
+									label: "Practical / Lab (Strictly Labs)",
+								},
+							]}
+						/>
+					</div>
+					<div className="space-y-1">
+						<label className="text-xs font-semibold text-text-main">
+							Weekly Frequency
+						</label>
+						<Select
+							value={requiredOccurrencesPerWeek}
+							onChange={(e) =>
+								setRequiredOccurrencesPerWeek(Number(e.target.value))
+							}
+							options={[
+								{ value: 1, label: "1 Session / Week (2 hrs)" },
+								{ value: 2, label: "2 Sessions / Week (4 hrs)" },
+								{ value: 3, label: "3 Sessions / Week (6 hrs)" },
+							]}
+						/>
+					</div>
+				</div>
+
 				{/* Program Scoping for Department Courses */}
 				{course.owningLevel === "department" &&
 					availablePrograms.length > 0 && (
@@ -220,43 +279,11 @@ export default function EditCourseModal({
 					)}
 
 				{/* Lecturers Selection */}
-				<div className="space-y-2 pt-2 border-t border-border">
-					<label className="text-xs font-semibold text-text-main block">
-						Assign Teaching Staff ({selectedLecturerIds.length} Selected)
-					</label>
-					<div className="max-h-36 overflow-y-auto space-y-1.5 border border-border rounded-xl p-2 bg-surface">
-						{lecturers.length === 0 ? (
-							<Text
-								variant="caption"
-								color="muted"
-								className="p-2 block text-center"
-							>
-								No lecturers found.
-							</Text>
-						) : (
-							lecturers.map((lec) => {
-								const isSelected = selectedLecturerIds.includes(lec.id);
-								return (
-									<button
-										key={lec.id}
-										type="button"
-										onClick={() => toggleLecturer(lec.id)}
-										className={`w-full flex items-center justify-between p-2 rounded-lg text-xs transition-colors cursor-pointer ${
-											isSelected
-												? "bg-primary/10 border border-primary/20 text-primary font-semibold"
-												: "bg-surface-raised hover:bg-surface-raised/80 text-text-main border border-border"
-										}`}
-									>
-										<span>{lec.name}</span>
-										<span className="text-[10px] font-bold">
-											{isSelected ? "Assigned" : "Assign"}
-										</span>
-									</button>
-								);
-							})
-						)}
-					</div>
-				</div>
+				<LecturerAssignmentSelector
+					lecturers={lecturers}
+					selectedLecturerIds={selectedLecturerIds}
+					onToggleLecturer={toggleLecturer}
+				/>
 
 				<div className="flex justify-end gap-2 pt-3 border-t border-border">
 					<Button

@@ -28,10 +28,11 @@ function getAccessLevelLabel(user: User | null): string {
         return "Faculty Admin";
       case "school":
         return "School Admin";
+      case "system":
       case "university":
-        return "University Admin";
+        return "System Administrator";
       default:
-        return "Administrator";
+        return "System Administrator";
     }
   }
   if (user.role === "lecturer") return "Lecturer";
@@ -68,10 +69,11 @@ function getHandlingEntityInfo(user: User | null): HandlingEntity | null {
           name: user.adminScopeName || "Assigned School",
           Icon: SchoolIcon,
         };
+      case "system":
       case "university":
         return {
           typeLabel: "Jurisdiction",
-          name: "University Wide",
+          name: "System Wide",
           Icon: Shield,
         };
       default:

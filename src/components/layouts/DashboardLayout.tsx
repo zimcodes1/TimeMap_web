@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { Outlet, Navigate } from "@tanstack/react-router";
+import { Outlet, Navigate, useRouterState } from "@tanstack/react-router";
 import Topbar from "../main/Topbar";
 import SideNav from "../main/SideNav";
 import { useAuth } from "@/hooks/useAuth";
 import Logo from "../elements/logo";
+import { isRouteAllowedForExamOfficer } from "@/constants/data";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user, isAuthenticated, isLoading, requiresPasswordReset } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (isLoading) {
     return (
@@ -28,6 +30,11 @@ export default function DashboardLayout() {
 
   if (requiresPasswordReset) {
     return <Navigate to="/reset-password" replace />;
+  }
+
+  // Exam officer access guard: only allowed exam-specific and core resources
+  if (user?.isExamOfficer && !isRouteAllowedForExamOfficer(pathname)) {
+    return <Navigate to="/exams" replace />;
   }
 
   return (

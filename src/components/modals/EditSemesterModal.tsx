@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
 import type { Semester } from "@/types";
+import { toast } from "sonner";
 
 interface EditSemesterModalProps {
 	isOpen: boolean;
@@ -12,13 +13,13 @@ interface EditSemesterModalProps {
 	onSubmit: (
 		id: string,
 		data: {
-			name: "first" | "second";
+			name: "first" | "second" | "third" | "fourth" | string;
 			start_date: string;
 			end_date: string;
 			duration_type?: "weeks" | "months" | "fixed";
 			duration_value?: number;
-			lecture_start_date?: string;
-			lecture_end_date?: string;
+			lecture_start_date: string;
+			lecture_end_date: string;
 			exam_start_date?: string;
 			exam_end_date?: string;
 			is_active: boolean;
@@ -35,7 +36,7 @@ export default function EditSemesterModal({
 	semester,
 	isPending = false,
 }: EditSemesterModalProps) {
-	const [name, setName] = useState<"first" | "second">("first");
+	const [name, setName] = useState<string>("first");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [durationType, setDurationType] = useState<
@@ -84,9 +85,45 @@ export default function EditSemesterModal({
 		}
 	}, [startDate, durationType, durationValue]);
 
+	const todayStr = new Date().toISOString().split("T")[0];
+	const isPastSemester = Boolean(semester?.isPast || (endDate && endDate < todayStr));
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!semester || !startDate || !endDate) return;
+
+		if (!lectureStartDate || !lectureEndDate) {
+			toast.error("Please fill in both lecture start and end dates.");
+			return;
+		}
+
+		if (lectureStartDate >= lectureEndDate) {
+			toast.error("Lecture start date must be before lecture end date.");
+			return;
+		}
+
+		if (lectureStartDate < startDate) {
+			toast.error("Lecture start date cannot be before semester start date.");
+			return;
+		}
+
+		if (lectureEndDate > endDate) {
+			toast.error("Lecture end date cannot be after semester end date.");
+			return;
+		}
+
+		if (examStartDate && examEndDate) {
+			if (examStartDate >= examEndDate) {
+				toast.error("Exam start date must be before exam end date.");
+				return;
+			}
+			if (examStartDate < startDate || examEndDate > endDate) {
+				toast.error(
+					"Exam period dates must fall within the semester timeline.",
+				);
+				return;
+			}
+		}
 
 		onSubmit(semester.id, {
 			name,
@@ -95,11 +132,11 @@ export default function EditSemesterModal({
 			duration_type: durationType,
 			duration_value:
 				durationType !== "fixed" ? Number(durationValue) : undefined,
-			lecture_start_date: lectureStartDate || undefined,
-			lecture_end_date: lectureEndDate || undefined,
+			lecture_start_date: lectureStartDate,
+			lecture_end_date: lectureEndDate,
 			exam_start_date: examStartDate || undefined,
 			exam_end_date: examEndDate || undefined,
-			is_active: isActive,
+			is_active: isPastSemester ? false : isActive,
 		});
 	};
 
@@ -140,10 +177,12 @@ export default function EditSemesterModal({
 					</Text>
 					<Select
 						value={name}
-						onChange={(e) => setName(e.target.value as "first" | "second")}
+						onChange={(e) => setName(e.target.value)}
 						options={[
 							{ value: "first", label: "First Semester" },
 							{ value: "second", label: "Second Semester" },
+							{ value: "third", label: "Third Semester" },
+							{ value: "fourth", label: "Fourth Semester" },
 						]}
 					/>
 				</div>
@@ -224,32 +263,39 @@ export default function EditSemesterModal({
 
 				{/* Lecture Periods */}
 				<div className="p-3 bg-surface-raised border border-border rounded-xl space-y-3">
-					<Text
-						variant="caption"
-						weight="bold"
-						className="text-text-main block"
-					>
-						Lecture Schedule (Optional)
-					</Text>
+					<div className="flex items-center justify-between">
+						<Text
+							variant="caption"
+							weight="bold"
+							className="text-text-main block"
+						>
+							Lecture Schedule
+						</Text>
+						<span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+							Required for Timetabling
+						</span>
+					</div>
 					<div className="grid grid-cols-2 gap-3">
 						<div>
 							<Text variant="caption" className="text-text-muted mb-1 block">
-								Lecture Start Date
+								Lecture Start Date <span className="text-danger">*</span>
 							</Text>
 							<Input
 								type="date"
 								value={lectureStartDate}
 								onChange={(e) => setLectureStartDate(e.target.value)}
+								required
 							/>
 						</div>
 						<div>
 							<Text variant="caption" className="text-text-muted mb-1 block">
-								Lecture End Date
+								Lecture End Date <span className="text-danger">*</span>
 							</Text>
 							<Input
 								type="date"
 								value={lectureEndDate}
 								onChange={(e) => setLectureEndDate(e.target.value)}
+								required
 							/>
 						</div>
 					</div>
@@ -288,20 +334,28 @@ export default function EditSemesterModal({
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2 pt-1">
-					<input
-						type="checkbox"
-						id="editIsActiveSemester"
-						checked={isActive}
-						onChange={(e) => setIsActive(e.target.checked)}
-						className="w-4 h-4 rounded text-primary border-border focus:ring-primary"
-					/>
-					<label
-						htmlFor="editIsActiveSemester"
-						className="text-sm font-medium text-text-main cursor-pointer"
-					>
-						Set as Active Semester
-					</label>
+				<div className="flex flex-col gap-1 pt-1">
+					<div className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="editIsActiveSemester"
+							checked={!isPastSemester && isActive}
+							onChange={(e) => setIsActive(e.target.checked)}
+							disabled={isPastSemester}
+							className="w-4 h-4 rounded text-primary border-border focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+						/>
+						<label
+							htmlFor="editIsActiveSemester"
+							className={`text-sm font-medium ${isPastSemester ? "text-text-muted cursor-not-allowed" : "text-text-main cursor-pointer"}`}
+						>
+							Set as Active Semester
+						</label>
+					</div>
+					{isPastSemester && (
+						<Text variant="caption" className="text-amber-500 text-[11px] ml-6">
+							A past semester cannot be set as active.
+						</Text>
+					)}
 				</div>
 			</form>
 		</Modal>

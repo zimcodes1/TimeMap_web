@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/elements/logo";
 import { Text } from "@/components/ui/text";
-import { NAV_GROUPS } from "@/constants/data";
+import { NAV_GROUPS, isRouteAllowedForExamOfficer } from "@/constants/data";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SideNavProps {
@@ -22,6 +23,17 @@ export default function SideNav({
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+	const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+	const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+	useEffect(() => {
+		if (hoveredItem && itemRefs.current[hoveredItem]) {
+			const rect = itemRefs.current[hoveredItem]!.getBoundingClientRect();
+			setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 8 });
+		} else {
+			setTooltipPos(null);
+		}
+	}, [hoveredItem]);
 
 	const toggleGroup = (label: string) =>
 		setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -42,7 +54,7 @@ export default function SideNav({
 	return (
 		<aside
 			className={cn(
-				"flex flex-col h-full bg-primary text-white transition-all duration-300 shrink-0 select-none shadow-md",
+				"flex flex-col h-full bg-linear-to-b from-primary to-[#13863d] text-white transition-all duration-300 shrink-0 select-none shadow-md",
 				collapsed ? "w-20" : "w-64",
 			)}
 		>
@@ -75,10 +87,15 @@ export default function SideNav({
 			<div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/20">
 				{NAV_GROUPS.map((group) => {
 					const visibleItems = group.items.filter((item) => {
+						if (user?.isExamOfficer && !isRouteAllowedForExamOfficer(item.to)) {
+							return false;
+						}
+
 						if (item.adminLevels && item.adminLevels.length > 0) {
+							const effectiveLevel = user?.adminLevel === "university" ? "system" : user?.adminLevel;
 							if (
-								!user?.adminLevel ||
-								!item.adminLevels.includes(user.adminLevel)
+								!effectiveLevel ||
+								!item.adminLevels.includes(effectiveLevel)
 							) {
 								return false;
 							}
@@ -109,6 +126,7 @@ export default function SideNav({
 										return (
 											<div
 												key={item.label}
+												ref={(el) => { itemRefs.current[item.label] = el; }}
 												className="relative"
 												onMouseEnter={() =>
 													collapsed && setHoveredItem(item.label)
@@ -117,7 +135,7 @@ export default function SideNav({
 											>
 												{collapsed ? (
 													/* Collapsed Mode Popover Trigger */
-													<div className="relative">
+													<>
 														<button
 															type="button"
 															onClick={() => toggleGroup(item.label)}
@@ -131,9 +149,12 @@ export default function SideNav({
 															<span className="shrink-0">{item.icon}</span>
 														</button>
 
-														{/* Hover Popover in Collapsed Mode */}
-														{hoveredItem === item.label && (
-															<div className="absolute left-full top-0 ml-2 z-50 w-48 bg-surface border border-border rounded-xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 text-text-main">
+														{/* Hover Popover in Collapsed Mode — portalled to body */}
+														{hoveredItem === item.label && tooltipPos && createPortal(
+															<div
+																style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)", zIndex: 9999 }}
+																className="w-48 bg-surface border border-border rounded-xl shadow-xl p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150 text-text-main"
+															>
 																<Text
 																	variant="caption"
 																	className="px-2 py-1 font-bold text-text-main block border-b border-border"
@@ -155,9 +176,10 @@ export default function SideNav({
 																		{child.label}
 																	</Link>
 																))}
-															</div>
+															</div>,
+															document.body
 														)}
-													</div>
+													</>
 												) : (
 													/* Expanded Accordion Mode */
 													<div>
@@ -213,6 +235,7 @@ export default function SideNav({
 									return (
 										<div
 											key={item.label}
+											ref={(el) => { itemRefs.current[item.label] = el; }}
 											className="relative"
 											onMouseEnter={() =>
 												collapsed && setHoveredItem(item.label)
@@ -229,18 +252,22 @@ export default function SideNav({
 														: "px-3 py-3 hover:pl-5",
 													active
 														? "bg-white/20 text-white font-bold border-r-5 rounded-r-xs"
-														: "text-white/80 hover:bg-white/15 hover:text-white",
+														: "text-white/80 hover:bg-primary-hover hover:text-white",
 												)}
 											>
 												<span className="shrink-0">{item.icon}</span>
 												{!collapsed && <span>{item.label}</span>}
 											</Link>
 
-											{/* Tooltip hint in collapsed mode */}
-											{collapsed && hoveredItem === item.label && (
-												<div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 px-2.5 py-1.5 bg-surface text-text-main border border-border rounded-md text-xs font-semibold whitespace-nowrap shadow-md pointer-events-none">
+											{/* Tooltip hint in collapsed mode — portalled to body */}
+											{collapsed && hoveredItem === item.label && tooltipPos && createPortal(
+												<div
+													style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)", zIndex: 9999 }}
+													className="px-2.5 py-1.5 bg-surface text-text-main border border-border rounded-md text-xs font-semibold whitespace-nowrap shadow-md pointer-events-none"
+												>
 													{item.label}
-												</div>
+												</div>,
+												document.body
 											)}
 										</div>
 									);
@@ -252,7 +279,7 @@ export default function SideNav({
 			</div>
 
 			{/* User Info + Collapse Footer */}
-			<div className="p-3 border-t border-white/15 bg-black/10 shrink-0 space-y-2">
+			<div className="p-3 bg-black/10 shrink-0 space-y-2">
 				{/* User Card */}
 				<div
 					className={cn(
@@ -265,12 +292,19 @@ export default function SideNav({
 					</div>
 					{!collapsed && (
 						<div className="flex-1 min-w-0">
-							<Text
-								variant="caption"
-								className="font-bold text-white truncate block"
-							>
-								{displayName}
-							</Text>
+							<div className="flex items-center gap-1.5 truncate">
+								<Text
+									variant="caption"
+									className="font-bold text-white truncate block"
+								>
+									{displayName}
+								</Text>
+								{user?.isExamOfficer && (
+									<span className="text-[9px] bg-amber-400/20 text-amber-200 border border-amber-300/30 px-1 py-0.2 rounded font-semibold shrink-0">
+										Exam Officer
+									</span>
+								)}
+							</div>
 							<Text
 								variant="caption"
 								className="text-white/70 truncate block text-[11px]"

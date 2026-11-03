@@ -68,9 +68,9 @@
 @layer base {
   :root {
     /* Brand Primary — emerald green */
-    --color-primary: #10b981;
+    --color-primary: #169946;
     /* emerald-500 */
-    --color-primary-hover: #059669;
+    --color-primary-hover: #2fa359;
     /* emerald-600 */
     --color-primary-muted: #d1fae5;
     /* emerald-100 */

@@ -14,6 +14,7 @@ interface CreateAcademicSessionModalProps {
 		label: string;
 		start_date: string;
 		end_date: string;
+		max_semesters?: number;
 		is_current: boolean;
 	}) => void;
 	schools: School[];
@@ -33,6 +34,7 @@ export default function CreateAcademicSessionModal({
 	const [label, setLabel] = useState("");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
+	const [maxSemesters, setMaxSemesters] = useState(2);
 	const [isCurrent, setIsCurrent] = useState(false);
 
 	useEffect(() => {
@@ -52,6 +54,7 @@ export default function CreateAcademicSessionModal({
 			label: label.trim(),
 			start_date: startDate,
 			end_date: endDate,
+			max_semesters: maxSemesters,
 			is_current: isCurrent,
 		});
 	};
@@ -60,6 +63,7 @@ export default function CreateAcademicSessionModal({
 		setLabel("");
 		setStartDate("");
 		setEndDate("");
+		setMaxSemesters(2);
 		setIsCurrent(false);
 		onClose();
 	};
@@ -142,6 +146,25 @@ export default function CreateAcademicSessionModal({
 							required
 						/>
 					</div>
+				</div>
+
+				<div>
+					<Text variant="caption" className="font-semibold mb-1 block">
+						Semesters in this Session
+					</Text>
+					<Select
+						value={String(maxSemesters)}
+						onChange={(e) => setMaxSemesters(Number(e.target.value))}
+						options={[
+							{ value: "1", label: "1 Semester" },
+							{ value: "2", label: "2 Semesters (Standard: First & Second)" },
+							{ value: "3", label: "3 Semesters (Trimester: First, Second & Third)" },
+							{ value: "4", label: "4 Semesters (Quarter System)" },
+						]}
+					/>
+					<Text variant="caption" color="muted" className="mt-1 block">
+						Controls the semester naming options and total semester capacity for this session.
+					</Text>
 				</div>
 
 				<div className="flex items-center gap-2 pt-1">

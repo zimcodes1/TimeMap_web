@@ -34,30 +34,80 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 );
 
 function mapRawToUser(rawUser: ApiUserRaw, rawProfile?: ApiProfileRaw): User {
-	const scopeLevel = rawProfile?.scope_level;
+	const rawScopeLevel = rawProfile?.scope_level;
+	const scopeLevel = (rawScopeLevel === "university" || (!rawScopeLevel && rawUser.is_superuser))
+		? "system"
+		: rawScopeLevel;
 	const scopeId = rawProfile?.scope_id ? String(rawProfile.scope_id) : undefined;
 	const scopeName = rawProfile?.scope_name;
+
+	// Resolve department ID: prioritize numeric ID fields over raw name string
+	const resolvedDeptId =
+		rawProfile?.department_id !== undefined && rawProfile?.department_id !== null && rawProfile?.department_id !== ""
+			? String(rawProfile.department_id)
+			: rawProfile?.scope_department_id !== undefined && rawProfile?.scope_department_id !== null && rawProfile?.scope_department_id !== ""
+				? String(rawProfile.scope_department_id)
+				: scopeLevel === "department" && scopeId
+					? scopeId
+					: rawProfile?.department && !isNaN(Number(rawProfile.department))
+						? String(rawProfile.department)
+						: undefined;
+
+	const resolvedDeptName =
+		rawProfile?.department_name ||
+		(scopeLevel === "department" ? scopeName : undefined) ||
+		(typeof rawProfile?.department === "string" ? rawProfile.department : undefined);
+
+	const resolvedFacultyId =
+		rawProfile?.faculty_id !== undefined && rawProfile?.faculty_id !== null && rawProfile?.faculty_id !== ""
+			? String(rawProfile.faculty_id)
+			: rawProfile?.scope_faculty_id !== undefined && rawProfile?.scope_faculty_id !== null && rawProfile?.scope_faculty_id !== ""
+				? String(rawProfile.scope_faculty_id)
+				: scopeLevel === "faculty" && scopeId
+					? scopeId
+					: undefined;
+
+	const resolvedFacultyName =
+		rawProfile?.faculty_name || (scopeLevel === "faculty" ? scopeName : undefined);
+
+	const resolvedSchoolId =
+		rawProfile?.school_id !== undefined && rawProfile?.school_id !== null && rawProfile?.school_id !== ""
+			? String(rawProfile.school_id)
+			: rawProfile?.scope_school_id !== undefined && rawProfile?.scope_school_id !== null && rawProfile?.scope_school_id !== ""
+				? String(rawProfile.scope_school_id)
+				: scopeLevel === "school" && scopeId
+					? scopeId
+					: undefined;
+
+	const resolvedSchoolName =
+		rawProfile?.school_name || (scopeLevel === "school" ? scopeName : undefined);
+
 	return {
 		id: String(rawUser.id),
 		isActive: rawUser.is_active,
 		identifier: rawUser.identifier,
-		name: rawProfile?.full_name || rawUser.identifier,
+		name: rawProfile?.full_name || (rawUser.is_superuser ? `System Administrator (${rawUser.identifier})` : rawUser.identifier),
 		email: rawProfile?.email || "",
 		role: rawUser.role,
 		staffId: rawProfile?.staff_id || rawUser.identifier,
 		matricNumber: rawProfile?.matric_number,
-		departmentId: rawProfile?.department ? String(rawProfile.department) : (scopeLevel === "department" ? scopeId : undefined),
-		departmentName: rawProfile?.department_name || (scopeLevel === "department" ? scopeName : undefined),
-		facultyId: scopeLevel === "faculty" ? scopeId : undefined,
-		facultyName: scopeLevel === "faculty" ? scopeName : undefined,
-		schoolId: scopeLevel === "school" ? scopeId : undefined,
-		schoolName: scopeLevel === "school" ? scopeName : undefined,
-		adminLevel: scopeLevel as User["adminLevel"],
+		departmentId: resolvedDeptId,
+		departmentName: resolvedDeptName,
+		facultyId: resolvedFacultyId,
+		facultyName: resolvedFacultyName,
+		schoolId: resolvedSchoolId,
+		schoolName: resolvedSchoolName,
+		adminLevel: (scopeLevel || (rawUser.is_superuser ? "system" : undefined)) as User["adminLevel"],
 		adminScopeId: scopeId,
-		adminScopeName: scopeName,
+		adminScopeName: scopeName || (rawUser.is_superuser ? "System Scope" : undefined),
 		level: rawProfile?.level,
 		isClassRep: rawProfile?.is_class_rep,
 		requiresPasswordReset: rawUser.requires_password_reset,
+		isLecturer: Boolean(rawProfile?.is_lecturer),
+		lecturerDepartmentId: rawProfile?.lecturer_department_id ? String(rawProfile.lecturer_department_id) : undefined,
+		lecturerDepartmentName: rawProfile?.lecturer_department_name,
+		isExamOfficer: Boolean(rawProfile?.is_exam_officer),
+		hasScopeExamOfficer: Boolean(rawProfile?.has_scope_exam_officer),
 	};
 }
 

@@ -67,13 +67,23 @@ export function getMondayOfWeek(date: Date): Date {
 }
 
 /**
- * Computes total number of weeks in a date range.
+/**
+ * Computes total number of weeks in a semester date range.
+ * Respects durationValue / durationType and prevents full calendar-year overcounting.
  */
 export function getTotalWeeks(
   startDateStr?: string,
   endDateStr?: string,
-  defaultWeeks = 15
+  defaultWeeks = 15,
+  durationValue?: number,
+  durationType?: string
 ): number {
+  if (durationType === "weeks" && durationValue && durationValue > 0) {
+    return durationValue;
+  }
+  if (durationValue && durationValue > 0 && durationValue <= 26) {
+    return durationValue;
+  }
   if (!startDateStr || !endDateStr) return defaultWeeks;
   const start = parseLocalDate(startDateStr);
   const end = parseLocalDate(endDateStr);
@@ -81,16 +91,22 @@ export function getTotalWeeks(
   if (diffTime <= 0) return defaultWeeks;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   const weeks = Math.ceil(diffDays / 7);
+  // Cap at 20 weeks if dates span an entire academic year / calendar year placeholder
+  if (weeks > 20) {
+    return durationValue && durationValue > 0 ? durationValue : defaultWeeks;
+  }
   return Math.max(1, weeks);
 }
 
 /**
- * Computes the current academic week number (1-indexed).
+ * Computes the current academic week number (1-indexed) relative to the semester start.
  */
 export function getCurrentWeekNumber(
   startDateStr?: string,
   endDateStr?: string,
-  totalWeeks = 15
+  totalWeeks = 15,
+  durationValue?: number,
+  durationType?: string
 ): number {
   if (!startDateStr) return 1;
   const start = getMondayOfWeek(parseLocalDate(startDateStr));
@@ -103,8 +119,70 @@ export function getCurrentWeekNumber(
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   const weekNum = Math.floor(diffDays / 7) + 1;
 
-  const maxWeeks = getTotalWeeks(startDateStr, endDateStr, totalWeeks);
+  const maxWeeks = getTotalWeeks(startDateStr, endDateStr, totalWeeks, durationValue, durationType);
   return Math.min(Math.max(1, weekNum), maxWeeks);
+}
+
+/**
+ * Helper to compute reference timeline, total weeks, and current week
+ * strictly relative to the active semester set by the school/system admin.
+ */
+export function getSemesterWeekTimeline(semester?: {
+  startDate?: string;
+  endDate?: string;
+  lectureStartDate?: string;
+  lectureEndDate?: string;
+  durationValue?: number;
+  durationType?: string;
+} | null): {
+  referenceStartDate: string;
+  referenceEndDate: string;
+  totalWeeks: number;
+  currentWeek: number;
+} {
+  if (!semester) {
+    const today = new Date();
+    const monday = getMondayOfWeek(today);
+    return {
+      referenceStartDate: formatDateToYYYYMMDD(monday),
+      referenceEndDate: formatDateToYYYYMMDD(new Date(monday.getTime() + 15 * 7 * 86400000)),
+      totalWeeks: 15,
+      currentWeek: 1,
+    };
+  }
+
+  // Priority 1: lectureStartDate (set by admin explicitly for lectures)
+  // Priority 2: startDate (semester start date set by admin)
+  const referenceStartDate =
+    semester.lectureStartDate || semester.startDate || formatDateToYYYYMMDD(new Date());
+
+  // Priority 1: lectureEndDate
+  // Priority 2: endDate
+  const referenceEndDate =
+    semester.lectureEndDate || semester.endDate || referenceStartDate;
+
+  const totalWeeks = getTotalWeeks(
+    referenceStartDate,
+    referenceEndDate,
+    15,
+    semester.durationValue,
+    semester.durationType
+  );
+
+  const currentWeek = getCurrentWeekNumber(
+    referenceStartDate,
+    referenceEndDate,
+    totalWeeks,
+    semester.durationValue,
+    semester.durationType
+  );
+
+  return {
+    referenceStartDate,
+    referenceEndDate,
+    totalWeeks,
+    currentWeek,
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 // User & Hierarchy Types
 export type UserRole = 'admin' | 'lecturer' | 'student';
-export type AdminLevel = 'university' | 'school' | 'faculty' | 'department';
+export type AdminLevel = 'system' | 'university' | 'school' | 'faculty' | 'department';
 
 export interface User {
   id: string;
@@ -27,6 +27,11 @@ export interface User {
   isClassRep?: boolean;
   isActive: boolean;
   requiresPasswordReset?: boolean;
+  isLecturer?: boolean;
+  lecturerDepartmentId?: string;
+  lecturerDepartmentName?: string;
+  isExamOfficer?: boolean;
+  hasScopeExamOfficer?: boolean;
 }
 
 export interface School {
@@ -80,7 +85,9 @@ export interface AcademicSession {
   label: string;
   startDate: string;
   endDate: string;
+  maxSemesters?: number;
   isCurrent: boolean;
+  isPast?: boolean;
   semesters?: Semester[];
   createdAt?: string;
 }
@@ -91,7 +98,7 @@ export interface Semester {
   sessionLabel?: string;
   schoolId?: string;
   schoolName?: string;
-  name: 'first' | 'second';
+  name: 'first' | 'second' | 'third' | 'fourth' | string;
   displayName?: string;
   startDate: string;
   endDate: string;
@@ -102,12 +109,14 @@ export interface Semester {
   examStartDate?: string;
   examEndDate?: string;
   isActive: boolean;
+  isPast?: boolean;
+  canActivate?: boolean;
   createdByName?: string;
   createdAt?: string;
 }
 
 // Venue & Facility Types
-export type VenueType = 'lecture_hall' | 'lab' | 'laboratory' | 'auditorium' | 'classroom' | 'multipurpose';
+export type VenueType = 'lecture_hall' | 'lab' | 'laboratory' | 'auditorium' | 'cbt_center' | 'exam_hall' | 'multipurpose';
 
 export interface Facility {
   id: string;
@@ -122,10 +131,13 @@ export interface Venue {
   venueType?: VenueType;
   capacity: number;
   examCapacity?: number;
+  location?: string;
   building?: string;
   owningLevel: AdminLevel;
   owningDepartmentId?: string;
   owningDepartmentName?: string;
+  owningFacultyId?: string;
+  owningSchoolId?: string;
   facilities: Facility[];
   isAvailable: boolean;
 }
@@ -147,13 +159,47 @@ export interface Course {
   owningDepartment?: string;
   semesterId?: string;
   semesterName?: string;
+  semesterCode?: string;
   sessionLabel?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;
   targetProgramName?: string;
   targetProgramCode?: string;
   lecturers: User[];
+  lecturerIds?: string[];
   registrationCount?: number;
+  courseType?: 'lecture' | 'practical';
+  requiredOccurrencesPerWeek?: number;
+  examType?: 'written' | 'cbt' | 'lab_practical';
+  examDurationMinutes?: number;
+  examDurationPerStudentMinutes?: number;
+  isGrantedToScope?: boolean;
+  scopeGrantId?: string;
+  activeGrants?: CourseActiveGrantInfo[];
+  canEditExamSettings?: boolean;
+  applicableProgramIds?: number[];
+}
+
+export interface CourseActiveGrantInfo {
+  id: string;
+  grantedToLevel: AdminLevel;
+  grantedToDepartmentId?: string;
+  grantedToDepartmentName?: string;
+  grantedToFacultyId?: string;
+  grantedToFacultyName?: string;
+  grantedToSchoolId?: string;
+  grantedToSchoolName?: string;
+  grantScope?: 'general' | 'program';
+  targetProgramId?: string;
+  targetProgramName?: string;
+  recipientLabel: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface CourseExamSettingsAccess {
+  is_exam_officer: boolean;
+  has_scope_exam_officer: boolean;
+  can_access_exam_tab: boolean;
 }
 
 export interface CourseAccessGrant {
@@ -161,6 +207,9 @@ export interface CourseAccessGrant {
   courseId: string;
   courseCode: string;
   courseTitle: string;
+  courseOwningDepartmentName?: string;
+  courseOwningFacultyName?: string;
+  courseOwningSchoolName?: string;
   grantedToLevel: AdminLevel;
   grantedToDepartmentId?: string;
   grantedToDepartmentName?: string;
@@ -188,10 +237,18 @@ export interface TimetableEntry {
   courseCode: string;
   courseTitle: string;
   courseLevel?: number;
+  courseType?: string;
+  departmentId?: string | number;
+  departmentName?: string;
+  facultyId?: string | number;
+  facultyName?: string;
   lecturerId?: string;
   lecturerName: string;
+  lecturers?: string[];
   venueId: string;
   venueName: string;
+  venueCapacity?: number;
+  expectedStudents?: number;
   dayOfWeek?: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
   startTime: string;
   endTime: string;
@@ -199,9 +256,10 @@ export interface TimetableEntry {
   semesterId?: string;
   semesterName?: string;
   sessionLabel?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;
   targetProgramName?: string;
+  targetLevel?: number;
   academicSession?: string;
   academicSessionId?: string;
   recurrenceRule?: string;
@@ -209,6 +267,7 @@ export interface TimetableEntry {
   recurrenceEndDate?: string;
   hasConflict?: boolean;
   conflictReason?: string;
+  status?: 'scheduled' | 'shifted' | 'postponed' | 'cancelled' | 'pending_approval' | string;
 }
 
 export type SessionStatus = 'scheduled' | 'shifted' | 'postponed' | 'cancelled' | 'held' | 'not_held';
@@ -217,13 +276,24 @@ export interface LectureSession {
   id: string;
   entryId: string;
   timetableEntryId?: string;
+  timetableEntryTitle?: string;
+  title?: string;
   entryType?: SessionType;
   courseCode: string;
   courseTitle: string;
   courseLevel?: number;
+  targetLevel?: number;
+  courseType?: string;
+  departmentId?: string | number;
+  departmentName?: string;
+  facultyId?: string | number;
+  facultyName?: string;
   lecturerName: string;
+  lecturers?: string[];
   venueId: string;
   venueName: string;
+  venueCapacity?: number;
+  dayOfWeek?: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -231,10 +301,12 @@ export interface LectureSession {
   targetProgramId?: string;
   programName?: string;
   programCode?: string;
-  programScope?: 'general' | 'program';
+  programScope?: 'general' | 'program' | 'all';
   hasReport?: boolean;
   canShift?: boolean;
   reportStatus?: 'held' | 'not_held' | 'unreported';
+  hasConflict?: boolean;
+  conflictReason?: string;
 }
 
 export interface ExamSitting {
@@ -359,6 +431,36 @@ export interface AnalyticsSummary {
   unreportedFlags: number;
 }
 
+export interface HoldRateBreakdownItem {
+  key?: string;
+  label?: string;
+  courseId?: string;
+  courseCode?: string;
+  courseTitle?: string;
+  lecturerId?: string;
+  lecturerName?: string;
+  staffId?: string;
+  programId?: string;
+  programName?: string;
+  programCode?: string;
+  departmentId?: string;
+  departmentName?: string;
+  departmentCode?: string;
+  facultyId?: string;
+  facultyName?: string;
+  facultyCode?: string;
+  level?: number;
+  weekNumber?: number;
+  dateRange?: string;
+  heldCount: number;
+  notHeldCount?: number;
+  unreportedCount?: number;
+  totalCount?: number;
+  totalReports?: number;
+  totalSessions?: number;
+  holdRatePercentage?: number;
+}
+
 export interface HoldRateAnalytics {
   summary: {
     totalReports: number;
@@ -368,30 +470,21 @@ export interface HoldRateAnalytics {
     unreportedCount?: number;
     holdRatePercentage: number;
   };
-  breakdown: Array<{
-    key?: string;
-    label?: string;
-    courseId?: string;
-    courseCode?: string;
-    courseTitle?: string;
-    heldCount: number;
-    notHeldCount?: number;
-    unreportedCount?: number;
-    totalCount?: number;
-    totalReports?: number;
-    totalSessions?: number;
-    holdRatePercentage?: number;
-  }>;
+  breakdown: HoldRateBreakdownItem[];
 }
 
 export interface VenueUtilizationAnalytics {
   summary: {
     totalBookedHours: number;
     totalVenues: number;
+    totalFaculties?: number;
   };
   breakdown: Array<{
-    venueId: string;
-    venueName: string;
+    venueId?: string;
+    venueName?: string;
+    facultyId?: string;
+    facultyName?: string;
+    facultyCode?: string;
     totalBookedHours: number;
     utilizationPercentage?: number;
     totalSessions?: number;
@@ -410,4 +503,256 @@ export interface DiscrepancyAnalytics {
     byRequestType?: Record<string, number>;
   };
   byType?: Record<string, number>;
+}
+
+// Timetable Generation Types
+export type GenerationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type GenerationResultStatus = 'optimal' | 'feasible' | 'best_available' | 'failed';
+
+export interface GeneratedAssignment {
+  occurrence_id: string;
+  course_id: number | string;
+  course_code: string;
+  course_title: string;
+  occurrence_index: number;
+  course_type: string;
+  day: string;
+  day_name: string;
+  period_index: number;
+  start_time: string;
+  end_time: string;
+  venue_id: number | string;
+  venue_name: string;
+  expected_students: number;
+  department_id?: number | string;
+  department_name?: string;
+  level?: number;
+  programs?: Array<{ id: number | string; code: string; name: string; level?: number }>;
+  program_ids?: Array<number | string>;
+  program_names?: string[];
+  lecturers?: string[];
+  lecturer_ids?: Array<number | string>;
+}
+
+export interface ConflictItem {
+  slot?: {
+    day?: string;
+    start_time?: string;
+    end_time?: string;
+    [key: string]: unknown;
+  };
+  day?: string;
+  description?: string;
+  deficit?: number | string;
+  overflow?: number | string;
+  course_code?: string;
+  student_group?: string;
+  [key: string]: unknown;
+}
+
+export interface GenerationConflictReport {
+  status?: string;
+  is_feasible?: boolean;
+  occurrences_scheduled?: number;
+  hard_conflicts_total?: number;
+  summary?: {
+    student_conflicts?: number;
+    lecturer_conflicts?: number;
+    venue_conflicts?: number;
+    daily_limit_violations?: number;
+    occurrence_day_violations?: number;
+    capacity_penalty?: number;
+    fitness_score?: number;
+    quality_percentage?: number;
+    raw_fitness?: number;
+    [key: string]: unknown;
+  };
+  details?: {
+    student_conflicts?: ConflictItem[];
+    lecturer_conflicts?: ConflictItem[];
+    venue_conflicts?: ConflictItem[];
+    daily_limit_violations?: ConflictItem[];
+    occurrence_day_violations?: ConflictItem[];
+    capacity_overflows?: ConflictItem[];
+    capacity_violations?: ConflictItem[];
+    [key: string]: unknown;
+  };
+  student_conflicts?: ConflictItem[];
+  lecturer_conflicts?: ConflictItem[];
+  venue_conflicts?: ConflictItem[];
+  daily_limit_violations?: ConflictItem[];
+  occurrence_day_violations?: ConflictItem[];
+  capacity_violations?: ConflictItem[];
+  capacity_overflows?: ConflictItem[];
+  [key: string]: unknown;
+}
+
+export interface GenerationMetrics {
+  generations_run?: number;
+  best_fitness?: number;
+  elapsed_seconds?: number;
+  runtime_seconds?: number;
+  occurrences_total?: number;
+  population_size?: number;
+  termination_reason?: string;
+  [key: string]: unknown;
+}
+
+export interface TimetableGenerationRun {
+  id: string;
+  semesterId: string;
+  semesterName?: string;
+  scopeType: 'school' | 'faculty' | 'department';
+  scopeId: string;
+  scopeName?: string;
+  status: GenerationStatus;
+  resultStatus: GenerationResultStatus;
+  hardConflictsCount: number;
+  studentConflictsCount: number;
+  lecturerConflictsCount: number;
+  venueConflictsCount: number;
+  dailyLimitViolationsCount: number;
+  occurrenceDayViolationsCount: number;
+  capacityPenalty: number;
+  fitnessScore: number;
+  conflictReport: GenerationConflictReport;
+  generationMetrics: GenerationMetrics;
+  assignmentsPayload?: GeneratedAssignment[];
+  isPublished: boolean;
+  initiatedByName?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface GenerationScopePermission {
+  id: string;
+  schoolId: string;
+  schoolName?: string;
+  allowFacultyGeneration: boolean;
+  allowDepartmentGeneration: boolean;
+  allowFacultyExamPeriod?: boolean;
+  allowFacultyExamGeneration?: boolean;
+  allowDepartmentExamGeneration?: boolean;
+  updatedAt?: string;
+}
+
+export interface FacultyExamPeriod {
+  id: string;
+  semesterId: string;
+  semesterName?: string;
+  facultyId: string;
+  facultyName?: string;
+  facultyCode?: string;
+  startDate: string;
+  endDate: string;
+  createdByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface EffectiveExamPeriod {
+  semesterId: string;
+  schoolId?: string;
+  schoolExamStartDate?: string;
+  schoolExamEndDate?: string;
+  allowFacultyExamPeriod: boolean;
+  effectiveStartDate?: string;
+  effectiveEndDate?: string;
+  source: 'faculty' | 'school' | 'none';
+  isSet: boolean;
+  facultyId?: string;
+  facultyName?: string;
+}
+
+export interface GenerateTimetablePayload {
+  semester?: string | number;
+  semester_id?: string | number;
+  scope_type: 'school' | 'faculty' | 'department';
+  scope_id: string | number;
+  population_size?: number;
+  max_generations?: number;
+  mutation_rate?: number;
+  stagnation_limit?: number;
+  publish_immediately?: boolean;
+}
+
+export interface GenerationFacultyProgressItem {
+  id: number | string;
+  code: string;
+  name: string;
+  population: number;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  occurrencesCount?: number;
+}
+
+export interface GenerationProgressEvent {
+  stage: 'init' | 'core' | 'faculty' | 'finalizing' | 'complete' | 'error';
+  step?: number;
+  totalSteps?: number;
+  percent: number;
+  facultyId?: number | string;
+  facultyName?: string;
+  facultyCode?: string;
+  population?: number;
+  status?: 'running' | 'completed' | 'failed';
+  message: string;
+  occurrencesPlaced?: number;
+  totalOccurrences?: number;
+  runId?: string;
+  run?: TimetableGenerationRun | any;
+  faculties?: GenerationFacultyProgressItem[];
+}
+
+export interface PublishRunResult {
+  status: string;
+  entries_created: number;
+  sessions_materialized: number;
+  entries_deleted: number;
+}
+
+export interface DashboardStatCard {
+  id: string;
+  title: string;
+  value: string | number;
+  unit?: string;
+  badge?: string;
+  badge_variant?: 'success' | 'warning' | 'danger' | 'neutral';
+  description?: string;
+}
+
+export interface DashboardStatCardsResponse {
+  role_level: 'system' | 'school' | 'faculty' | 'department';
+  cards: DashboardStatCard[];
+}
+
+export interface CapacityDeficitAnalytics {
+  role_level: string;
+  is_applicable: boolean;
+  scope_name?: string;
+  average_deficit?: number;
+  peak_deficit?: number;
+  total_sessions_analyzed?: number;
+  overcrowded_sessions_count?: number;
+  overcrowding_percentage?: number;
+  case_aware_remark?: string;
+  status_variant?: 'success' | 'warning' | 'danger';
+  message?: string;
+}
+
+export interface ExamAnalyticsSummary {
+  total_sittings: number;
+  total_candidates: number;
+  total_invigilators: number;
+  total_venues: number;
+}
+
+export interface ExamAnalyticsDailyBreakdown {
+  date: string;
+  sittings: number;
+  candidates: number;
+}
+
+export interface ExamAnalyticsResponse {
+  summary: ExamAnalyticsSummary;
+  daily_breakdown: ExamAnalyticsDailyBreakdown[];
 }

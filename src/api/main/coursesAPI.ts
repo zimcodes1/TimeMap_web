@@ -1,5 +1,5 @@
 import apiClient from "@/api/apiClient";
-import type { Course, CourseAccessGrant, AdminLevel, User } from "@/types";
+import type { Course, CourseAccessGrant, AdminLevel, User, CourseExamSettingsAccess } from "@/types";
 
 interface RawCourse {
   id: number | string;
@@ -15,13 +15,46 @@ interface RawCourse {
   owning_school_name?: string;
   semester?: number | string | null;
   semester_name?: string;
+  semester_code?: string;
   session_label?: string;
   program_scope?: "general" | "program";
   target_program?: number | string | null;
   target_program_name?: string;
   target_program_code?: string;
   lecturers?: (number | string)[];
+  lecturers_details?: {
+    id: number | string;
+    staff_id: string;
+    name: string;
+    email?: string;
+    department_id?: number | string;
+    department_name?: string;
+  }[];
   registration_count?: number;
+  course_type?: "lecture" | "practical";
+  required_occurrences_per_week?: number;
+  exam_type?: "written" | "cbt" | "lab_practical";
+  exam_duration_minutes?: number | null;
+  exam_duration_per_student_minutes?: number | null;
+  is_granted_to_scope?: boolean;
+  scope_grant_id?: number | string | null;
+  active_grants?: {
+    id: number | string;
+    granted_to_level: AdminLevel;
+    granted_to_department_id?: number | string | null;
+    granted_to_department_name?: string | null;
+    granted_to_faculty_id?: number | string | null;
+    granted_to_faculty_name?: string | null;
+    granted_to_school_id?: number | string | null;
+    granted_to_school_name?: string | null;
+    grant_scope?: "general" | "program";
+    target_program_id?: number | string | null;
+    target_program_name?: string | null;
+    recipient_label?: string;
+    status: "pending" | "approved" | "rejected";
+  }[];
+  can_edit_exam_settings?: boolean;
+  applicable_program_ids?: number[];
 }
 
 interface RawGrant {
@@ -29,6 +62,9 @@ interface RawGrant {
   course: number | string;
   course_code?: string;
   course_title?: string;
+  course_owning_department_name?: string;
+  course_owning_faculty_name?: string;
+  course_owning_school_name?: string;
   granted_to_level: AdminLevel;
   granted_to_department?: number | string | null;
   granted_to_department_name?: string;
@@ -62,7 +98,36 @@ interface RawRegistration {
 
 export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = []): Course {
   const assignedLecturerIds = Array.isArray(raw.lecturers) ? raw.lecturers.map(String) : [];
-  const assignedLecturers = lecturersList.filter((l) => assignedLecturerIds.includes(l.id));
+
+  let assignedLecturers: User[] = [];
+  if (Array.isArray(raw.lecturers_details) && raw.lecturers_details.length > 0) {
+    assignedLecturers = raw.lecturers_details.map((l) => ({
+      id: String(l.id),
+      identifier: l.staff_id || "",
+      name: l.name || "",
+      email: l.email || "",
+      role: "lecturer" as const,
+      departmentId: l.department_id ? String(l.department_id) : undefined,
+      departmentName: l.department_name,
+      staffId: l.staff_id,
+      isActive: true,
+      requiresPasswordReset: false,
+    }));
+  } else if (assignedLecturerIds.length > 0) {
+    assignedLecturers = assignedLecturerIds.map((id) => {
+      const found = lecturersList.find((l) => String(l.id) === String(id));
+      if (found) return found;
+      return {
+        id: String(id),
+        identifier: String(id),
+        name: `Lecturer #${id}`,
+        email: "",
+        role: "lecturer" as const,
+        isActive: true,
+        requiresPasswordReset: false,
+      };
+    });
+  }
 
   return {
     id: String(raw.id),
@@ -79,13 +144,52 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     owningDepartment: raw.owning_department ? String(raw.owning_department) : undefined,
     semesterId: raw.semester ? String(raw.semester) : undefined,
     semesterName: raw.semester_name,
+    semesterCode:
+      raw.semester_code ||
+      (raw.semester_name?.toLowerCase().includes("first")
+        ? "first"
+        : raw.semester_name?.toLowerCase().includes("second")
+          ? "second"
+          : undefined),
     sessionLabel: raw.session_label,
     programScope: raw.program_scope || "general",
     targetProgramId: raw.target_program ? String(raw.target_program) : undefined,
     targetProgramName: raw.target_program_name,
     targetProgramCode: raw.target_program_code,
     lecturers: assignedLecturers,
+    lecturerIds: assignedLecturerIds,
     registrationCount: raw.registration_count || 0,
+    courseType: raw.course_type || "lecture",
+    requiredOccurrencesPerWeek: raw.required_occurrences_per_week ?? 1,
+    examType: raw.exam_type || "written",
+    examDurationMinutes: raw.exam_duration_minutes || undefined,
+    examDurationPerStudentMinutes: raw.exam_duration_per_student_minutes || undefined,
+    isGrantedToScope: Boolean(raw.is_granted_to_scope),
+    scopeGrantId: raw.scope_grant_id ? String(raw.scope_grant_id) : undefined,
+    activeGrants: Array.isArray(raw.active_grants)
+      ? raw.active_grants.map((g) => ({
+          id: String(g.id),
+          grantedToLevel: g.granted_to_level,
+          grantedToDepartmentId: g.granted_to_department_id ? String(g.granted_to_department_id) : undefined,
+          grantedToDepartmentName: g.granted_to_department_name || undefined,
+          grantedToFacultyId: g.granted_to_faculty_id ? String(g.granted_to_faculty_id) : undefined,
+          grantedToFacultyName: g.granted_to_faculty_name || undefined,
+          grantedToSchoolId: g.granted_to_school_id ? String(g.granted_to_school_id) : undefined,
+          grantedToSchoolName: g.granted_to_school_name || undefined,
+          grantScope: g.grant_scope,
+          targetProgramId: g.target_program_id ? String(g.target_program_id) : undefined,
+          targetProgramName: g.target_program_name || undefined,
+          recipientLabel:
+            g.recipient_label ||
+            g.granted_to_department_name ||
+            g.granted_to_faculty_name ||
+            g.granted_to_school_name ||
+            "All Scopes",
+          status: g.status,
+        }))
+      : [],
+    canEditExamSettings: Boolean(raw.can_edit_exam_settings),
+    applicableProgramIds: raw.applicable_program_ids || [],
   };
 }
 
@@ -95,6 +199,9 @@ export function mapRawGrantToGrant(raw: RawGrant): CourseAccessGrant {
     courseId: String(raw.course),
     courseCode: raw.course_code || "",
     courseTitle: raw.course_title || "",
+    courseOwningDepartmentName: raw.course_owning_department_name,
+    courseOwningFacultyName: raw.course_owning_faculty_name,
+    courseOwningSchoolName: raw.course_owning_school_name,
     grantedToLevel: raw.granted_to_level || "department",
     grantedToDepartmentId: raw.granted_to_department ? String(raw.granted_to_department) : undefined,
     grantedToDepartmentName: raw.granted_to_department_name,
@@ -114,26 +221,36 @@ export function mapRawGrantToGrant(raw: RawGrant): CourseAccessGrant {
 
 export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string; lecturerIds?: string[] }) {
   const owningLevel = data.owningLevel || "department";
-  const targetScopeId = data.scopeId || data.departmentId;
-  const lecturerIds = Array.isArray(data.lecturers)
-    ? data.lecturers.map((l) => Number(l.id)).filter(Boolean)
-    : Array.isArray(data.lecturerIds)
-      ? data.lecturerIds.map(Number).filter(Boolean)
-      : [];
+  const targetScopeId = data.scopeId || data.owningDepartment || data.departmentId;
+  const lecturerIds = Array.isArray(data.lecturerIds)
+    ? data.lecturerIds.map(Number).filter(Boolean)
+    : Array.isArray(data.lecturers)
+      ? data.lecturers.map((l) => Number(l.id)).filter(Boolean)
+      : undefined;
 
-  return {
+  const payload: Record<string, any> = {
     code: data.code?.trim().toUpperCase(),
     title: data.title?.trim(),
     level: Number(data.level || 100),
     owning_level: owningLevel,
-    owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : undefined,
-    owning_faculty: owningLevel === "faculty" && targetScopeId ? Number(targetScopeId) : undefined,
-    owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : undefined,
+    owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : (data.owningDepartment ? Number(data.owningDepartment) : undefined),
+    owning_faculty: owningLevel === "faculty" && targetScopeId ? Number(targetScopeId) : (data.owningFaculty ? Number(data.owningFaculty) : undefined),
+    owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : (data.owningSchool ? Number(data.owningSchool) : undefined),
     semester: data.semesterId ? Number(data.semesterId) : undefined,
     program_scope: data.programScope || "general",
     target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
-    lecturers: lecturerIds,
+    course_type: data.courseType || "lecture",
+    required_occurrences_per_week: data.requiredOccurrencesPerWeek ? Number(data.requiredOccurrencesPerWeek) : 1,
+    exam_type: data.examType || undefined,
+    exam_duration_minutes: data.examDurationMinutes ? Number(data.examDurationMinutes) : undefined,
+    exam_duration_per_student_minutes: data.examDurationPerStudentMinutes ? Number(data.examDurationPerStudentMinutes) : undefined,
   };
+
+  if (lecturerIds !== undefined) {
+    payload.lecturers = lecturerIds;
+  }
+
+  return payload;
 }
 
 /**
@@ -141,7 +258,11 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
  */
 export async function getCoursesList(
   lecturersList: User[] = [],
-  params?: { semester?: string | number; program?: string | number }
+  params?: {
+    semester?: string | number;
+    program?: string | number;
+    lecturer?: string | number;
+  }
 ): Promise<Course[]> {
   const response = await apiClient.get<RawCourse[] | { results: RawCourse[] }>("/courses/courses/", { params });
   const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
@@ -171,6 +292,41 @@ export async function updateCourseAPI(
   const payload = mapCourseToRawPayload(data);
   const response = await apiClient.patch<RawCourse>(`/courses/courses/${id}/`, payload);
   return mapRawCourseToCourse(response.data, lecturersList);
+}
+
+/**
+ * PATCH /api/courses/courses/{id}/
+ * Specialized payload for exam officers and scope admins updating exam settings only.
+ */
+export async function updateCourseExamSettingsAPI(
+  id: string,
+  settings: {
+    examType: "written" | "cbt" | "lab_practical";
+    examDurationMinutes?: number | null;
+    examDurationPerStudentMinutes?: number | null;
+  },
+  lecturersList: User[] = []
+): Promise<Course> {
+  const payload = {
+    exam_type: settings.examType,
+    exam_duration_minutes:
+      settings.examType === "cbt" ? null : (settings.examDurationMinutes ?? 120),
+    exam_duration_per_student_minutes:
+      settings.examType === "cbt" ? (settings.examDurationPerStudentMinutes ?? 45) : null,
+  };
+  const response = await apiClient.patch<RawCourse>(`/courses/courses/${id}/`, payload);
+  return mapRawCourseToCourse(response.data, lecturersList);
+}
+
+/**
+ * GET /api/courses/courses/exam-settings-access/
+ * Resolves current user's role and permission to view/edit course exam settings.
+ */
+export async function getCourseExamSettingsAccessAPI(): Promise<CourseExamSettingsAccess> {
+  const response = await apiClient.get<CourseExamSettingsAccess>(
+    "/courses/courses/exam-settings-access/"
+  );
+  return response.data;
 }
 
 /**
@@ -220,6 +376,13 @@ export async function approveCourseGrantAPI(id: string): Promise<CourseAccessGra
 export async function rejectCourseGrantAPI(id: string): Promise<CourseAccessGrant> {
   const response = await apiClient.post<RawGrant>(`/courses/grants/${id}/reject/`);
   return mapRawGrantToGrant(response.data);
+}
+
+/**
+ * POST /api/courses/grants/{id}/cancel/
+ */
+export async function cancelCourseGrantAPI(id: string): Promise<void> {
+  await apiClient.post(`/courses/grants/${id}/cancel/`);
 }
 
 /**

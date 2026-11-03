@@ -1,4 +1,4 @@
-import { RefreshCw, CalendarRange, Plus } from "lucide-react";
+import { RefreshCw, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { SessionsAndSemestersView } from "@/components/semesters/SessionsAndSemestersView";
@@ -12,7 +12,10 @@ export interface SemestersViewProps {
 	isRefetching: boolean;
 	onManualRefresh: () => void;
 	onOpenCreateSession: () => void;
-	onOpenCreateSemester: () => void;
+	onOpenCreateSemester: (defaultSessionId?: string) => void;
+	onEditSession: (session: AcademicSession) => void;
+	onSetCurrentSession: (id: string) => void;
+	onDeleteSession: (id: string, label: string) => void;
 	onEditSemester: (semester: Semester) => void;
 	onActivateSemester: (id: string) => void;
 	onDeleteSemester: (id: string, name: string) => void;
@@ -28,6 +31,9 @@ export default function SemestersView({
 	onManualRefresh,
 	onOpenCreateSession,
 	onOpenCreateSemester,
+	onEditSession,
+	onSetCurrentSession,
+	onDeleteSession,
 	onEditSemester,
 	onActivateSemester,
 	onDeleteSemester,
@@ -69,25 +75,6 @@ export default function SemestersView({
 						/>
 						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
 					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onOpenCreateSession}
-						className="cursor-pointer"
-					>
-						<Plus size={15} className="mr-1" /> New Session
-					</Button>
-
-					<Button
-						variant="primary"
-						size="sm"
-						onClick={onOpenCreateSemester}
-						disabled={sessions.length === 0}
-						className="cursor-pointer"
-					>
-						<Plus size={15} className="mr-1" /> New Semester
-					</Button>
 				</div>
 			</div>
 
@@ -99,6 +86,9 @@ export default function SemestersView({
 				canManage={true}
 				onOpenCreateSession={onOpenCreateSession}
 				onOpenCreateSemester={onOpenCreateSemester}
+				onEditSession={onEditSession}
+				onSetCurrentSession={onSetCurrentSession}
+				onDeleteSession={onDeleteSession}
 				onEditSemester={onEditSemester}
 				onActivateSemester={onActivateSemester}
 				onDeleteSemester={onDeleteSemester}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SemestersView from "@/pages/main/SemestersView";
 import CreateAcademicSessionModal from "@/components/modals/CreateAcademicSessionModal";
+import EditAcademicSessionModal from "@/components/modals/EditAcademicSessionModal";
 import CreateSemesterModal from "@/components/modals/CreateSemesterModal";
 import EditSemesterModal from "@/components/modals/EditSemesterModal";
 import DeleteConfirmModal from "@/components/modals/DeleteConfirmModal";
@@ -10,13 +11,16 @@ import { getSchoolsList } from "@/api/main/hierarchyAPI";
 import {
 	getAcademicSessions,
 	createAcademicSession,
+	updateAcademicSession,
+	setCurrentAcademicSession,
+	deleteAcademicSession,
 	getSemesters,
 	createSemester,
 	updateSemester,
 	activateSemester,
 	deleteSemester,
 } from "@/api/main/semestersAPI";
-import type { Semester } from "@/types";
+import type { AcademicSession, Semester } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
@@ -32,11 +36,17 @@ export default function SemestersContainer() {
 
 	// Modal States
 	const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
+	const [editingSession, setEditingSession] = useState<AcademicSession | null>(
+		null,
+	);
 	const [isCreateSemesterOpen, setIsCreateSemesterOpen] = useState(false);
+	const [selectedSessionIdForSemester, setSelectedSessionIdForSemester] =
+		useState<string | undefined>(undefined);
 	const [editingSemester, setEditingSemester] = useState<Semester | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<{
 		id: string;
 		name: string;
+		type: "session" | "semester";
 	} | null>(null);
 
 	// Queries
@@ -75,7 +85,7 @@ export default function SemestersContainer() {
 		toast.success("Academic calendar data refreshed");
 	};
 
-	// Mutations
+	// Session Mutations
 	const createSessionMutation = useMutation({
 		mutationFn: createAcademicSession,
 		onSuccess: () => {
@@ -84,26 +94,99 @@ export default function SemestersContainer() {
 			queryClient.invalidateQueries({
 				queryKey: ["scheduling", "academic-sessions"],
 			});
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "semesters"],
+			});
 		},
 		onError: (err: any) => {
 			const msg =
-				err?.response?.data?.detail || "Failed to create academic session";
+				err?.response?.data?.detail ||
+				err?.response?.data?.error ||
+				"Failed to create academic session";
 			toast.error(msg);
 		},
 	});
 
+	const updateSessionMutation = useMutation({
+		mutationFn: ({ id, data }: { id: string; data: any }) =>
+			updateAcademicSession(id, data),
+		onSuccess: () => {
+			toast.success("Academic session updated successfully");
+			setEditingSession(null);
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "academic-sessions"],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "semesters"],
+			});
+		},
+		onError: (err: any) => {
+			const msg =
+				err?.response?.data?.detail ||
+				err?.response?.data?.error ||
+				"Failed to update academic session";
+			toast.error(msg);
+		},
+	});
+
+	const setCurrentSessionMutation = useMutation({
+		mutationFn: (id: string) => setCurrentAcademicSession(id),
+		onSuccess: () => {
+			toast.success("Current academic session updated");
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "academic-sessions"],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "semesters"],
+			});
+		},
+		onError: (err: any) => {
+			const msg =
+				err?.response?.data?.detail ||
+				err?.response?.data?.error ||
+				"Failed to set current academic session";
+			toast.error(msg);
+		},
+	});
+
+	const deleteSessionMutation = useMutation({
+		mutationFn: (id: string) => deleteAcademicSession(id),
+		onSuccess: () => {
+			toast.success("Academic session deleted successfully");
+			setDeleteTarget(null);
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "academic-sessions"],
+			});
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "semesters"],
+			});
+		},
+		onError: (err: any) => {
+			const msg =
+				err?.response?.data?.detail ||
+				err?.response?.data?.error ||
+				"Failed to delete academic session";
+			toast.error(msg);
+		},
+	});
+
+	// Semester Mutations
 	const createSemesterMutation = useMutation({
 		mutationFn: createSemester,
 		onSuccess: () => {
 			toast.success("Semester created successfully");
 			setIsCreateSemesterOpen(false);
+			setSelectedSessionIdForSemester(undefined);
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "semesters"] });
 			queryClient.invalidateQueries({
 				queryKey: ["scheduling", "academic-sessions"],
 			});
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to create semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to create semester";
 			toast.error(msg);
 		},
 	});
@@ -117,7 +200,10 @@ export default function SemestersContainer() {
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "semesters"] });
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to update semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to update semester";
 			toast.error(msg);
 		},
 	});
@@ -132,7 +218,10 @@ export default function SemestersContainer() {
 			});
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to activate semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to activate semester";
 			toast.error(msg);
 		},
 	});
@@ -143,6 +232,9 @@ export default function SemestersContainer() {
 			toast.success("Semester deleted");
 			setDeleteTarget(null);
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "semesters"] });
+			queryClient.invalidateQueries({
+				queryKey: ["scheduling", "academic-sessions"],
+			});
 		},
 		onError: (err: any) => {
 			const msg = err?.response?.data?.detail || "Failed to delete semester";
@@ -160,10 +252,14 @@ export default function SemestersContainer() {
 					<ShieldAlert size={28} />
 				</div>
 				<div>
-					<Text variant="h5" weight="bold" className="text-text-main">
+					<Text
+						variant="h5"
+						weight="bold"
+						className="text-text-main text-center"
+					>
 						Access Restricted
 					</Text>
-					<Text variant="body-sm" color="muted" className="mt-1">
+					<Text variant="body-sm" color="muted" className="mt-1 text-center">
 						Academic sessions and semester configuration is exclusively managed
 						by School-Level Administrators.
 					</Text>
@@ -187,13 +283,24 @@ export default function SemestersContainer() {
 				isRefetching={isRefetching}
 				onManualRefresh={handleManualRefresh}
 				onOpenCreateSession={() => setIsCreateSessionOpen(true)}
-				onOpenCreateSemester={() => setIsCreateSemesterOpen(true)}
+				onOpenCreateSemester={(sId) => {
+					setSelectedSessionIdForSemester(sId);
+					setIsCreateSemesterOpen(true);
+				}}
+				onEditSession={(sess) => setEditingSession(sess)}
+				onSetCurrentSession={(id) => setCurrentSessionMutation.mutate(id)}
+				onDeleteSession={(id, name) =>
+					setDeleteTarget({ id, name, type: "session" })
+				}
 				onEditSemester={(sem) => setEditingSemester(sem)}
 				onActivateSemester={(id) => activateSemesterMutation.mutate(id)}
-				onDeleteSemester={(id, name) => setDeleteTarget({ id, name })}
+				onDeleteSemester={(id, name) =>
+					setDeleteTarget({ id, name, type: "semester" })
+				}
 				currentUser={user}
 			/>
 
+			{/* Create Session Modal */}
 			<CreateAcademicSessionModal
 				isOpen={isCreateSessionOpen}
 				onClose={() => setIsCreateSessionOpen(false)}
@@ -203,14 +310,30 @@ export default function SemestersContainer() {
 				isPending={createSessionMutation.isPending}
 			/>
 
+			{/* Edit Session Modal */}
+			<EditAcademicSessionModal
+				isOpen={Boolean(editingSession)}
+				onClose={() => setEditingSession(null)}
+				session={editingSession}
+				onSubmit={(id, data) => updateSessionMutation.mutate({ id, data })}
+				isPending={updateSessionMutation.isPending}
+			/>
+
+			{/* Create Semester Modal */}
 			<CreateSemesterModal
 				isOpen={isCreateSemesterOpen}
-				onClose={() => setIsCreateSemesterOpen(false)}
+				onClose={() => {
+					setIsCreateSemesterOpen(false);
+					setSelectedSessionIdForSemester(undefined);
+				}}
 				onSubmit={(data) => createSemesterMutation.mutate(data)}
 				sessions={sessions}
+				existingSemesters={semesters}
+				defaultSessionId={selectedSessionIdForSemester}
 				isPending={createSemesterMutation.isPending}
 			/>
 
+			{/* Edit Semester Modal */}
 			<EditSemesterModal
 				isOpen={Boolean(editingSemester)}
 				onClose={() => setEditingSemester(null)}
@@ -219,14 +342,22 @@ export default function SemestersContainer() {
 				isPending={updateSemesterMutation.isPending}
 			/>
 
+			{/* Delete Confirmation Modal for Session or Semester */}
 			<DeleteConfirmModal
 				isOpen={Boolean(deleteTarget)}
 				onClose={() => setDeleteTarget(null)}
 				onConfirm={() => {
-					if (deleteTarget) deleteSemesterMutation.mutate(deleteTarget.id);
+					if (!deleteTarget) return;
+					if (deleteTarget.type === "session") {
+						deleteSessionMutation.mutate(deleteTarget.id);
+					} else {
+						deleteSemesterMutation.mutate(deleteTarget.id);
+					}
 				}}
 				itemName={deleteTarget?.name || ""}
-				itemType="Semester"
+				itemType={
+					deleteTarget?.type === "session" ? "Academic Session" : "Semester"
+				}
 			/>
 		</>
 	);

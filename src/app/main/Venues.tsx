@@ -187,6 +187,9 @@ export default function VenuesContainer() {
         onSubmit={handleEditVenue}
         venue={editingVenue}
         facilitiesList={facilities}
+        departments={departments}
+        faculties={faculties}
+        schools={schools}
       />
 
       <ToggleVenueStatusModal

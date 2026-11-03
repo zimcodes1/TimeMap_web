@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -8,10 +9,21 @@ import {
 	getVenuesOptions,
 	createTimetableEntry,
 	updateLectureSessionAPI,
+	cancelLectureSessionAPI,
 	type CreateScheduleEntryPayload,
 } from "@/api/main/schedulesAPI";
 import { getPrograms } from "@/api/main/programsAPI";
-import { getSemesters } from "@/api/main/semestersAPI";
+import { getSemesters, getAcademicSessions } from "@/api/main/semestersAPI";
+import {
+	getSchoolsList,
+	getFacultiesList,
+	getDepartmentsList,
+} from "@/api/main/hierarchyAPI";
+import {
+	getGenerationPermissions,
+	getGenerationRuns,
+	getGenerationRunDetail,
+} from "@/api/main/generationAPI";
 import type {
 	TimetableEntry,
 	LectureSession,
@@ -19,32 +31,84 @@ import type {
 	Venue,
 	Program,
 	Semester,
+	AcademicSession,
+	School,
+	Faculty,
+	Department,
+	TimetableGenerationRun,
 } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 import {
-	getCurrentWeekNumber,
-	getTotalWeeks,
 	getWeekRange,
 	getWeekDayDates,
+	getSemesterWeekTimeline,
 } from "@/utils/semesterWeeks";
+import {
+	filterFacultiesByScope,
+	filterDepartmentsByScope,
+	getAdminScopeLabel,
+} from "@/lib/scopeUtils";
+import type { DepartmentOption } from "@/components/schedules/generator/DepartmentLoopBar";
 import SchedulesView from "@/pages/main/SchedulesView";
 import ScheduleEntryModal from "@/components/modals/ScheduleEntryModal";
+import { ScheduleEventModal } from "@/components/modals/ScheduleEventModal";
 import SessionShiftModal from "@/components/modals/SessionShiftModal";
 import ConflictFeedbackModal from "@/components/modals/ConflictFeedbackModal";
+import { GenerateTimetableModal } from "@/components/schedules/GenerateTimetableModal";
+import { GenerationReportModal } from "@/components/schedules/GenerationReportModal";
+import { GenerationHistoryModal } from "@/components/schedules/GenerationHistoryModal";
+import { GenerationPermissionsModal } from "@/components/schedules/GenerationPermissionsModal";
+import {
+	ApproveRecurringScheduleModal,
+	type RecurringScheduleApprovalInfo,
+} from "@/components/modals/ApproveRecurringScheduleModal";
+import { approveDiscrepancyAPI } from "@/api/main/discrepanciesAPI";
 
 export default function SchedulesContainer() {
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { user } = useAuth();
+
+	// Scope and admin level determination
+	const isSuperuser =
+		user?.role === "admin" && user?.adminLevel === "university";
+	const isSchoolAdmin = user?.role === "admin" && user?.adminLevel === "school";
+	const isFacultyAdmin =
+		user?.role === "admin" && user?.adminLevel === "faculty";
+	const isDeptAdmin =
+		user?.role === "admin" && user?.adminLevel === "department";
+	const userSchoolId = user?.schoolId || (isSchoolAdmin ? user?.adminScopeId : undefined);
 
 	// Modals state
 	const [isScheduleEntryOpen, setIsScheduleEntryOpen] = useState(false);
+	const [isScheduleEventOpen, setIsScheduleEventOpen] = useState(false);
 	const [selectedSessionForShift, setSelectedSessionForShift] =
 		useState<LectureSession | null>(null);
+
+	// Timetable generation modal states
+	const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+	const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+	const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+	const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+	const [activeGenerationRun, setActiveGenerationRun] =
+		useState<TimetableGenerationRun | null>(null);
 
 	// Defaults when clicking a slot in the grid
 	const [scheduleEntryDefaults, setScheduleEntryDefaults] = useState<{
 		day?: string;
+		date?: string;
 		startTime?: string;
 		endTime?: string;
+		isSlotClick?: boolean;
 	}>({});
+
+	// Recurring pattern immediate approval modal state
+	const [isRecurringApprovalOpen, setIsRecurringApprovalOpen] = useState(false);
+	const [pendingApprovalInfo, setPendingApprovalInfo] =
+		useState<RecurringScheduleApprovalInfo | null>(null);
+	const [lastSubmittedEntryDetails, setLastSubmittedEntryDetails] =
+		useState<Record<string, any> | null>(null);
+	const [isApprovingRecurring, setIsApprovingRecurring] = useState(false);
 
 	// Conflict modal state
 	const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
@@ -69,14 +133,14 @@ export default function SchedulesContainer() {
 		queryFn: () => getPrograms(),
 	});
 
-	const { data: semestersData = [] } = useQuery<Semester[]>({
-		queryKey: ["semesters", "list"],
-		queryFn: () => getSemesters(),
+	const { data: academicSessionsData = [] } = useQuery<AcademicSession[]>({
+		queryKey: ["academic-sessions", "list", userSchoolId || "default"],
+		queryFn: () => getAcademicSessions(userSchoolId ? { school: userSchoolId } : undefined),
 	});
 
-	const { data: coursesData = [] } = useQuery<Course[]>({
-		queryKey: ["courses", "list"],
-		queryFn: getCoursesOptions,
+	const { data: semestersData = [] } = useQuery<Semester[]>({
+		queryKey: ["semesters", "list", userSchoolId || "default"],
+		queryFn: () => getSemesters(userSchoolId ? { school: userSchoolId } : undefined),
 	});
 
 	const { data: venuesData = [] } = useQuery<Venue[]>({
@@ -84,43 +148,182 @@ export default function SchedulesContainer() {
 		queryFn: getVenuesOptions,
 	});
 
-	// Identify active semester
-	const activeSemester = useMemo(() => {
-		return semestersData.find((s) => s.isActive) || semestersData[0];
-	}, [semestersData]);
+	// Hierarchy queries for generator and view scoping
+	const { data: schoolsData = [] } = useQuery<School[]>({
+		queryKey: ["schools", "list"],
+		queryFn: getSchoolsList,
+		enabled: isSuperuser || isSchoolAdmin,
+	});
 
-	// Compute semester weeks
-	const totalWeeks = useMemo(() => {
-		return getTotalWeeks(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
-			15,
+	const { data: facultiesData = [] } = useQuery<Faculty[]>({
+		queryKey: ["faculties", "list"],
+		queryFn: getFacultiesList,
+		enabled: isSuperuser || isSchoolAdmin || isFacultyAdmin,
+	});
+
+	const { data: departmentsData = [] } = useQuery<Department[]>({
+		queryKey: ["departments", "list"],
+		queryFn: getDepartmentsList,
+		enabled: isSuperuser || isSchoolAdmin || isFacultyAdmin || isDeptAdmin,
+	});
+
+	// Generation Scope Permissions Query
+	const { data: scopePermission } = useQuery({
+		queryKey: ["scheduling", "generationPermissions", userSchoolId || "default"],
+		queryFn: () => getGenerationPermissions(userSchoolId),
+		enabled: true,
+	});
+
+	const allowFacultyGen = scopePermission?.allowFacultyGeneration ?? false;
+	const allowDeptGen = scopePermission?.allowDepartmentGeneration ?? false;
+
+	const canGenerate =
+		isSuperuser ||
+		isSchoolAdmin ||
+		(isFacultyAdmin && allowFacultyGen) ||
+		(isDeptAdmin && allowDeptGen);
+
+	const canConfigurePermissions = isSuperuser || isSchoolAdmin;
+
+	// Identify active semester belonging to the active academic session
+	const activeSemester = useMemo(() => {
+		const activeInSchool = semestersData.find(
+			(s) =>
+				s.isActive &&
+				(!userSchoolId || String(s.schoolId) === String(userSchoolId)),
 		);
+		if (activeInSchool) return activeInSchool;
+
+		return semestersData.find((s) => s.isActive) || null;
+	}, [semestersData, userSchoolId]);
+
+	const { data: coursesData = [] } = useQuery<Course[]>({
+		queryKey: ["courses", "list", activeSemester?.id],
+		queryFn: () =>
+			getCoursesOptions(
+				activeSemester?.id ? { semester: activeSemester.id } : undefined,
+			),
+	});
+
+	// Identify current active academic session set by school/system admin
+	const currentAcademicSession = useMemo(() => {
+		const byCurrentFlag = academicSessionsData.find((s) => s.isCurrent);
+		if (byCurrentFlag) return byCurrentFlag;
+		if (activeSemester?.sessionId) {
+			const byActiveSemester = academicSessionsData.find(
+				(s) => String(s.id) === String(activeSemester.sessionId),
+			);
+			if (byActiveSemester) return byActiveSemester;
+		}
+		return academicSessionsData[0] || null;
+	}, [academicSessionsData, activeSemester]);
+
+	const isSemesterConfigured = Boolean(
+		currentAcademicSession && activeSemester?.isActive,
+	);
+
+	// Compute semester timeline relative to the active semester (never counting a full calendar year)
+	const semesterTimeline = useMemo(() => {
+		return getSemesterWeekTimeline(activeSemester);
 	}, [activeSemester]);
 
-	const defaultCurrentWeek = useMemo(() => {
-		return getCurrentWeekNumber(
-			activeSemester?.lectureStartDate,
-			activeSemester?.lectureEndDate,
-			totalWeeks,
-		);
-	}, [activeSemester, totalWeeks]);
+	const totalWeeks = semesterTimeline.totalWeeks;
+	const defaultCurrentWeek = semesterTimeline.currentWeek;
+	const semesterStartDate = semesterTimeline.referenceStartDate;
 
-	// Program, Level, and Week state
-	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+	// Filter accessible faculties by scope
+	const scopedFaculties = useMemo(() => {
+		return filterFacultiesByScope(facultiesData, user, departmentsData);
+	}, [facultiesData, user, departmentsData]);
+
+	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+
+	useEffect(() => {
+		if (scopedFaculties.length > 0 && !selectedFacultyId) {
+			setSelectedFacultyId(String(scopedFaculties[0].id));
+		}
+	}, [scopedFaculties, selectedFacultyId]);
+
+	// Filter accessible departments by scope
+	const scopedDepartments = useMemo(() => {
+		return filterDepartmentsByScope(departmentsData, user, facultiesData);
+	}, [departmentsData, user, facultiesData]);
+
+	// Departments narrowed by selected faculty for school/system admins
+	const departmentsInView = useMemo(() => {
+		if ((isSchoolAdmin || isSuperuser) && selectedFacultyId) {
+			return scopedDepartments.filter(
+				(d) => String(d.facultyId) === String(selectedFacultyId),
+			);
+		}
+		return scopedDepartments;
+	}, [scopedDepartments, isSchoolAdmin, isSuperuser, selectedFacultyId]);
+
+	// Department selection state
+	const [selectedDepartmentId, setSelectedDepartmentId] = useState<
+		string | number
+	>("");
+
+	// Keep selectedDepartmentId synchronized with accessible departments
+	useEffect(() => {
+		if (departmentsInView.length > 0) {
+			const exists = departmentsInView.some(
+				(d) => String(d.id) === String(selectedDepartmentId),
+			);
+			if (!exists || !selectedDepartmentId) {
+				setSelectedDepartmentId(departmentsInView[0].id);
+			}
+		} else if (scopedDepartments.length > 0 && !selectedDepartmentId) {
+			setSelectedDepartmentId(scopedDepartments[0].id);
+		}
+	}, [departmentsInView, scopedDepartments, selectedDepartmentId]);
+
+	// Degree programs for the selected department
+	const departmentPrograms = useMemo(() => {
+		if (!selectedDepartmentId) return [];
+		return programsData.filter(
+			(p) => String(p.departmentId) === String(selectedDepartmentId),
+		);
+	}, [programsData, selectedDepartmentId]);
+
+	// Program, Level, and Search State (Strictly degree program level - never "ALL")
+	const [selectedProgramId, setSelectedProgramId] = useState<string | number>(
+		"",
+	);
 	const [selectedLevel, setSelectedLevel] = useState<number>(100);
+	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-	// Initialize selectedProgramId once programsData is loaded
+	// Synchronize selectedProgramId with available department programs
 	useEffect(() => {
-		if (programsData.length > 0 && !selectedProgramId) {
-			const defaultProg =
-				programsData.find((p) => p.isDefault) || programsData[0];
-			if (defaultProg) {
-				setSelectedProgramId(defaultProg.id);
+		if (departmentPrograms.length > 0) {
+			const exists = departmentPrograms.some(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (!exists || !selectedProgramId || selectedProgramId === "ALL") {
+				setSelectedProgramId(departmentPrograms[0].id);
 			}
+		} else {
+			setSelectedProgramId("");
 		}
-	}, [programsData, selectedProgramId]);
+	}, [departmentPrograms, selectedProgramId]);
+
+	// Active degree program object
+	const activeProgram = useMemo(() => {
+		return (
+			departmentPrograms.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			) || departmentPrograms[0]
+		);
+	}, [departmentPrograms, selectedProgramId]);
+
+	// Ensure selectedLevel does not exceed active program's maxLevel
+	useEffect(() => {
+		const maxLvl = activeProgram?.maxLevel || 400;
+		if (selectedLevel > maxLvl) {
+			setSelectedLevel(100);
+		}
+	}, [activeProgram, selectedLevel]);
 
 	// Sync currentWeek with defaultCurrentWeek when semester is detected
 	useEffect(() => {
@@ -131,8 +334,8 @@ export default function SchedulesContainer() {
 
 	// Week range and day dates calculation
 	const weekRange = useMemo(() => {
-		return getWeekRange(activeSemester?.lectureStartDate, currentWeek);
-	}, [activeSemester, currentWeek]);
+		return getWeekRange(semesterStartDate, currentWeek);
+	}, [semesterStartDate, currentWeek]);
 
 	const weekDayDates = useMemo(() => {
 		return getWeekDayDates(weekRange.startDate);
@@ -140,7 +343,67 @@ export default function SchedulesContainer() {
 
 	const isCurrentWeekActive = currentWeek === defaultCurrentWeek;
 
-	// Timetable Entries Query (filtered by active semester, program, level, and entry_type="lecture")
+	// Scope label for current user role
+	const scopeLabel = useMemo(() => {
+		return getAdminScopeLabel(
+			user,
+			departmentsData,
+			facultiesData,
+			selectedFacultyId,
+		);
+	}, [user, departmentsData, facultiesData, selectedFacultyId]);
+
+	// Active Generation Runs Query for live published conflict report cross-referencing
+	const { data: generationRuns = [], isLoading: runsLoading } = useQuery<TimetableGenerationRun[]>({
+		queryKey: ["scheduling", "runs", activeSemester?.id],
+		queryFn: () => getGenerationRuns({ semester: activeSemester?.id }),
+		enabled: Boolean(activeSemester?.id),
+	});
+
+	const publishedRunForScope = useMemo(() => {
+		return generationRuns.find((r) => {
+			if (!r.isPublished) return false;
+			if (r.scopeType === "school") return true;
+			if (r.scopeType === "faculty") {
+				const dept = departmentsData.find(
+					(d) => String(d.id) === String(selectedDepartmentId),
+				);
+				if (dept && String(dept.facultyId) === String(r.scopeId)) return true;
+				if (selectedFacultyId && String(selectedFacultyId) === String(r.scopeId))
+					return true;
+				return false;
+			}
+			if (r.scopeType === "department") {
+				return String(r.scopeId) === String(selectedDepartmentId);
+			}
+			return false;
+		});
+	}, [generationRuns, selectedDepartmentId, selectedFacultyId, departmentsData]);
+
+	const publishedRunSummary = useMemo(() => {
+		return publishedRunForScope || generationRuns.find((r) => r.isPublished);
+	}, [publishedRunForScope, generationRuns]);
+
+	// Query full detail of the published run so full conflictReport.details are available
+	const { data: publishedRunDetail } = useQuery<TimetableGenerationRun>({
+		queryKey: ["scheduling", "runDetail", publishedRunSummary?.id],
+		queryFn: () => getGenerationRunDetail(publishedRunSummary!.id),
+		enabled: Boolean(publishedRunSummary?.id),
+	});
+
+	const activeConflictReport =
+		publishedRunDetail?.conflictReport || publishedRunSummary?.conflictReport;
+
+	// Department options for DepartmentLoopBar
+	const departmentOptions: DepartmentOption[] = useMemo(() => {
+		return departmentsInView.map((d) => ({
+			id: d.id,
+			name: d.name,
+			code: d.code,
+		}));
+	}, [departmentsInView]);
+
+	// Timetable Entries Query (filtered by active semester, department, program, level, and entry_type="lecture")
 	const {
 		data: entriesData,
 		isLoading: entriesLoading,
@@ -151,19 +414,24 @@ export default function SchedulesContainer() {
 			"scheduling",
 			"entries",
 			activeSemester?.id,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 		],
 		queryFn: () =>
 			getTimetableEntries({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
+				department: selectedDepartmentId || undefined,
+				program:
+					selectedProgramId && selectedProgramId !== "ALL"
+						? selectedProgramId
+						: undefined,
 				level: selectedLevel || undefined,
-				entry_type: "lecture",
+				entry_type: "lecture,event",
 			}),
 	});
 
-	// Lecture Sessions Query (filtered by week date range, active semester, program, level)
+	// Lecture Sessions Query (filtered by week date range, active semester, department, program, level)
 	const {
 		data: sessionsData,
 		isLoading: sessionsLoading,
@@ -174,6 +442,7 @@ export default function SchedulesContainer() {
 			"scheduling",
 			"sessions",
 			activeSemester?.id,
+			selectedDepartmentId,
 			selectedProgramId,
 			selectedLevel,
 			currentWeek,
@@ -183,33 +452,88 @@ export default function SchedulesContainer() {
 		queryFn: () =>
 			getLectureSessions({
 				semester: activeSemester?.id,
-				program: selectedProgramId || undefined,
+				department: selectedDepartmentId || undefined,
+				program:
+					selectedProgramId && selectedProgramId !== "ALL"
+						? selectedProgramId
+						: undefined,
 				level: selectedLevel || undefined,
 				start_date: weekRange.startStr,
 				end_date: weekRange.endStr,
-				entry_type: "lecture",
+				entry_type: "lecture,event",
 			}),
 	});
 
 	const isRefetching = entriesRefetching || sessionsRefetching;
 
+	const hasPublishedTimetable = Boolean(
+		publishedRunForScope || (entriesData && entriesData.length > 0),
+	);
+
+	const publishedDiagnostics = useMemo(() => {
+		if (!hasPublishedTimetable) return undefined;
+		const scheduled =
+			publishedRunSummary?.generationMetrics?.occurrences_total ??
+			activeConflictReport?.occurrences_scheduled ??
+			publishedRunSummary?.assignmentsPayload?.length ??
+			entriesData?.length ??
+			0;
+		const conflicts =
+			publishedRunSummary?.hardConflictsCount ??
+			activeConflictReport?.hard_conflicts_total ??
+			0;
+		return { scheduled, conflicts };
+	}, [hasPublishedTimetable, publishedRunSummary, activeConflictReport, entriesData]);
+
 	// Mutation: Create Timetable Entry
 	const createEntryMutation = useMutation({
 		mutationFn: (payload: CreateScheduleEntryPayload) =>
 			createTimetableEntry(payload),
-		onSuccess: (result) => {
+		onSuccess: (result, variables) => {
 			if (result.outcome === "PROCEED") {
-				toast.success("Schedule entry created successfully!");
 				setIsScheduleEntryOpen(false);
+				setIsScheduleEventOpen(false);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+
+				if (variables.entry_type === "event") {
+					toast.success(`Event "${variables.title || "Academic Event"}" scheduled successfully!`);
+				} else if (variables.recurrence_rule) {
+					const selCourse = coursesData.find(
+						(c) => String(c.id) === String(variables.course),
+					);
+					const selVenue = venuesData.find(
+						(v) => String(v.id) === String(variables.venue),
+					);
+					setPendingApprovalInfo({
+						courseCode: selCourse?.code,
+						courseTitle: selCourse?.title,
+						venueName: selVenue?.name,
+						venueCapacity: selVenue?.capacity,
+						dayOfWeek:
+							lastSubmittedEntryDetails?.day_of_week ||
+							scheduleEntryDefaults.day,
+						startTime: variables.start_time,
+						endTime: variables.end_time,
+						semesterName: activeSemester?.displayName || activeSemester?.name,
+						lectureStartDate: activeSemester?.lectureStartDate,
+						lectureEndDate: activeSemester?.lectureEndDate,
+					});
+					setIsRecurringApprovalOpen(true);
+				} else {
+					toast.success("Schedule entry created successfully!");
+				}
 			} else if (result.outcome === "ROUTE_APPROVAL") {
 				setIsScheduleEntryOpen(false);
-				setConflictOutcome("ROUTE_APPROVAL");
-				setConflictDetailMsg(result.message);
-				setConflictsList([]);
-				setIsConflictModalOpen(true);
+				setIsScheduleEventOpen(false);
+				toast.info(
+					result.message ||
+						"Booking touches a venue outside your scope and has been routed to the Faculty Administrator for approval. You will receive a notification once reviewed.",
+				);
 				queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+				queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+				queryClient.invalidateQueries({ queryKey: ["discrepancies"] });
+				queryClient.invalidateQueries({ queryKey: ["notifications"] });
 			} else if (result.outcome === "HARD_REJECT") {
 				setConflictOutcome("HARD_REJECT");
 				setConflictDetailMsg(result.detail);
@@ -231,32 +555,50 @@ export default function SchedulesContainer() {
 		},
 	});
 
-	// Mutation: Shift a single session instance
+	// Mutation: Shift / Reschedule a single session instance
 	const shiftSessionMutation = useMutation({
 		mutationFn: ({
 			id,
 			venue,
+			date,
 			startTime,
 			endTime,
 		}: {
 			id: string;
 			venue?: string;
+			date?: string;
 			startTime?: string;
 			endTime?: string;
 		}) =>
 			updateLectureSessionAPI(id, {
 				venue: venue ? Number(venue) : undefined,
+				session_date: date,
 				session_start_time: startTime,
 				session_end_time: endTime,
 				status: "shifted",
 			}),
 		onSuccess: () => {
-			toast.success("Session instance shifted successfully.");
+			toast.success("Session shifted / rescheduled successfully.");
 			setSelectedSessionForShift(null);
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
 		},
 		onError: (error: Error) => {
 			toast.error(error.message || "Failed to shift session.");
+		},
+	});
+
+	// Mutation: Cancel a single session instance
+	const cancelSessionMutation = useMutation({
+		mutationFn: ({ id, reason }: { id: string | number; reason?: string }) =>
+			cancelLectureSessionAPI(id, reason),
+		onSuccess: () => {
+			toast.success("Session cancelled successfully.");
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+		},
+		onError: (error: Error) => {
+			toast.error(error.message || "Failed to cancel session.");
 		},
 	});
 
@@ -276,39 +618,92 @@ export default function SchedulesContainer() {
 	const handleManualRefresh = () => {
 		refetchEntries();
 		refetchSessions();
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runDetail"] });
 		toast.info("Refreshing schedule data...");
 	};
 
 	const handleOpenScheduleEntry = (
 		defaultDay?: string,
 		defaultSlot?: { start: string; end: string },
+		defaultDate?: string,
+		isSlotClick?: boolean,
 	) => {
+		if (defaultDate && defaultSlot) {
+			const now = new Date();
+			const todayDateStr = `${now.getFullYear()}-${String(
+				now.getMonth() + 1,
+			).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+			const currentTimeStr = `${String(now.getHours()).padStart(2, "0")}:${String(
+				now.getMinutes(),
+			).padStart(2, "0")}:00`;
+			if (
+				defaultDate < todayDateStr ||
+				(defaultDate === todayDateStr && defaultSlot.end <= currentTimeStr)
+			) {
+				toast.error("Cannot schedule a lecture in a past time slot.");
+				return;
+			}
+		}
+
 		setScheduleEntryDefaults({
 			day: defaultDay,
+			date: defaultDate,
 			startTime: defaultSlot?.start,
 			endTime: defaultSlot?.end,
+			isSlotClick: isSlotClick ?? Boolean(defaultSlot),
 		});
 		setIsScheduleEntryOpen(true);
 	};
 
 	const handleCreateScheduleEntrySubmit = (data: Record<string, any>) => {
+		setLastSubmittedEntryDetails(data);
 		createEntryMutation.mutate({
-			entry_type: (data.entryType as "lecture" | "exam" | "event") || "lecture",
+			entry_type: (data.entry_type || data.entryType || "lecture") as
+				"lecture" | "event",
 			title: data.title as string | undefined,
-			course: data.courseId as string,
-			venue: data.venueId as string,
-			start_time: data.startTime as string,
-			end_time: data.endTime as string,
-			recurrence_rule: data.recurrenceRule as string | undefined,
-			recurrence_start_date: data.startDate as string | undefined,
-			recurrence_end_date: data.endDate as string | undefined,
-			semester: data.semesterId as string | undefined,
-			program: data.targetProgramId as string | undefined,
+			course: data.course || data.courseId,
+			venue: (data.venue || data.venueId) as string,
+			start_time: (data.start_time || data.startTime) as string,
+			end_time: (data.end_time || data.endTime) as string,
+			recurrence_rule: data.recurrence_rule || data.recurrenceRule,
+			recurrence_start_date: data.recurrence_start_date || data.startDate,
+			recurrence_end_date: data.recurrence_end_date || data.endDate,
+			semester: (data.semester || data.semesterId || activeSemester?.id) as
+				string | undefined,
+			target_program: data.target_program || (selectedProgramId && selectedProgramId !== "ALL" ? String(selectedProgramId) : undefined),
+			target_level: data.target_level !== undefined ? Number(data.target_level) : (selectedLevel ? Number(selectedLevel) : undefined),
 		});
+	};
+
+	const handleApproveRecurring = async () => {
+		setIsApprovingRecurring(true);
+		try {
+			if (pendingApprovalInfo?.discrepancyId) {
+				await approveDiscrepancyAPI(pendingApprovalInfo.discrepancyId);
+			}
+			toast.success(
+				"Recurring schedule approved and applied across the timetable!",
+			);
+			setIsRecurringApprovalOpen(false);
+			setPendingApprovalInfo(null);
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+			queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+			queryClient.invalidateQueries({ queryKey: ["discrepancies"] });
+		} catch (err: any) {
+			const msg =
+				err?.response?.data?.detail ||
+				err?.message ||
+				"Failed to approve recurring schedule.";
+			toast.error(msg);
+		} finally {
+			setIsApprovingRecurring(false);
+		}
 	};
 
 	const handleShiftSessionSubmit = (data: {
 		venueId: string;
+		date?: string;
 		startTime: string;
 		endTime: string;
 	}) => {
@@ -316,8 +711,35 @@ export default function SchedulesContainer() {
 		shiftSessionMutation.mutate({
 			id: selectedSessionForShift.id,
 			venue: data.venueId,
+			date: data.date,
 			startTime: data.startTime,
 			endTime: data.endTime,
+		});
+	};
+
+	const handleCancelSessionTrigger = (session: LectureSession) => {
+		cancelSessionMutation.mutate({ id: session.id });
+	};
+
+	const handleGenerationCompleted = (run: TimetableGenerationRun) => {
+		setActiveGenerationRun(run);
+		setIsReportModalOpen(true);
+	};
+
+	const handlePublishSuccess = () => {
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "entries"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "sessions"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runs"] });
+		queryClient.invalidateQueries({ queryKey: ["scheduling", "runDetail"] });
+		refetchEntries();
+		refetchSessions();
+	};
+
+	const handleSelectHistoryRun = (run: TimetableGenerationRun) => {
+		setIsHistoryModalOpen(false);
+		navigate({
+			to: "/schedules/generator/$runId",
+			params: { runId: run.id },
 		});
 	};
 
@@ -325,15 +747,25 @@ export default function SchedulesContainer() {
 		<>
 			<SchedulesView
 				entries={entriesData}
-				entriesLoading={entriesLoading}
+				entriesLoading={entriesLoading || runsLoading}
 				sessions={sessionsData}
-				sessionsLoading={sessionsLoading}
+				sessionsLoading={sessionsLoading || runsLoading}
+				hasPublishedTimetable={hasPublishedTimetable}
+				publishedDiagnostics={publishedDiagnostics}
 				isRefetching={isRefetching}
-				programs={programsData}
+				faculties={scopedFaculties}
+				selectedFacultyId={selectedFacultyId}
+				onSelectFaculty={setSelectedFacultyId}
+				departments={departmentOptions}
+				selectedDepartmentId={selectedDepartmentId}
+				onSelectDepartment={setSelectedDepartmentId}
+				departmentPrograms={departmentPrograms}
 				selectedProgramId={selectedProgramId}
 				onSelectProgram={setSelectedProgramId}
 				selectedLevel={selectedLevel}
 				onSelectLevel={setSelectedLevel}
+				searchQuery={searchQuery}
+				onSearchChange={setSearchQuery}
 				currentWeek={currentWeek}
 				totalWeeks={totalWeeks}
 				onPreviousWeek={handlePreviousWeek}
@@ -343,9 +775,57 @@ export default function SchedulesContainer() {
 				weekRange={weekRange}
 				weekDayDates={weekDayDates}
 				activeSemester={activeSemester}
+				currentAcademicSession={currentAcademicSession}
+				isSemesterConfigured={isSemesterConfigured}
+				conflictReport={activeConflictReport}
 				onManualRefresh={handleManualRefresh}
 				onOpenScheduleEntry={handleOpenScheduleEntry}
+				onOpenScheduleEvent={() => setIsScheduleEventOpen(true)}
 				onShiftSessionTrigger={(s) => setSelectedSessionForShift(s)}
+				onCancelSessionTrigger={handleCancelSessionTrigger}
+				onOpenGenerator={() => setIsGenerateModalOpen(true)}
+				onOpenHistory={() => setIsHistoryModalOpen(true)}
+				onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+				canGenerate={canGenerate}
+				canConfigurePermissions={canConfigurePermissions}
+				isDeptAdmin={isDeptAdmin}
+				isFacultyAdmin={isFacultyAdmin}
+				isSchoolAdmin={isSchoolAdmin}
+				isSuperuser={isSuperuser}
+				scopeLabel={scopeLabel}
+			/>
+
+			<GenerateTimetableModal
+				isOpen={isGenerateModalOpen}
+				onClose={() => setIsGenerateModalOpen(false)}
+				onGenerationComplete={handleGenerationCompleted}
+				semesters={semestersData}
+				activeSemester={activeSemester || undefined}
+				schools={schoolsData}
+				faculties={facultiesData}
+				departments={departmentsData}
+				allowFacultyGeneration={allowFacultyGen}
+				allowDepartmentGeneration={allowDeptGen}
+			/>
+
+			<GenerationReportModal
+				isOpen={isReportModalOpen}
+				onClose={() => setIsReportModalOpen(false)}
+				run={activeGenerationRun}
+				onPublishSuccess={handlePublishSuccess}
+			/>
+
+			<GenerationHistoryModal
+				isOpen={isHistoryModalOpen}
+				onClose={() => setIsHistoryModalOpen(false)}
+				semesterId={activeSemester?.id}
+				onSelectRun={handleSelectHistoryRun}
+			/>
+
+			<GenerationPermissionsModal
+				isOpen={isPermissionsModalOpen}
+				onClose={() => setIsPermissionsModalOpen(false)}
+				schoolId={userSchoolId || activeSemester?.schoolId}
 			/>
 
 			<ScheduleEntryModal
@@ -354,11 +834,44 @@ export default function SchedulesContainer() {
 				onSubmit={handleCreateScheduleEntrySubmit}
 				courses={coursesData}
 				venues={venuesData}
-				semesters={semestersData}
-				programs={programsData}
+				activeSemester={activeSemester}
 				defaultDay={scheduleEntryDefaults.day}
+				defaultDate={scheduleEntryDefaults.date}
 				defaultStartTime={scheduleEntryDefaults.startTime}
 				defaultEndTime={scheduleEntryDefaults.endTime}
+				isSlotClick={scheduleEntryDefaults.isSlotClick}
+				userDepartmentId={selectedDepartmentId}
+				userFacultyId={selectedFacultyId}
+				userSchoolId={userSchoolId || activeSemester?.schoolId}
+				programId={selectedProgramId}
+				programName={activeProgram?.name}
+				level={selectedLevel}
+				isPending={createEntryMutation.isPending}
+			/>
+
+			<ScheduleEventModal
+				isOpen={isScheduleEventOpen}
+				onClose={() => setIsScheduleEventOpen(false)}
+				onSubmit={(payload) => createEntryMutation.mutate(payload)}
+				isPending={createEntryMutation.isPending}
+				venues={venuesData}
+				programs={programsData}
+				departments={departmentsData}
+				faculties={facultiesData}
+				defaultDepartmentId={selectedDepartmentId}
+				activeSemesterId={activeSemester?.id}
+				user={user}
+			/>
+
+			<ApproveRecurringScheduleModal
+				isOpen={isRecurringApprovalOpen}
+				onClose={() => {
+					setIsRecurringApprovalOpen(false);
+					setPendingApprovalInfo(null);
+				}}
+				onApprove={handleApproveRecurring}
+				info={pendingApprovalInfo}
+				isPending={isApprovingRecurring}
 			/>
 
 			<SessionShiftModal

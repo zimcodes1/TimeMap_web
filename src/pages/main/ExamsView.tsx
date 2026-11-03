@@ -4,26 +4,31 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TabSwitcher } from "@/components/ui/tabs";
 import {
-	UserCheck,
 	LayoutGrid,
-	List,
 	RefreshCw,
 	CalendarOff,
-	Plus,
+	CalendarDays,
+	BadgeX,
 } from "lucide-react";
 import type {
 	TimetableEntry,
 	LectureSession,
 	ExamSitting,
 	Program,
+	Department,
+	Faculty,
 	Semester,
+	User,
+	EffectiveExamPeriod,
 } from "@/types";
 import type { WeekRange, WeekDayInfo } from "@/utils/semesterWeeks";
-import { TimetableAcademicGrid } from "@/components/schedules/TimetableAcademicGrid";
-import { TimetableListView } from "@/components/schedules/TimetableListView";
-import { TimetableTitle } from "@/components/schedules/TimetableTitle";
-import { WeekNavigator } from "@/components/schedules/WeekNavigator";
-import { TimetableFilterBar } from "@/components/schedules/TimetableFilterBar";
+import { ExamPeriodBanner } from "@/components/exams/ExamPeriodBanner";
+import { ExamMasterScheduleView } from "@/components/exams/ExamMasterScheduleView";
+import { ExamCohortFilterBar } from "@/components/exams/ExamCohortFilterBar";
+import { ExamCohortTimelineGrid } from "@/components/exams/ExamCohortTimelineGrid";
+import { ExamEventDetailModal } from "@/components/exams/ExamEventDetailModal";
+import type { OptimizedExamEvent } from "@/api/main/examOptimizerAPI";
+import { Link } from "@tanstack/react-router";
 
 interface ExamsViewProps {
 	entries: TimetableEntry[] | undefined;
@@ -33,11 +38,19 @@ interface ExamsViewProps {
 	examSittings: ExamSitting[] | undefined;
 	examSittingsLoading?: boolean;
 	isRefetching?: boolean;
+	currentUser?: User | null;
+	effectiveExamPeriod?: EffectiveExamPeriod | null;
+	faculties?: Faculty[];
+	selectedFacultyId: string;
+	onSelectFaculty: (facultyId: string) => void;
+	departments?: Department[];
+	selectedDepartmentId: string;
+	onSelectDepartment: (deptId: string) => void;
 	programs?: Program[];
 	selectedProgramId: string;
 	onSelectProgram: (programId: string) => void;
-	selectedLevel: number;
-	onSelectLevel: (level: number) => void;
+	selectedLevel: number | "ALL";
+	onSelectLevel: (level: number | "ALL") => void;
 	currentWeek: number;
 	totalWeeks: number;
 	onPreviousWeek: () => void;
@@ -50,20 +63,33 @@ interface ExamsViewProps {
 	onManualRefresh: () => void;
 	onOpenCreateExamEntry: (
 		defaultDay?: string,
+		defaultDate?: string,
 		defaultSlot?: { start: string; end: string },
 	) => void;
 	onOpenExamSitting: () => void;
 	onShiftSessionTrigger: (session: LectureSession) => void;
+	onOpenSetSchoolExamPeriod?: () => void;
+	onOpenSetFacultyExamPeriod?: () => void;
+	optimizedEvents: OptimizedExamEvent[];
+	optimizerDiagnostics?: {
+		scheduled?: number;
+		unscheduled?: Array<{ course_code: string; reason: string }>;
+	};
+	canViewOptimizedTimetable: boolean;
+	canOptimize: boolean;
 }
 
 export default function ExamsView({
-	entries,
 	entriesLoading = false,
-	sessions,
-	sessionsLoading = false,
-	examSittings,
-	examSittingsLoading = false,
 	isRefetching = false,
+	currentUser,
+	effectiveExamPeriod,
+	faculties = [],
+	selectedFacultyId,
+	onSelectFaculty,
+	departments = [],
+	selectedDepartmentId,
+	onSelectDepartment,
 	programs = [],
 	selectedProgramId,
 	onSelectProgram,
@@ -79,176 +105,475 @@ export default function ExamsView({
 	weekDayDates,
 	activeSemester,
 	onManualRefresh,
-	onOpenCreateExamEntry,
-	onOpenExamSitting,
-	onShiftSessionTrigger,
+	onOpenSetSchoolExamPeriod,
+	onOpenSetFacultyExamPeriod,
+	optimizedEvents = [],
+	optimizerDiagnostics,
+	canViewOptimizedTimetable,
+	canOptimize,
 }: ExamsViewProps) {
-	const [activeTab, setActiveTab] = useState<"grid" | "list">("grid");
+	// Active display view: Master Schedule (date rows + clustered timeframes) vs Cohort Timeline (horizontal continuous ruler)
+	const [activeTab, setActiveTab] = useState<"master" | "timeline">("master");
+	const [selectedModalEvent, setSelectedModalEvent] =
+		useState<OptimizedExamEvent | null>(null);
 
-	const today = new Date();
-	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+	const isSchoolAdmin =
+		currentUser?.role === "admin" &&
+		(currentUser?.adminLevel === "school" ||
+			currentUser?.adminLevel === "system");
+	const isFacultyAdmin =
+		currentUser?.role === "admin" && currentUser?.adminLevel === "faculty";
+	const isDeptAdmin =
+		currentUser?.role === "admin" && currentUser?.adminLevel === "department";
+	const canOpenExamGenerator = isSchoolAdmin || canOptimize;
 
-	const currentProgram = useMemo(() => {
-		return programs.find((p) => p.id === selectedProgramId) || programs[0];
-	}, [programs, selectedProgramId]);
+	const currentFaculty =
+		faculties.find((f) => String(f.id) === String(selectedFacultyId)) ||
+		faculties[0];
+	const currentDept = departments.find(
+		(d) => String(d.id) === String(selectedDepartmentId),
+	);
+	const currentProgram = programs.find(
+		(p) => String(p.id) === String(selectedProgramId),
+	);
 
-	const programDisplayName = currentProgram?.name || "Department";
+	// Filter programs strictly in scope for this admin
+	const programsInScope = useMemo(() => {
+		return programs.filter((p) => {
+			if (isDeptAdmin && currentUser?.departmentId) {
+				return String(p.departmentId) === String(currentUser.departmentId);
+			}
+			if (isFacultyAdmin) {
+				const facId = currentUser?.facultyId || selectedFacultyId;
+				if (!facId) return true;
+				if (p.facultyId) return String(p.facultyId) === String(facId);
+				const dept = departments.find(
+					(d) => String(d.id) === String(p.departmentId),
+				);
+				return dept ? String(dept.facultyId) === String(facId) : true;
+			}
+			if (isSchoolAdmin) {
+				if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
+					return String(p.departmentId) === String(selectedDepartmentId);
+				}
+				if (selectedFacultyId) {
+					if (p.facultyId)
+						return String(p.facultyId) === String(selectedFacultyId);
+					const dept = departments.find(
+						(d) => String(d.id) === String(p.departmentId),
+					);
+					return dept
+						? String(dept.facultyId) === String(selectedFacultyId)
+						: true;
+				}
+				return true;
+			}
+			return true;
+		});
+	}, [
+		programs,
+		departments,
+		isDeptAdmin,
+		isFacultyAdmin,
+		isSchoolAdmin,
+		currentUser,
+		selectedFacultyId,
+		selectedDepartmentId,
+	]);
 
+	// All exam events strictly within this admin's scope (unaffected by cohort filters)
+	const adminMasterEvents = useMemo(() => {
+		return optimizedEvents.filter((event) => {
+			if (isDeptAdmin && (currentUser?.departmentId || currentUser?.adminScopeId)) {
+				const deptId = String(currentUser.departmentId || currentUser.adminScopeId);
+				return (
+					event.department_id == null ||
+					String(event.department_id) === deptId
+				);
+			}
+			if (isFacultyAdmin) {
+				const facId = currentUser?.facultyId || currentUser?.adminScopeId;
+				if (!facId) return true;
+				if (event.department_id) {
+					const dept = departments.find(
+						(d) => String(d.id) === String(event.department_id),
+					);
+					if (dept && String(dept.facultyId) !== String(facId)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			// For School / University / System admin: all events in school
+			return true;
+		});
+	}, [optimizedEvents, departments, isDeptAdmin, isFacultyAdmin, currentUser]);
+
+	// All programs strictly in scope for this admin (unaffected by cohort filters)
+	const adminPrograms = useMemo(() => {
+		return programs.filter((p) => {
+			if (isDeptAdmin && (currentUser?.departmentId || currentUser?.adminScopeId)) {
+				const deptId = String(currentUser.departmentId || currentUser.adminScopeId);
+				return String(p.departmentId) === deptId;
+			}
+			if (isFacultyAdmin) {
+				const facId = currentUser?.facultyId || currentUser?.adminScopeId;
+				if (!facId) return true;
+				if (p.facultyId) return String(p.facultyId) === String(facId);
+				const dept = departments.find(
+					(d) => String(d.id) === String(p.departmentId),
+				);
+				return dept ? String(dept.facultyId) === String(facId) : true;
+			}
+			return true;
+		});
+	}, [programs, departments, isDeptAdmin, isFacultyAdmin, currentUser]);
+
+	// Filter exam events strictly in scope for this admin and active cohort selections
+	const cohortEventsInScope = useMemo(() => {
+		return optimizedEvents.filter((event) => {
+			if (isDeptAdmin && currentUser?.departmentId) {
+				return (
+					event.department_id == null ||
+					String(event.department_id) === String(currentUser.departmentId)
+				);
+			}
+			if (isFacultyAdmin) {
+				if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
+					return (
+						event.department_id == null ||
+						String(event.department_id) === String(selectedDepartmentId)
+					);
+				}
+				return true;
+			}
+			if (isSchoolAdmin) {
+				if (selectedDepartmentId && selectedDepartmentId !== "ALL") {
+					return (
+						event.department_id == null ||
+						String(event.department_id) === String(selectedDepartmentId)
+					);
+				}
+				if (selectedFacultyId && event.department_id) {
+					const dept = departments.find(
+						(d) => String(d.id) === String(event.department_id),
+					);
+					if (dept && String(dept.facultyId) !== String(selectedFacultyId)) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return true;
+		});
+	}, [
+		optimizedEvents,
+		departments,
+		isDeptAdmin,
+		isFacultyAdmin,
+		isSchoolAdmin,
+		currentUser,
+		selectedFacultyId,
+		selectedDepartmentId,
+	]);
+
+	// Scope header display text
+	const scopeTitle = useMemo(() => {
+		if (isSchoolAdmin) {
+			const facName = currentFaculty
+				? `${currentFaculty.name} (${currentFaculty.code})`
+				: "Faculty";
+			if (
+				selectedDepartmentId &&
+				selectedDepartmentId !== "ALL" &&
+				currentDept
+			) {
+				return `${currentDept.name} • ${currentFaculty?.code || "Faculty"}`;
+			}
+			return facName;
+		}
+		if (isFacultyAdmin) {
+			const facName =
+				currentUser?.facultyName || currentFaculty?.name || "Faculty";
+			if (
+				selectedDepartmentId &&
+				selectedDepartmentId !== "ALL" &&
+				currentDept
+			) {
+				return `${currentDept.name} Department`;
+			}
+			return `Entire ${facName}`;
+		}
+		if (isDeptAdmin) {
+			const deptName = currentUser?.departmentName || "Department";
+			if (selectedProgramId && selectedProgramId !== "ALL" && currentProgram) {
+				return `${currentProgram.name} (${currentProgram.code})`;
+			}
+			return `${deptName} (All Programs)`;
+		}
+		return "Examination Timetable";
+	}, [
+		isSchoolAdmin,
+		isFacultyAdmin,
+		isDeptAdmin,
+		currentFaculty,
+		currentDept,
+		currentProgram,
+		selectedDepartmentId,
+		selectedProgramId,
+		currentUser,
+	]);
 	return (
 		<div className="space-y-6">
-			{/* Header */}
+			{/* Top Header */}
 			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div>
-					<Text variant="h3" weight="bold" className="text-text-main">
-						Exam Timetables
-					</Text>
-					<Text variant="body-sm" color="muted">
-						Weekly examination schedule, candidate sittings, and invigilator
-						allocation.
-					</Text>
-				</div>
-
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onManualRefresh}
-						disabled={isRefetching}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<RefreshCw
-							size={13}
-							className={isRefetching ? "animate-spin text-primary" : ""}
-						/>
-						<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
-					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={onOpenExamSitting}
-						disabled={examSittingsLoading}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<UserCheck size={14} />
-						<span>Assign Invigilators</span>
-						{examSittings && examSittings.length > 0 && (
-							<Badge variant="primary" className="ml-1 text-[10px] py-0 px-1.5">
-								{examSittings.length}
+					<div className="flex items-center gap-2">
+						<Text variant="h3" weight="bold" className="text-text-main">
+							Exam Timetables
+						</Text>
+						{activeSemester && (
+							<Badge variant="secondary" className="text-xs">
+								{activeSemester.displayName || activeSemester.name}
 							</Badge>
 						)}
-					</Button>
+					</div>
+					<Text variant="body-sm" color="muted">
+						Comprehensive examination schedules with continuous duration
+						timeline and clustered master agenda.
+					</Text>
+				</div>
 
-					<Button
-						variant="primary"
-						size="sm"
-						onClick={() => onOpenCreateExamEntry()}
-						className="h-9 gap-1.5 text-xs cursor-pointer"
-					>
-						<Plus size={15} />
-						<span>Schedule Exam</span>
-					</Button>
+				<div className="flex items-center justify-end gap-2 flex-wrap">
+					{canOpenExamGenerator && (
+						<Link to="/exams/generator">
+							<Button
+								variant="primary"
+								size="sm"
+								className="h-9 gap-1.5 text-xs"
+							>
+								Generate / inspect timetable
+							</Button>
+						</Link>
+					)}
+					{canViewOptimizedTimetable && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={onManualRefresh}
+							disabled={isRefetching}
+							className="h-9 gap-1.5 text-xs cursor-pointer"
+						>
+							<RefreshCw
+								size={13}
+								className={isRefetching ? "animate-spin text-primary" : ""}
+							/>
+							<span>{isRefetching ? "Refreshing..." : "Refresh"}</span>
+						</Button>
+					)}
 				</div>
 			</div>
 
-			{/* Warning if no active semester configured */}
+			{/* Semester Warning (if no active semester at all) */}
 			{!activeSemester && (
-				<div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center gap-3">
-					<CalendarOff size={20} className="shrink-0 text-amber-400" />
+				<div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center gap-3">
+					<CalendarOff size={20} className="shrink-0 text-amber-500" />
 					<div className="text-xs">
 						<span className="font-bold">No active semester detected.</span>{" "}
-						Please configure and activate a semester to enable examination week
-						tracking.
+						Please configure and activate a semester in the Academic Calendar
+						page to enable examination management.
 					</div>
 				</div>
 			)}
 
-			{/* Program and Level Filter Bar */}
-			<TimetableFilterBar
-				programs={programs}
-				selectedProgramId={selectedProgramId}
-				onSelectProgram={onSelectProgram}
-				selectedLevel={selectedLevel}
-				onSelectLevel={onSelectLevel}
+			{/* Context-aware Exam Period Banner Explainer */}
+			<ExamPeriodBanner
+				effectivePeriod={effectiveExamPeriod}
+				currentUser={currentUser}
+				onOpenSetSchoolExamPeriod={onOpenSetSchoolExamPeriod || (() => {})}
+				onOpenSetFacultyExamPeriod={onOpenSetFacultyExamPeriod || (() => {})}
+				hasPublishedTimetable={Boolean(
+					optimizedEvents.length > 0 ||
+					(optimizerDiagnostics && optimizerDiagnostics.scheduled != null && optimizerDiagnostics.scheduled > 0)
+				)}
 			/>
 
-			{/* Bold Top-Center Timetable Title */}
-			<TimetableTitle
-				programName={programDisplayName}
-				level={selectedLevel}
-				weekNumber={currentWeek}
-				totalWeeks={totalWeeks}
-				dateRangeLabel={weekRange.rangeLabel}
-				isExam={true}
-				semesterName={activeSemester?.displayName || activeSemester?.name}
-			/>
-
-			{/* Main Tabs: Grid View & List View */}
-			<div className="flex justify-center">
-				<TabSwitcher<"grid" | "list">
-					tabs={[
-						{
-							id: "grid",
-							label: "Exam Grid View",
-							icon: LayoutGrid,
-						},
-						{
-							id: "list",
-							label: "Exam List View",
-							icon: List,
-							count: sessions?.length,
-						},
-					]}
-					activeTab={activeTab}
-					onChange={(tab) => setActiveTab(tab)}
-				/>
-			</div>
-
-			{/* Content Rendering */}
-			{activeTab === "grid" ? (
-				entriesLoading ? (
-					<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-						Loading exam timetable grid...
+			{activeSemester && (
+				<>
+					{/* Diagnostics Banner */}
+					<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl  border-border bg-surface p-5">
+						<div className="w-full flex flex-col justify-center items-center gap-5 text-sm text-text-muted">
+							{optimizerDiagnostics ? (
+								`${optimizerDiagnostics.scheduled || 0} scheduled · ${optimizerDiagnostics.unscheduled?.length || 0} need attention`
+							) : (
+								<>
+									<BadgeX size={20} />
+									<p>No optimizer run has been published for this scope</p>
+								</>
+							)}
+						</div>
 					</div>
-				) : (
-					<TimetableAcademicGrid
-						entries={entries || []}
-						selectedProgramId={selectedProgramId}
-						selectedLevel={selectedLevel}
-						weekDayDates={weekDayDates}
-						onOpenCreateEntry={(defaultDay, defaultSlot) =>
-							onOpenCreateExamEntry(
-								defaultDay,
-								defaultSlot
-									? { start: defaultSlot.start, end: defaultSlot.end }
-									: undefined,
-							)
-						}
-					/>
-				)
-			) : sessionsLoading ? (
-				<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-					Loading exam sessions...
-				</div>
-			) : (
-				<TimetableListView
-					sessions={sessions || []}
-					weekDayDates={weekDayDates}
-					todayStr={todayStr}
-					onShiftSessionTrigger={onShiftSessionTrigger}
-					isExam={true}
-				/>
+
+					{!!optimizerDiagnostics?.unscheduled?.length && (
+						<div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+							<div className="mb-2 font-semibold text-amber-600">
+								Courses needing attention
+							</div>
+							<ul className="space-y-1 text-xs text-text-muted">
+								{optimizerDiagnostics.unscheduled.map((item) => (
+									<li key={item.course_code}>
+										<span className="font-medium">{item.course_code}:</span>{" "}
+										{item.reason}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+
+					{!canViewOptimizedTimetable ? (
+						<div className="rounded-xl border border-border bg-surface p-8 text-center text-sm text-text-muted">
+							Exam timetable access is limited to the assigned exam officer or
+							authorized scope administrator (department, faculty, or school
+							admin).
+						</div>
+					) : (
+						<>
+							{/* View Mode Switcher: Master Schedule vs Cohort Timeline */}
+							<div className="flex justify-center">
+								<TabSwitcher<"master" | "timeline">
+									tabs={[
+										{
+											id: "master",
+											label: "Master Schedule",
+											icon: CalendarDays,
+											count: adminMasterEvents.length,
+										},
+										{
+											id: "timeline",
+											label: "Cohort Timeline",
+											icon: LayoutGrid,
+										},
+									]}
+									activeTab={activeTab}
+									onChange={(tab) => setActiveTab(tab)}
+								/>
+							</div>
+
+							{/* Tab 1: Master Schedule View (Date rows + clustered timeframes per week) */}
+							{activeTab === "master" &&
+								(entriesLoading ? (
+									<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+										Loading examination timetable master schedule...
+									</div>
+								) : (
+									<ExamMasterScheduleView
+										events={adminMasterEvents}
+										programs={adminPrograms}
+										onSelectEvent={(evt) => setSelectedModalEvent(evt)}
+										currentWeek={currentWeek}
+										totalWeeks={totalWeeks}
+										onPreviousWeek={onPreviousWeek}
+										onNextWeek={onNextWeek}
+										onResetToCurrentWeek={onResetToCurrentWeek}
+										isCurrentWeekActive={isCurrentWeekActive}
+										weekRangeLabel={weekRange.rangeLabel}
+										weekDayDates={weekDayDates}
+									/>
+								))}
+
+							{/* Tab 2: Cohort Timeline View (Continuous horizontal ruler + days as rows) */}
+							{activeTab === "timeline" && (
+								<div className="space-y-4">
+									{/* Scope & Cohort Filters */}
+									<ExamCohortFilterBar
+										currentUser={currentUser}
+										faculties={faculties}
+										selectedFacultyId={selectedFacultyId}
+										onSelectFaculty={onSelectFaculty}
+										departments={departments}
+										selectedDepartmentId={selectedDepartmentId}
+										onSelectDepartment={onSelectDepartment}
+										programs={programsInScope}
+										selectedProgramId={selectedProgramId}
+										onSelectProgram={onSelectProgram}
+										selectedLevel={selectedLevel}
+										onSelectLevel={onSelectLevel}
+									/>
+
+									{/* Week Banner for Timeline */}
+									<div className="text-center py-2 space-y-1 bg-surface-raised/40 border border-border/60 rounded-2xl p-4">
+										<div className="flex items-center justify-center gap-2 flex-wrap">
+											<Text
+												variant="h4"
+												weight="bold"
+												className="text-text-main"
+											>
+												{scopeTitle}: Week {currentWeek}
+											</Text>
+											{selectedLevel !== "ALL" && (
+												<Badge variant="primary" className="text-xs py-0.5">
+													{selectedLevel}L
+												</Badge>
+											)}
+										</div>
+										<div className="flex items-center justify-center gap-2 text-xs text-text-muted flex-wrap">
+											<span className="font-medium">
+												{weekRange.rangeLabel}
+											</span>
+											<span>•</span>
+											<span>
+												Week {currentWeek} of {totalWeeks}
+											</span>
+											{effectiveExamPeriod?.source &&
+												effectiveExamPeriod.source !== "none" && (
+													<>
+														<span>•</span>
+														<span className="text-primary font-semibold">
+															{effectiveExamPeriod.source === "faculty"
+																? "Faculty Schedule"
+																: "School Schedule"}
+														</span>
+													</>
+												)}
+										</div>
+									</div>
+
+									{/* Timeline Grid */}
+									{entriesLoading ? (
+										<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+											Loading cohort timeline grid...
+										</div>
+									) : (
+										<ExamCohortTimelineGrid
+											events={cohortEventsInScope}
+											weekDayDates={weekDayDates}
+											selectedProgram={currentProgram}
+											selectedProgramId={selectedProgramId}
+											selectedLevel={selectedLevel}
+											onSelectEvent={(evt) => setSelectedModalEvent(evt)}
+											programs={programsInScope}
+											onSelectProgram={onSelectProgram}
+											currentWeek={currentWeek}
+											totalWeeks={totalWeeks}
+											onPreviousWeek={onPreviousWeek}
+											onNextWeek={onNextWeek}
+											onResetToCurrentWeek={onResetToCurrentWeek}
+											isCurrentWeekActive={isCurrentWeekActive}
+											weekRangeLabel={weekRange.rangeLabel}
+										/>
+									)}
+								</div>
+							)}
+						</>
+					)}
+				</>
 			)}
 
-			{/* Bottom Next/Previous Controls */}
-			<WeekNavigator
-				currentWeek={currentWeek}
-				totalWeeks={totalWeeks}
-				onPrevious={onPreviousWeek}
-				onNext={onNextWeek}
-				onResetToCurrent={onResetToCurrentWeek}
-				isCurrentWeekActive={isCurrentWeekActive}
-				dateRangeLabel={weekRange.rangeLabel}
+			{/* Detailed Event Inspection Modal */}
+			<ExamEventDetailModal
+				isOpen={Boolean(selectedModalEvent)}
+				onClose={() => setSelectedModalEvent(null)}
+				event={selectedModalEvent}
 			/>
 		</div>
 	);

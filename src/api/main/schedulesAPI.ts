@@ -12,7 +12,7 @@ import { AxiosError } from "axios";
 export interface CreateScheduleEntryPayload {
   entry_type?: "lecture" | "exam" | "event";
   title?: string;
-  course: string | number;
+  course?: string | number;
   venue: string | number;
   start_time: string;
   end_time: string;
@@ -22,6 +22,8 @@ export interface CreateScheduleEntryPayload {
   academic_session?: string;
   semester?: string | number;
   program?: string | number;
+  target_program?: string | number;
+  target_level?: number;
 }
 
 export interface CreateEntrySuccessResponse {
@@ -64,10 +66,18 @@ interface RawTimetableEntry {
   course_code?: string;
   course_title?: string;
   course_level?: number;
+  course_type?: string;
+  department_id?: number | string;
+  department_name?: string;
+  faculty_id?: number | string;
+  faculty_name?: string;
   lecturer?: number | string;
   lecturer_name?: string;
+  lecturers?: string[];
   venue?: number | string;
   venue_name?: string;
+  venue_capacity?: number;
+  expected_students?: number;
   day_of_week?: string;
   start_time: string;
   end_time: string;
@@ -80,11 +90,13 @@ interface RawTimetableEntry {
   target_program?: number | string | null;
   target_program_id?: number | string | null;
   target_program_name?: string;
+  target_level?: number;
   recurrence_rule?: string;
   recurrence_start_date?: string;
   recurrence_end_date?: string;
   has_conflict?: boolean;
   conflict_reason?: string;
+  status?: "scheduled" | "shifted" | "postponed" | "cancelled" | "pending_approval" | string;
 }
 
 interface RawLectureSession {
@@ -95,7 +107,14 @@ interface RawLectureSession {
   course_code?: string;
   course_title?: string;
   course_level?: number;
+  target_level?: number;
+  course_type?: string;
+  department_id?: number | string;
+  department_name?: string;
+  faculty_id?: number | string;
+  faculty_name?: string;
   lecturer_name?: string;
+  lecturers?: string[];
   target_program_id?: number | string;
   program_name?: string;
   program_code?: string;
@@ -105,6 +124,8 @@ interface RawLectureSession {
   session_end_time: string;
   venue?: number | string;
   venue_name?: string;
+  venue_capacity?: number;
+  day_of_week?: string;
   status: "scheduled" | "shifted" | "postponed" | "cancelled" | "held" | "not_held";
   can_shift?: boolean;
   report_status?: "held" | "not_held" | "unreported";
@@ -128,6 +149,34 @@ interface RawExamSitting {
   }>;
 }
 
+function parseDayOfWeek(rawDay?: string, recurrenceRule?: string): TimetableEntry["dayOfWeek"] {
+  const candidate = (rawDay || "").trim().toLowerCase();
+  const dayMap: Record<string, TimetableEntry["dayOfWeek"]> = {
+    monday: "Monday",
+    tuesday: "Tuesday",
+    wednesday: "Wednesday",
+    thursday: "Thursday",
+    friday: "Friday",
+    saturday: "Saturday",
+    mon: "Monday",
+    tue: "Tuesday",
+    wed: "Wednesday",
+    thu: "Thursday",
+    fri: "Friday",
+    sat: "Saturday",
+  };
+  if (candidate in dayMap) {
+    return dayMap[candidate];
+  }
+  if (recurrenceRule) {
+    const parts = recurrenceRule.toLowerCase().split(":");
+    if (parts.length > 1 && parts[1] in dayMap) {
+      return dayMap[parts[1]];
+    }
+  }
+  return "Monday";
+}
+
 function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
   return {
     id: String(raw.id),
@@ -135,13 +184,23 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     title: raw.title || raw.course_title || "Timetable Entry",
     type: raw.entry_type || raw.type || "lecture",
     courseId: raw.course ? String(raw.course) : undefined,
-    courseCode: raw.course_code || "CSC301",
+    courseCode: raw.course_code || (raw.entry_type === "event" ? (raw.title || "EVENT") : "CSC301"),
     courseTitle: raw.course_title || raw.title || "Course",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
-    lecturerName: raw.lecturer_name || "Assigned Lecturer",
+    targetLevel: raw.target_level ? Number(raw.target_level) : undefined,
+    courseType: raw.course_type,
+    departmentId: raw.department_id ? String(raw.department_id) : undefined,
+    departmentName: raw.department_name,
+    facultyId: raw.faculty_id ? String(raw.faculty_id) : undefined,
+    facultyName: raw.faculty_name,
+    lecturerId: raw.lecturer ? String(raw.lecturer) : undefined,
+    lecturerName: raw.lecturer_name || (raw.lecturers && raw.lecturers[0]) || "Assigned Lecturer",
+    lecturers: raw.lecturers || (raw.lecturer_name ? [raw.lecturer_name] : []),
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
-    dayOfWeek: (raw.day_of_week as TimetableEntry["dayOfWeek"]) || "Monday",
+    venueCapacity: raw.venue_capacity,
+    expectedStudents: raw.expected_students,
+    dayOfWeek: parseDayOfWeek(raw.day_of_week, raw.recurrence_rule),
     startTime: raw.start_time,
     endTime: raw.end_time,
     semesterId: raw.semester ? String(raw.semester) : undefined,
@@ -156,30 +215,46 @@ function mapRawEntryToEntry(raw: RawTimetableEntry): TimetableEntry {
     recurrenceEndDate: raw.recurrence_end_date,
     hasConflict: Boolean(raw.has_conflict),
     conflictReason: raw.conflict_reason,
+    status: (raw.status as TimetableEntry["status"]) || "scheduled",
   };
 }
 
 function mapRawSessionToSession(raw: RawLectureSession): LectureSession {
+  const entryId = String(raw.timetable_entry || "");
   return {
     id: String(raw.id),
-    entryId: String(raw.timetable_entry || ""),
+    entryId: entryId,
+    timetableEntryId: entryId || undefined,
+    timetableEntryTitle: raw.timetable_entry_title,
+    title: raw.timetable_entry_title,
     entryType: raw.entry_type || "lecture",
-    courseCode: raw.course_code || "CSC301",
+    courseCode: raw.course_code || (raw.entry_type === "event" ? (raw.timetable_entry_title || "EVENT") : "CSC301"),
     courseTitle: raw.course_title || raw.timetable_entry_title || "Course Session",
     courseLevel: raw.course_level ? Number(raw.course_level) : undefined,
-    lecturerName: raw.lecturer_name || "Lecturer",
+    targetLevel: raw.target_level ? Number(raw.target_level) : undefined,
+    courseType: raw.course_type,
+    departmentId: raw.department_id ? String(raw.department_id) : undefined,
+    departmentName: raw.department_name,
+    facultyId: raw.faculty_id ? String(raw.faculty_id) : undefined,
+    facultyName: raw.faculty_name,
+    lecturerName: raw.lecturer_name || (raw.lecturers && raw.lecturers[0]) || "Lecturer",
+    lecturers: raw.lecturers || (raw.lecturer_name ? [raw.lecturer_name] : []),
     targetProgramId: raw.target_program_id ? String(raw.target_program_id) : undefined,
     programName: raw.program_name,
     programCode: raw.program_code,
     programScope: raw.program_scope || "general",
     date: raw.session_date,
+    dayOfWeek: raw.day_of_week,
     startTime: raw.session_start_time,
     endTime: raw.session_end_time,
     venueId: raw.venue ? String(raw.venue) : "",
     venueName: raw.venue_name || "Venue",
+    venueCapacity: raw.venue_capacity,
     status: raw.status || "scheduled",
     canShift: Boolean(raw.can_shift),
     reportStatus: raw.report_status || "unreported",
+    hasConflict: Boolean((raw as any).has_conflict),
+    conflictReason: (raw as any).conflict_reason || "",
   };
 }
 
@@ -212,6 +287,8 @@ export async function getTimetableEntries(params?: {
   semester?: string | number;
   program?: string | number;
   level?: string | number;
+  department?: string | number;
+  faculty?: string | number;
   entry_type?: string;
 }): Promise<TimetableEntry[]> {
   const response = await apiClient.get<RawTimetableEntry[] | { results: RawTimetableEntry[] }>(
@@ -299,6 +376,8 @@ export async function getLectureSessions(params?: {
   semester?: string | number;
   program?: string | number;
   level?: string | number;
+  department?: string | number;
+  faculty?: string | number;
   entry_type?: string;
 }): Promise<LectureSession[]> {
   const response = await apiClient.get<RawLectureSession[] | { results: RawLectureSession[] }>(
@@ -326,6 +405,20 @@ export async function updateLectureSessionAPI(
   const response = await apiClient.patch<RawLectureSession>(
     `/scheduling/sessions/${id}/`,
     payload
+  );
+  return mapRawSessionToSession(response.data);
+}
+
+/**
+ * POST /api/scheduling/sessions/{id}/cancel/
+ */
+export async function cancelLectureSessionAPI(
+  id: string | number,
+  reason?: string
+): Promise<LectureSession> {
+  const response = await apiClient.post<RawLectureSession>(
+    `/scheduling/sessions/${id}/cancel/`,
+    { reason }
   );
   return mapRawSessionToSession(response.data);
 }
@@ -359,9 +452,17 @@ export async function createExamSittingAPI(payload: {
 /**
  * Helper: Fetch active courses list for modals
  */
-export async function getCoursesOptions(): Promise<Course[]> {
+export async function getCoursesOptions(params?: {
+  semester?: string | number;
+} | unknown): Promise<Course[]> {
   try {
-    const response = await apiClient.get("/courses/courses/");
+    const queryParams =
+      params && typeof params === "object" && "semester" in params
+        ? (params as { semester?: string | number })
+        : undefined;
+    const response = await apiClient.get("/courses/courses/", {
+      params: queryParams,
+    });
     const data = response.data;
     const list = Array.isArray(data) ? data : data?.results || [];
     return list.map((c: Record<string, unknown>) => ({
@@ -370,8 +471,27 @@ export async function getCoursesOptions(): Promise<Course[]> {
       title: String(c.title || ""),
       level: Number(c.level || 100),
       creditUnits: Number(c.credit_units || 3),
-      departmentId: String(c.owning_department || ""),
+      departmentId: c.owning_department ? String(c.owning_department) : undefined,
+      departmentName: String(c.owning_department_name || ""),
       owningLevel: (c.owning_level as Course["owningLevel"]) || "department",
+      owningFaculty: c.owning_faculty ? String(c.owning_faculty) : undefined,
+      facultyName: String(c.owning_faculty_name || ""),
+      owningSchool: c.owning_school ? String(c.owning_school) : undefined,
+      schoolName: String(c.owning_school_name || ""),
+      semesterId: c.semester ? String(c.semester) : undefined,
+      semesterName: c.semester_name ? String(c.semester_name) : undefined,
+      semesterCode: c.semester_code
+        ? String(c.semester_code)
+        : String(c.semester_name || "").toLowerCase().includes("first")
+          ? "first"
+          : String(c.semester_name || "").toLowerCase().includes("second")
+            ? "second"
+            : undefined,
+      programScope: (c.program_scope as Course["programScope"]) || "general",
+      targetProgramId: c.target_program ? String(c.target_program) : undefined,
+      targetProgramName: String(c.target_program_name || ""),
+      targetProgramCode: String(c.target_program_code || ""),
+      courseType: (c.course_type as Course["courseType"]) || "lecture",
       lecturers: [],
     }));
   } catch {
@@ -395,6 +515,10 @@ export async function getVenuesOptions(): Promise<Venue[]> {
       capacity: Number(v.capacity || 0),
       examCapacity: Number(v.exam_capacity || 0),
       owningLevel: (v.owning_level as Venue["owningLevel"]) || "department",
+      owningDepartmentId: v.owning_department ? String(v.owning_department) : undefined,
+      owningDepartmentName: v.owning_department_name ? String(v.owning_department_name) : undefined,
+      owningFacultyId: v.owning_faculty ? String(v.owning_faculty) : undefined,
+      owningSchoolId: v.owning_school ? String(v.owning_school) : undefined,
       facilities: [],
       isAvailable: Boolean(v.is_active ?? true),
     }));

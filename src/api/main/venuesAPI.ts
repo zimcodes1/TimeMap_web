@@ -9,9 +9,12 @@ interface RawFacility {
 interface RawVenue {
   id: number | string;
   name: string;
+  code?: string;
   venue_type: VenueType;
   capacity: number;
   exam_capacity?: number;
+  location?: string;
+  building?: string;
   facilities?: (number | string)[];
   facilities_details?: RawFacility[];
   owning_level: AdminLevel;
@@ -29,9 +32,12 @@ export function mapRawVenueToVenue(raw: RawVenue): Venue {
   return {
     id: String(raw.id),
     name: raw.name,
+    code: raw.code || "",
     venueType: raw.venue_type,
     capacity: raw.capacity,
     examCapacity: raw.exam_capacity,
+    location: raw.location || raw.building || "",
+    building: raw.building || raw.location || "",
     owningLevel: raw.owning_level || "department",
     owningDepartmentId: raw.owning_department ? String(raw.owning_department) : undefined,
     owningDepartmentName: raw.owning_department_name,
@@ -43,7 +49,8 @@ export function mapRawVenueToVenue(raw: RawVenue): Venue {
 }
 
 export function mapVenueToRawPayload(data: Partial<Venue> & { scopeId?: string }) {
-  const facilityIds = Array.isArray(data.facilities)
+  const isCbt = data.venueType === "cbt_center" || data.venueType === "exam_hall";
+  const facilityIds = !isCbt && Array.isArray(data.facilities)
     ? data.facilities.map((f) => (typeof f === "object" ? Number(f.id) : Number(f))).filter(Boolean)
     : [];
 
@@ -52,9 +59,12 @@ export function mapVenueToRawPayload(data: Partial<Venue> & { scopeId?: string }
 
   return {
     name: data.name,
+    code: data.code || "",
     venue_type: data.venueType || "lecture_hall",
-    capacity: Number(data.capacity || 0),
+    capacity: Number(isCbt ? (data.examCapacity || 0) : (data.capacity || 0)),
     exam_capacity: data.examCapacity ? Number(data.examCapacity) : undefined,
+    location: data.location || data.building || "",
+    building: data.building || data.location || "",
     facilities: facilityIds,
     owning_level: owningLevel,
     owning_department: owningLevel === "department" && targetScopeId ? Number(targetScopeId) : undefined,
@@ -143,10 +153,16 @@ export interface VenueAvailabilityResponse {
 
 export const getVenueAvailabilityAPI = async (
   venueId: string,
-  date?: string
+  options?: string | { date?: string; weekday?: string }
 ): Promise<VenueAvailabilityResponse> => {
   try {
-    const params = date ? { date } : {};
+    const params: Record<string, string> = {};
+    if (typeof options === "string") {
+      params.date = options;
+    } else if (options) {
+      if (options.date) params.date = options.date;
+      if (options.weekday) params.weekday = options.weekday;
+    }
     const response = await apiClient.get<VenueAvailabilityResponse>(
       `/venues/venues/${venueId}/availability/`,
       { params }
@@ -157,14 +173,16 @@ export const getVenueAvailabilityAPI = async (
     return {
       venue_id: venueId,
       venue_name: "Selected Venue",
-      date: date || new Date().toISOString().split("T")[0],
-      operating_hours: "8:00 AM - 6:00 PM",
-      available_time_ranges: "Available time: 8:00 AM - 10:00 AM, 12:00 PM - 6:00 PM",
+      date: typeof options === "string" ? options : options?.date || new Date().toISOString().split("T")[0],
+      operating_hours: "8:00 AM - 6:00 PM (Mon-Fri)",
+      available_time_ranges: "Available standard slots",
       slots: [
         { start: "08:00:00", end: "10:00:00", label: "8:00 AM - 10:00 AM" },
-        { start: "12:00:00", end: "18:00:00", label: "12:00 PM - 6:00 PM" },
+        { start: "10:00:00", end: "12:00:00", label: "10:00 AM - 12:00 PM" },
+        { start: "14:00:00", end: "16:00:00", label: "2:00 PM - 4:00 PM" },
+        { start: "16:00:00", end: "18:00:00", label: "4:00 PM - 6:00 PM" },
       ],
-      booked_slots: [{ start: "10:00:00", end: "12:00:00" }],
+      booked_slots: [],
     };
   }
 };

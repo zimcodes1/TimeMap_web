@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DashboardView from "@/pages/main/DashboardView";
 import {
@@ -6,62 +6,303 @@ import {
 	getVenueUtilizationAnalytics,
 	getDiscrepancyAnalytics,
 	getDashboardSummaryCounts,
-	getDepartmentsList,
+	getDashboardStatCards,
+	getExamAnalytics,
 } from "@/api/main/dashboardAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
+import { getFacultiesList, getDepartmentsList } from "@/api/main/hierarchyAPI";
+import { getPrograms } from "@/api/main/programsAPI";
 import { useAuth } from "@/hooks/useAuth";
+import {
+	filterFacultiesByScope,
+	filterDepartmentsByScope,
+} from "@/lib/scopeUtils";
+import { getSemesterWeekTimeline } from "@/utils/semesterWeeks";
+import type { Faculty, Department, Program, Semester } from "@/types";
 
 export default function DashboardContainer() {
 	const { user: currentUser } = useAuth();
-	const [startDate, setStartDate] = useState<string>("");
-	const [endDate, setEndDate] = useState<string>("");
-	const [departmentFilter, setDepartmentFilter] = useState<string>("");
-	const [groupBy, setGroupBy] = useState<string>("week");
+	const adminLevel = currentUser?.adminLevel;
+	const isDeptAdmin = adminLevel === "department";
+	const isFacultyAdmin = adminLevel === "faculty";
 
-	const filterParams = {
-		startDate: startDate || undefined,
-		endDate: endDate || undefined,
-		departmentId: departmentFilter || undefined,
-		groupBy: groupBy || undefined,
-	};
-
-	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
-		queryKey: ["analytics", "hold-rate", filterParams],
-		queryFn: () => getLectureHoldRateAnalytics(filterParams),
+	// 1. Hierarchy Queries
+	const { data: facultiesData = [] } = useQuery<Faculty[]>({
+		queryKey: ["hierarchy", "faculties"],
+		queryFn: getFacultiesList,
 	});
 
-	const { data: utilization, isLoading: utilizationLoading } = useQuery({
-		queryKey: ["analytics", "utilization", filterParams],
-		queryFn: () => getVenueUtilizationAnalytics(filterParams),
-	});
-
-	const { data: discrepancies, isLoading: discrepanciesLoading } = useQuery({
-		queryKey: ["analytics", "discrepancies", filterParams],
-		queryFn: () => getDiscrepancyAnalytics(filterParams),
-	});
-
-	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
-		queryKey: ["analytics", "summary-counts"],
-		queryFn: getDashboardSummaryCounts,
-	});
-
-	const { data: departments = [] } = useQuery({
+	const { data: departmentsData = [] } = useQuery<Department[]>({
 		queryKey: ["hierarchy", "departments"],
 		queryFn: getDepartmentsList,
 	});
 
-	const { data: semesters = [] } = useQuery({
+	const { data: semestersData = [] } = useQuery<Semester[]>({
 		queryKey: ["semesters", "list"],
 		queryFn: () => getSemesters(),
 	});
 
-	const activeSemester = semesters.find((s) => s.isActive);
+	const activeSemester = useMemo(() => {
+		return semestersData.find((s) => s.isActive) || semestersData[0];
+	}, [semestersData]);
+
+	// Calculate timeline relative to active semester
+	const semesterTimeline = useMemo(() => {
+		return getSemesterWeekTimeline(activeSemester);
+	}, [activeSemester]);
+
+	const currentWeekLabel = useMemo(() => {
+		if (!activeSemester) return undefined;
+		return `Week ${semesterTimeline.currentWeek}`;
+	}, [activeSemester, semesterTimeline]);
+
+	// Scoped faculties
+	const scopedFaculties = useMemo(() => {
+		return filterFacultiesByScope(facultiesData, currentUser, departmentsData);
+	}, [facultiesData, currentUser, departmentsData]);
+
+	// Scoped departments
+	const scopedDepartments = useMemo(() => {
+		return filterDepartmentsByScope(
+			departmentsData,
+			currentUser,
+			facultiesData,
+		);
+	}, [departmentsData, currentUser, facultiesData]);
+
+	// State for filters
+	const [selectedFacultyId, setSelectedFacultyId] = useState<string>("");
+	const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+	const [selectedProgramId, setSelectedProgramId] = useState<string>("");
+	const [selectedLevel, setSelectedLevel] = useState<string>("");
+
+	// Initialize selected faculty
+	useEffect(() => {
+		if (scopedFaculties.length > 0 && !selectedFacultyId) {
+			setSelectedFacultyId(String(scopedFaculties[0].id));
+		}
+	}, [scopedFaculties, selectedFacultyId]);
+
+	// Filter departments visible under the selected faculty (for School Admins)
+	const displayedDepartments = useMemo(() => {
+		if (isDeptAdmin) {
+			return scopedDepartments;
+		}
+		if (isFacultyAdmin) {
+			return scopedDepartments;
+		}
+		// School admin or superuser: filter scoped departments by selected faculty
+		if (selectedFacultyId) {
+			return scopedDepartments.filter(
+				(d) => String(d.facultyId) === String(selectedFacultyId),
+			);
+		}
+		return scopedDepartments;
+	}, [scopedDepartments, isDeptAdmin, isFacultyAdmin, selectedFacultyId]);
+
+	// Initialize selected department
+	useEffect(() => {
+		if (isDeptAdmin) {
+			const myDeptId = currentUser?.adminScopeId || currentUser?.departmentId;
+			if (myDeptId && selectedDepartmentId !== String(myDeptId)) {
+				setSelectedDepartmentId(String(myDeptId));
+			}
+		} else if (isFacultyAdmin) {
+			if (selectedDepartmentId) {
+				const deptExists = displayedDepartments.some(
+					(d) => String(d.id) === String(selectedDepartmentId),
+				);
+				if (!deptExists) {
+					setSelectedDepartmentId("");
+				}
+			}
+		} else if (displayedDepartments.length > 0) {
+			const deptExists = displayedDepartments.some(
+				(d) => String(d.id) === String(selectedDepartmentId),
+			);
+			if (!deptExists) {
+				setSelectedDepartmentId(String(displayedDepartments[0].id));
+			}
+		}
+	}, [isDeptAdmin, isFacultyAdmin, currentUser, displayedDepartments, selectedDepartmentId]);
+
+	// Fetch programs for the selected department
+	const { data: programsData = [] } = useQuery<Program[]>({
+		queryKey: ["hierarchy", "programs", selectedDepartmentId],
+		queryFn: () => getPrograms(selectedDepartmentId),
+		enabled: Boolean(selectedDepartmentId),
+	});
+
+	// Reset program if department changes or is cleared
+	useEffect(() => {
+		if (!selectedDepartmentId) {
+			if (selectedProgramId) {
+				setSelectedProgramId("");
+			}
+			return;
+		}
+		if (selectedProgramId && programsData.length > 0) {
+			const progExists = programsData.some(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (!progExists) {
+				setSelectedProgramId("");
+			}
+		}
+	}, [selectedDepartmentId, programsData, selectedProgramId]);
+
+	// Active department details
+	const activeDepartment = useMemo(() => {
+		return displayedDepartments.find(
+			(d) => String(d.id) === String(selectedDepartmentId),
+		);
+	}, [displayedDepartments, selectedDepartmentId]);
+
+	// Compute maxLevel based on selected program or department's default program
+	const computedMaxLevel = useMemo(() => {
+		if (selectedProgramId) {
+			const prog = programsData.find(
+				(p) => String(p.id) === String(selectedProgramId),
+			);
+			if (prog?.maxLevel) return prog.maxLevel;
+		}
+		// Look for default program of department
+		const defaultProg = programsData.find((p) => p.isDefault);
+		if (defaultProg?.maxLevel) return defaultProg.maxLevel;
+
+		const deptProgDefault = activeDepartment?.programs?.find(
+			(p) => p.isDefault,
+		);
+		if (deptProgDefault?.maxLevel) return deptProgDefault.maxLevel;
+
+		if (activeDepartment?.maxLevel) return activeDepartment.maxLevel;
+		return 400;
+	}, [selectedProgramId, programsData, activeDepartment]);
+
+	// Auto-clamp selectedLevel if it exceeds computedMaxLevel
+	useEffect(() => {
+		if (selectedLevel && Number(selectedLevel) > computedMaxLevel) {
+			setSelectedLevel("");
+		}
+	}, [computedMaxLevel, selectedLevel]);
+
+	// 2. Analytics Queries
+	// Hold Rate: scoped to department (or faculty), program, level, semester, grouped by week
+	const holdRateParams = useMemo(() => {
+		return {
+			facultyId: isFacultyAdmin
+				? currentUser?.adminScopeId || undefined
+				: selectedFacultyId || undefined,
+			departmentId: selectedDepartmentId || undefined,
+			programId: selectedProgramId || undefined,
+			level: selectedLevel || undefined,
+			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			groupBy: "week",
+		};
+	}, [
+		isFacultyAdmin,
+		currentUser,
+		selectedFacultyId,
+		selectedDepartmentId,
+		selectedProgramId,
+		selectedLevel,
+		activeSemester,
+	]);
+
+	const isExamOfficer = Boolean(currentUser?.isExamOfficer);
+
+	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
+		queryKey: ["analytics", "hold-rate", holdRateParams],
+		queryFn: () => getLectureHoldRateAnalytics(holdRateParams),
+		enabled: !isExamOfficer,
+	});
+
+	const isSchoolAdmin = adminLevel === "school";
+
+	// Venue Utilization: aggregated per faculty for School Admin, faculty-owned venues when All Departments for Faculty Admin, strictly per department otherwise
+	const utilizationParams = useMemo(() => {
+		if (isSchoolAdmin) {
+			return {
+				facultyId: selectedFacultyId || undefined,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+				groupBy: "faculty",
+			};
+		}
+		if (isFacultyAdmin && !selectedDepartmentId) {
+			return {
+				facultyId: currentUser?.adminScopeId || undefined,
+				facultyOwnedOnly: true,
+				semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+				groupBy: "venue",
+			};
+		}
+		return {
+			departmentId: selectedDepartmentId || undefined,
+			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+			groupBy: "venue",
+		};
+	}, [
+		isSchoolAdmin,
+		isFacultyAdmin,
+		currentUser,
+		selectedFacultyId,
+		selectedDepartmentId,
+		activeSemester,
+	]);
+
+	const { data: utilization, isLoading: utilizationLoading } = useQuery({
+		queryKey: ["analytics", "utilization", utilizationParams],
+		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
+		enabled:
+			!isExamOfficer &&
+			(isSchoolAdmin ||
+				(isFacultyAdmin && !selectedDepartmentId) ||
+				Boolean(selectedDepartmentId)),
+	});
+
+	// Discrepancy Analytics
+	const discrepancyParams = useMemo(() => {
+		return {
+			departmentId: selectedDepartmentId || undefined,
+			semesterId: activeSemester?.id ? String(activeSemester.id) : undefined,
+		};
+	}, [selectedDepartmentId, activeSemester]);
+
+	const { data: discrepancies, isLoading: discrepanciesLoading } = useQuery({
+		queryKey: ["analytics", "discrepancies", discrepancyParams],
+		queryFn: () => getDiscrepancyAnalytics(discrepancyParams),
+		enabled: !isExamOfficer,
+	});
+
+	// Dashboard Summary Counts (Legacy fallback)
+	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
+		queryKey: ["analytics", "summary-counts"],
+		queryFn: getDashboardSummaryCounts,
+		enabled: !isExamOfficer,
+	});
+
+	// Role-based Statcards Query
+	const { data: roleStatCardsData, isLoading: roleStatCardsLoading } = useQuery({
+		queryKey: ["analytics", "role-statcards"],
+		queryFn: getDashboardStatCards,
+	});
+
+	// Exam Analytics Query (for Exam Officers)
+	const { data: examAnalytics, isLoading: examAnalyticsLoading } = useQuery({
+		queryKey: ["analytics", "exam-analytics", activeSemester?.id],
+		queryFn: () =>
+			getExamAnalytics(activeSemester?.id ? String(activeSemester.id) : undefined),
+		enabled: isExamOfficer,
+	});
 
 	const handleResetFilters = () => {
-		setStartDate("");
-		setEndDate("");
-		setDepartmentFilter("");
-		setGroupBy("week");
+		setSelectedProgramId("");
+		setSelectedLevel("");
+		if (isFacultyAdmin) {
+			setSelectedDepartmentId("");
+		} else if (!isDeptAdmin && displayedDepartments.length > 0) {
+			setSelectedDepartmentId(String(displayedDepartments[0].id));
+		}
 	};
 
 	return (
@@ -74,17 +315,26 @@ export default function DashboardContainer() {
 			discrepanciesLoading={discrepanciesLoading}
 			summaryCounts={summaryCounts}
 			countsLoading={countsLoading}
-			departments={departments}
-			adminLevel={currentUser?.adminLevel}
+			roleStatCards={roleStatCardsData?.cards}
+			roleStatCardsLoading={roleStatCardsLoading}
+			examAnalytics={examAnalytics}
+			examAnalyticsLoading={examAnalyticsLoading}
+			isExamOfficer={isExamOfficer}
+			departments={displayedDepartments}
+			faculties={scopedFaculties}
+			programs={programsData}
+			adminLevel={adminLevel}
 			activeSemester={activeSemester}
-			startDate={startDate}
-			onStartDateChange={setStartDate}
-			endDate={endDate}
-			onEndDateChange={setEndDate}
-			departmentFilter={departmentFilter}
-			onDepartmentFilterChange={setDepartmentFilter}
-			groupBy={groupBy}
-			onGroupByChange={setGroupBy}
+			selectedFacultyId={selectedFacultyId}
+			onFacultyChange={setSelectedFacultyId}
+			selectedDepartmentId={selectedDepartmentId}
+			onDepartmentChange={setSelectedDepartmentId}
+			selectedProgramId={selectedProgramId}
+			onProgramChange={setSelectedProgramId}
+			selectedLevel={selectedLevel}
+			onLevelChange={setSelectedLevel}
+			maxLevel={computedMaxLevel}
+			currentWeekLabel={currentWeekLabel}
 			onResetFilters={handleResetFilters}
 		/>
 	);

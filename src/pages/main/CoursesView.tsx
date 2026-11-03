@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
 	type ToolbarFilter,
 } from "@/components/ui/table-toolbar";
 import { DataTable } from "@/components/ui/data-table";
+import { CourseExamSettingsTable } from "@/components/courses/CourseExamSettingsTable";
 import {
 	Plus,
 	Share2,
@@ -21,6 +22,8 @@ import {
 	RefreshCw,
 	Trash2,
 	Lock,
+	SlidersHorizontal,
+	Undo2,
 } from "lucide-react";
 import type {
 	Course,
@@ -49,6 +52,12 @@ interface CoursesViewProps {
 	onDeleteCourse?: (id: string) => void;
 	onApproveGrant: (id: string) => void;
 	onRejectGrant: (id: string) => void;
+	onCancelGrantForCourse?: (course: Course) => void;
+	onCancelGrantRecord?: (grant: CourseAccessGrant) => void;
+	isExamOfficer?: boolean;
+	canAccessExamTab?: boolean;
+	hasScopeExamOfficer?: boolean;
+	onEditExamSettings?: (course: Course) => void;
 }
 
 export default function CoursesView({
@@ -68,6 +77,12 @@ export default function CoursesView({
 	onDeleteCourse,
 	onApproveGrant,
 	onRejectGrant,
+	onCancelGrantForCourse,
+	onCancelGrantRecord,
+	isExamOfficer: propIsExamOfficer,
+	canAccessExamTab: propCanAccessExamTab,
+	hasScopeExamOfficer: propHasScopeExamOfficer,
+	onEditExamSettings,
 }: CoursesViewProps) {
 	const { user: currentUser } = useAuth();
 	const adminLevel = currentUser?.adminLevel;
@@ -82,46 +97,201 @@ export default function CoursesView({
 	const isDeptAdmin =
 		currentUser?.role === "admin" && adminLevel === "department";
 
-	// Tab configurations per admin level
+	const isExamOfficer =
+		propIsExamOfficer !== undefined
+			? propIsExamOfficer
+			: Boolean(currentUser?.isExamOfficer);
+
+	const hasScopeExamOfficer =
+		propHasScopeExamOfficer !== undefined
+			? propHasScopeExamOfficer
+			: Boolean(currentUser?.hasScopeExamOfficer);
+
+	// canAccessExamTab is true if exam officer, OR if scope admin has no exam officer assigned
+	const canAccessExamTab =
+		propCanAccessExamTab !== undefined
+			? propCanAccessExamTab
+			: isExamOfficer || (!hasScopeExamOfficer && !isUniversityAdmin);
+
+	// Active semester
+	const activeSemester = useMemo(() => {
+		return semesters?.find((s) => s.isActive) || null;
+	}, [semesters]);
+
+	// Exam settings courses: strictly courses in the active current semester
+	const examSettingsCourses = useMemo(() => {
+		if (!activeSemester) return courses;
+		const activeSemId = String(activeSemester.id);
+		const activeSemCode = (activeSemester.name || "").toLowerCase().trim();
+		const activeSemDisplay = (
+			activeSemester.displayName || ""
+		).toLowerCase().trim();
+
+		return courses.filter((c) => {
+			const cSemId = c.semesterId ? String(c.semesterId) : "";
+			const cCode = (c.semesterCode || "").toLowerCase().trim();
+			const cName = (c.semesterName || "").toLowerCase().trim();
+
+			return (
+				cSemId === activeSemId ||
+				(Boolean(activeSemCode) &&
+					(cCode === activeSemCode || cName.includes(activeSemCode))) ||
+				(Boolean(activeSemDisplay) && cName.includes(activeSemDisplay))
+			);
+		});
+	}, [courses, activeSemester]);
+
+	// Tab configurations per role and scope
 	const visibleTabs = useMemo(() => {
-		if (isUniversityAdmin || isSchoolAdmin) {
+		if (isExamOfficer) {
 			return [
 				{
-					id: "catalog",
-					label: "Course Catalog",
-					icon: BookOpen,
-					count: courses.length,
+					id: "exam_settings",
+					label: "Exam Configurations",
+					icon: SlidersHorizontal,
+					count: examSettingsCourses.length,
 				},
 			];
 		}
-		return [
+
+		const tabs = [
 			{
 				id: "catalog",
 				label: "Course Catalog",
 				icon: BookOpen,
 				count: courses.length,
 			},
-			{
+		];
+
+		if (canAccessExamTab) {
+			tabs.push({
+				id: "exam_settings",
+				label: "Exam Settings",
+				icon: SlidersHorizontal,
+				count: examSettingsCourses.length,
+			});
+		}
+
+		if (!isUniversityAdmin && !isSchoolAdmin) {
+			tabs.push({
 				id: "grants",
 				label: "Access Grants Queue",
 				icon: Share2,
 				count: grants.length,
-			},
-		];
-	}, [isUniversityAdmin, isSchoolAdmin, courses.length, grants.length]);
+			});
+		}
+
+		return tabs;
+	}, [
+		isExamOfficer,
+		canAccessExamTab,
+		isUniversityAdmin,
+		isSchoolAdmin,
+		courses.length,
+		examSettingsCourses.length,
+		grants.length,
+	]);
 
 	const [activeTab, setActiveTab] = useState<
-		"catalog" | "grants" | "registrations"
-	>("catalog");
+		"catalog" | "grants" | "exam_settings"
+	>(isExamOfficer ? "exam_settings" : "catalog");
+
+	useEffect(() => {
+		if (isExamOfficer && activeTab !== "exam_settings") {
+			setActiveTab("exam_settings");
+		}
+	}, [isExamOfficer, activeTab]);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [levelFilter, setLevelFilter] = useState("");
 	const [scopeFilter, setScopeFilter] = useState("");
 	const [facultyFilter, setFacultyFilter] = useState("");
 	const [departmentFilter, setDepartmentFilter] = useState("");
 	const [semesterFilter, setSemesterFilter] = useState("");
+	const [hasInitializedSemesterFilter, setHasInitializedSemesterFilter] =
+		useState(false);
+
+	useEffect(() => {
+		if (!hasInitializedSemesterFilter && activeSemester) {
+			setSemesterFilter(String(activeSemester.id));
+			setHasInitializedSemesterFilter(true);
+		}
+	}, [activeSemester, hasInitializedSemesterFilter]);
 	const [programFilter, setProgramFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
+
+	// Programs scoped according to current user admin role
+	const scopedPrograms = useMemo(() => {
+		if (isDeptAdmin) {
+			const myDeptId = String(
+				currentUser?.adminScopeId || currentUser?.departmentId || "",
+			);
+			if (myDeptId) {
+				const filtered = programs.filter(
+					(p) => String(p.departmentId) === myDeptId,
+				);
+				if (filtered.length > 0) return filtered;
+			}
+		}
+		if (isFacultyAdmin) {
+			const myFacId = String(currentUser?.adminScopeId || "");
+			if (myFacId) {
+				const filtered = programs.filter(
+					(p) =>
+						String(p.facultyId) === myFacId ||
+						departments.find((d) => d.id === String(p.departmentId))
+							?.facultyId === myFacId,
+				);
+				if (filtered.length > 0) return filtered;
+			}
+		}
+		return programs;
+	}, [programs, isDeptAdmin, isFacultyAdmin, currentUser, departments]);
+
+	// Available Levels dynamically computed from selected program or department scope max_level
+	const availableLevels = useMemo(() => {
+		let maxLevel = 500;
+
+		if (programFilter && programFilter !== "general") {
+			const selectedProg =
+				scopedPrograms.find((p) => String(p.id) === String(programFilter)) ||
+				programs.find((p) => String(p.id) === String(programFilter));
+			if (selectedProg && selectedProg.maxLevel) {
+				maxLevel = selectedProg.maxLevel;
+			}
+		} else if (isDeptAdmin && scopedPrograms.length > 0) {
+			const progMax = Math.max(
+				...scopedPrograms.map((p) => p.maxLevel || 400),
+			);
+			maxLevel = progMax > 0 ? progMax : 400;
+		} else if (scopedPrograms.length > 0) {
+			const progMax = Math.max(
+				...scopedPrograms.map((p) => p.maxLevel || 400),
+			);
+			maxLevel = progMax > 0 ? progMax : 500;
+		}
+
+		// Ensure maxLevel accounts for actual courses if no program filter is set
+		const courseLevels = courses
+			.map((c) => Number(c.level))
+			.filter((l) => !isNaN(l) && l > 0);
+		if (courseLevels.length > 0 && !programFilter && !isDeptAdmin) {
+			maxLevel = Math.max(maxLevel, ...courseLevels);
+		}
+
+		const levels: number[] = [];
+		for (let lvl = 100; lvl <= maxLevel; lvl += 100) {
+			levels.push(lvl);
+		}
+		return levels;
+	}, [programFilter, scopedPrograms, programs, isDeptAdmin, courses]);
+
+	// Auto-reset levelFilter if it exceeds available levels
+	useEffect(() => {
+		if (levelFilter && !availableLevels.includes(Number(levelFilter))) {
+			setLevelFilter("");
+		}
+	}, [availableLevels, levelFilter]);
 
 	// Filter catalog
 	const filteredCourses = useMemo(() => {
@@ -135,15 +305,69 @@ export default function CoursesView({
 				(c.facultyName && c.facultyName.toLowerCase().includes(q)) ||
 				(c.schoolName && c.schoolName.toLowerCase().includes(q));
 
-			const matchesLevel = !levelFilter || c.level === Number(levelFilter);
+			const matchesLevel =
+				!levelFilter || Number(c.level) === Number(levelFilter);
 			const matchesScope = !scopeFilter || c.owningLevel === scopeFilter;
-			const matchesSemester =
-				!semesterFilter || c.semesterId === semesterFilter;
-			const matchesProgram =
-				!programFilter ||
-				(programFilter === "general"
-					? c.programScope === "general"
-					: c.targetProgramId === programFilter);
+
+			let matchesSemester = true;
+			if (semesterFilter) {
+				const selectedSem = semesters?.find(
+					(s) => String(s.id) === String(semesterFilter),
+				);
+				if (selectedSem) {
+					const selCode = (selectedSem.name || "").toLowerCase().trim();
+					const selDisplay = (
+						selectedSem.displayName || ""
+					).toLowerCase().trim();
+					const cCode = (c.semesterCode || "").toLowerCase().trim();
+					const cName = (c.semesterName || "").toLowerCase().trim();
+
+					matchesSemester =
+						String(c.semesterId) === String(semesterFilter) ||
+						(Boolean(selCode) &&
+							(cCode === selCode || cName.includes(selCode))) ||
+						(Boolean(selDisplay) && cName.includes(selDisplay));
+				} else {
+					matchesSemester = String(c.semesterId) === String(semesterFilter);
+				}
+			}
+
+			let matchesProgram = true;
+			if (programFilter) {
+				if (programFilter === "general") {
+					matchesProgram =
+						c.programScope === "general" ||
+						(c.owningLevel as string) === "general" ||
+						c.owningLevel === "faculty" ||
+						c.owningLevel === "school";
+				} else {
+					const progIdNum = Number(programFilter);
+					if (c.applicableProgramIds && c.applicableProgramIds.length > 0) {
+						matchesProgram = c.applicableProgramIds.includes(progIdNum);
+					} else {
+						const selectedProg =
+							scopedPrograms.find(
+								(p) => String(p.id) === String(programFilter),
+							) ||
+							programs.find((p) => String(p.id) === String(programFilter));
+						if (c.targetProgramId) {
+							matchesProgram =
+								String(c.targetProgramId) === String(programFilter);
+						} else if (c.programScope === "all" || !c.programScope) {
+							matchesProgram =
+								!c.owningDepartment ||
+								!selectedProg?.departmentId ||
+								String(c.owningDepartment) ===
+									String(selectedProg.departmentId);
+						} else if (c.programScope === "general") {
+							matchesProgram = true;
+						} else {
+							matchesProgram =
+								String(c.targetProgramId) === String(programFilter);
+						}
+					}
+				}
+			}
 
 			const matchesFaculty =
 				!facultyFilter ||
@@ -181,6 +405,9 @@ export default function CoursesView({
 		departmentFilter,
 		faculties,
 		departments,
+		scopedPrograms,
+		programs,
+		semesters,
 	]);
 
 	// Filter grants
@@ -239,13 +466,10 @@ export default function CoursesView({
 				label: "Level",
 				value: levelFilter,
 				onChange: setLevelFilter,
-				options: [
-					{ label: "100 Level", value: "100" },
-					{ label: "200 Level", value: "200" },
-					{ label: "300 Level", value: "300" },
-					{ label: "400 Level", value: "400" },
-					{ label: "500 Level", value: "500" },
-				],
+				options: availableLevels.map((lvl) => ({
+					label: `${lvl} Level`,
+					value: String(lvl),
+				})),
 			},
 		];
 
@@ -262,7 +486,7 @@ export default function CoursesView({
 			});
 		}
 
-		if (programs.length > 0) {
+		if (scopedPrograms.length > 0) {
 			list.push({
 				id: "program",
 				label: "Program",
@@ -270,7 +494,7 @@ export default function CoursesView({
 				onChange: setProgramFilter,
 				options: [
 					{ label: "General Courses Only", value: "general" },
-					...programs.map((p) => ({
+					...scopedPrograms.map((p) => ({
 						label: `${p.code} - ${p.name}`,
 						value: p.id,
 					})),
@@ -344,6 +568,8 @@ export default function CoursesView({
 		departmentFilter,
 		semesters,
 		programs,
+		scopedPrograms,
+		availableLevels,
 		faculties,
 		departments,
 		currentUser,
@@ -356,17 +582,21 @@ export default function CoursesView({
 				<div>
 					<div className="flex-col sm:mb-2 sm:flex items-left gap-2">
 						<Text variant="h3" weight="bold" className="text-text-main">
-							Courses & Access Sharing
+							{isExamOfficer
+								? "Course Exam Configurations"
+								: "Courses & Access Sharing"}
 						</Text>
 					</div>
 					<Text variant="body-sm" color="muted">
-						{isUniversityAdmin
-							? "Read-only course catalog and institutional curriculum overview."
-							: isSchoolAdmin
-								? "Manage school-level core courses and view academic catalog across all departments."
-								: isFacultyAdmin
-									? "Manage faculty courses, review cross-department access grants, and view departmental offerings."
-									: "Manage departmental courses, offer access grants, and request cross-department offerings."}
+						{isExamOfficer
+							? "Configure examination modes, duration windows, and CBT candidate timings for courses in your scope."
+							: isUniversityAdmin
+								? "Read-only course catalog and institutional curriculum overview."
+								: isSchoolAdmin
+									? "Manage school-level core courses and view academic catalog across all departments."
+									: isFacultyAdmin
+										? "Manage faculty courses, review cross-department access grants, and view departmental offerings."
+										: "Manage departmental courses, offer access grants, and request cross-department offerings."}
 					</Text>
 				</div>
 
@@ -389,8 +619,8 @@ export default function CoursesView({
 						</Button>
 					)}
 
-					{/* Access Grants Buttons: Available only to Faculty & Department Admins */}
-					{(isFacultyAdmin || isDeptAdmin) && (
+					{/* Access Grants Buttons: Available only to Faculty & Department Admins (Not Exam Officers) */}
+					{!isExamOfficer && (isFacultyAdmin || isDeptAdmin) && (
 						<>
 							<Button
 								variant="outline"
@@ -411,8 +641,8 @@ export default function CoursesView({
 						</>
 					)}
 
-					{/* Create Course Button: Available to School, Faculty & Department Admins */}
-					{!isUniversityAdmin && (
+					{/* Create Course Button: Available to School, Faculty & Department Admins (Not Exam Officers) */}
+					{!isExamOfficer && !isUniversityAdmin && (
 						<Button
 							variant="primary"
 							size="sm"
@@ -449,7 +679,9 @@ export default function CoursesView({
 						onResetFilters={() => {
 							setSearchQuery("");
 							setLevelFilter("");
-							setSemesterFilter("");
+							setSemesterFilter(
+								activeSemester ? String(activeSemester.id) : "",
+							);
 							setProgramFilter("");
 							setScopeFilter("");
 							setFacultyFilter("");
@@ -575,7 +807,7 @@ export default function CoursesView({
 									header: "Students Registered",
 									accessor: (c: Course) => (
 										<span className="font-bold text-primary text-xs">
-											{c.registrationCount || 0} Students
+											{(c.registrationCount || 0).toLocaleString()} Students
 										</span>
 									),
 								},
@@ -585,6 +817,21 @@ export default function CoursesView({
 									accessor: (c: Course) => {
 										const isOwner = canManageCourse(c);
 										if (!isOwner) {
+											if (c.isGrantedToScope) {
+												return (
+													<div className="flex items-center justify-end gap-1.5">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => onCancelGrantForCourse?.(c)}
+															title={`Undo / Cancel access grant for ${c.code}`}
+															className="h-8 px-2.5 text-xs text-warning hover:bg-warning-surface border-warning-surface cursor-pointer"
+														>
+															<Undo2 size={13} className="mr-1 text-warning" /> Undo Grant
+														</Button>
+													</div>
+												);
+											}
 											return (
 												<div className="flex items-center justify-end gap-1 text-[11px] text-text-subtle italic">
 													<Lock size={12} className="text-text-subtle" />
@@ -592,6 +839,7 @@ export default function CoursesView({
 												</div>
 											);
 										}
+
 										return (
 											<div className="flex items-center justify-end gap-1.5">
 												<Button
@@ -752,10 +1000,48 @@ export default function CoursesView({
 									header: "Actions",
 									align: "right",
 									accessor: (g: CourseAccessGrant) => {
+										if (g.status === "approved") {
+											const myDeptId =
+												currentUser?.adminScopeId || currentUser?.departmentId;
+											const myFacId =
+												currentUser?.adminScopeId || currentUser?.facultyId;
+											const isRecipient =
+												(adminLevel === "department" &&
+													(String(g.grantedToDepartmentId) === String(myDeptId) ||
+														g.grantedToDepartmentName === currentUser?.departmentName)) ||
+												(adminLevel === "faculty" &&
+													(String(g.grantedToFacultyId) === String(myFacId) ||
+														g.grantedToFacultyName === currentUser?.facultyName)) ||
+												adminLevel === "school" ||
+												adminLevel === "system" ||
+												adminLevel === "university";
+
+											if (isRecipient) {
+												return (
+													<div className="flex items-center justify-end gap-1.5">
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => onCancelGrantRecord?.(g)}
+															title={`Undo access grant for ${g.courseCode}`}
+															className="h-8 px-2.5 text-xs text-warning hover:bg-warning-surface border-warning-surface cursor-pointer"
+														>
+															<Undo2 size={13} className="mr-1 text-warning" /> Undo Grant
+														</Button>
+													</div>
+												);
+											}
+
+											return (
+												<span className="text-xs text-text-subtle font-medium italic capitalize">
+													Approved
+												</span>
+											);
+										}
 										if (g.status !== "pending") {
 											return (
-												<span className="text-xs text-text-subtle font-medium italic">
-													Decided
+												<span className="text-xs text-text-subtle font-medium italic capitalize">
+													{g.status}
 												</span>
 											);
 										}
@@ -789,6 +1075,16 @@ export default function CoursesView({
 						/>
 					)}
 				</div>
+			)}
+
+			{/* Exam Settings View */}
+			{activeTab === "exam_settings" && (
+				<CourseExamSettingsTable
+					courses={examSettingsCourses}
+					isLoading={isLoading}
+					onEditExamSettings={onEditExamSettings || (() => {})}
+					isExamOfficer={isExamOfficer}
+				/>
 			)}
 		</div>
 	);

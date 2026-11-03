@@ -13,7 +13,7 @@ import {
   RefreshCw,
   ArrowUpDown,
 } from "lucide-react";
-import type { User, UserRole, Department } from "@/types";
+import type { User, UserRole, Department, Faculty, School } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
   filterDepartmentsByScope,
@@ -31,6 +31,8 @@ interface UsersViewProps {
   students: User[];
   studentsLoading?: boolean;
   departments?: Department[];
+  faculties?: Faculty[];
+  schools?: School[];
   isRefetching?: boolean;
   onManualRefresh: () => void;
   onOpenCreateUser: () => void;
@@ -49,6 +51,8 @@ export default function UsersView({
   students,
   studentsLoading = false,
   departments = [],
+  faculties = [],
+  schools = [],
   isRefetching = false,
   onManualRefresh,
   onOpenCreateUser,
@@ -88,6 +92,7 @@ export default function UsersView({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [scopeFilter, setScopeFilter] = useState("");
+  const [adminRoleFilter, setAdminRoleFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
   const [classRepFilter, setClassRepFilter] = useState("");
@@ -102,6 +107,7 @@ export default function UsersView({
   const resetAllFilters = () => {
     setSearchQuery("");
     setScopeFilter("");
+    setAdminRoleFilter("");
     setDepartmentFilter("");
     setLevelFilter("");
     setClassRepFilter("");
@@ -140,10 +146,33 @@ export default function UsersView({
       const matchesSearch =
         (u.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
         (u.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (u.identifier || "").toLowerCase().includes(searchQuery.toLowerCase());
+        (u.identifier || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.adminScopeName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.departmentName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (u.facultyName || "").toLowerCase().includes(searchQuery.toLowerCase());
 
       // Admin scope level filter (admin tab only)
       const matchesScope = !scopeFilter || u.adminLevel === scopeFilter;
+
+      // Admin role type filter (general admin / exam officer / dual-role lecturer / scope level)
+      let matchesAdminRole = true;
+      if (currentTab === "admin" && adminRoleFilter) {
+        if (adminRoleFilter === "general") {
+          matchesAdminRole = !u.isExamOfficer && !u.isLecturer;
+        } else if (adminRoleFilter === "exam_officer") {
+          matchesAdminRole = Boolean(u.isExamOfficer);
+        } else if (adminRoleFilter === "lecturer") {
+          matchesAdminRole = Boolean(u.isLecturer);
+        } else if (adminRoleFilter === "department") {
+          matchesAdminRole = u.adminLevel === "department";
+        } else if (adminRoleFilter === "faculty") {
+          matchesAdminRole = u.adminLevel === "faculty";
+        } else if (adminRoleFilter === "school") {
+          matchesAdminRole = u.adminLevel === "school";
+        } else if (adminRoleFilter === "university" || adminRoleFilter === "system") {
+          matchesAdminRole = u.adminLevel === "university" || u.adminLevel === "system";
+        }
+      }
 
       // Department filter — compare by string ID
       let matchesDepartment = true;
@@ -167,6 +196,7 @@ export default function UsersView({
       return (
         matchesSearch &&
         matchesScope &&
+        matchesAdminRole &&
         matchesDepartment &&
         matchesLevel &&
         matchesClassRep &&
@@ -176,8 +206,10 @@ export default function UsersView({
   }, [
     rawDataset,
     currentUser,
+    currentTab,
     searchQuery,
     scopeFilter,
+    adminRoleFilter,
     departmentFilter,
     levelFilter,
     classRepFilter,
@@ -194,8 +226,8 @@ export default function UsersView({
         valA = a.level || 0;
         valB = b.level || 0;
       } else if (sortBy === "department") {
-        valA = a.departmentName || a.departmentId || "";
-        valB = b.departmentName || b.departmentId || "";
+        valA = a.departmentName || a.adminScopeName || a.facultyName || a.departmentId || "";
+        valB = b.departmentName || b.adminScopeName || b.facultyName || b.departmentId || "";
       } else if (sortBy === "isClassRep") {
         valA = a.isClassRep ? 1 : 0;
         valB = b.isClassRep ? 1 : 0;
@@ -332,6 +364,21 @@ export default function UsersView({
         },
       ]
       : []),
+    ...(currentTab === "admin"
+      ? [
+        {
+          id: "adminRole",
+          label: "Role Type",
+          value: adminRoleFilter,
+          onChange: setAdminRoleFilter,
+          options: [
+            { label: "General Administrators", value: "general" },
+            { label: "Exam Officers", value: "exam_officer" },
+            { label: "Lecturers (Dual-Role)", value: "lecturer" },
+          ],
+        },
+      ]
+      : []),
     {
       id: "status",
       label: "Account Status",
@@ -346,6 +393,7 @@ export default function UsersView({
     currentTab,
     scopeFilter,
     adminScopeOptions,
+    adminRoleFilter,
     showDeptFilter,
     departmentFilter,
     scopedDepts,
@@ -360,6 +408,9 @@ export default function UsersView({
     loggedInRank,
     selectedUserIds,
     paginatedUsers,
+    departments,
+    faculties,
+    schools,
     onToggleSelectUser: toggleSelectUser,
     onToggleSelectAll: toggleSelectAllPaginated,
     onEditUser,

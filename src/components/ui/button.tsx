@@ -23,8 +23,8 @@ const buttonVariants = cva(
 					"bg-primary-muted text-primary hover:bg-primary-muted/80 border border-primary/20 font-medium",
 			},
 			size: {
-				sm: "h-8 rounded-md px-3 text-xs gap-1.5",
-				md: "h-10 px-4 py-2 text-sm gap-2",
+				sm: "h-8 rounded-xl px-3 text-xs gap-1.5",
+				md: "h-10 rounded-xl px-4 py-2 text-sm gap-2",
 				lg: "h-12 rounded-xl px-6 text-base gap-2.5",
 				icon: "h-10 w-10 p-0",
 			},
