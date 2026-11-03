@@ -71,7 +71,11 @@ export const LecturerCoursesList: React.FC<LecturerCoursesListProps> = ({
 					<Text variant="body-sm" weight="semibold" className="text-text-main">
 						No Courses Assigned For This Semester
 					</Text>
-					<Text variant="caption" color="muted" className="max-w-md pt-1">
+					<Text
+						variant="caption"
+						color="muted"
+						className="max-w-md pt-1 text-center"
+					>
 						This lecturer is not assigned to any course offerings in the current
 						semester schedule.
 					</Text>

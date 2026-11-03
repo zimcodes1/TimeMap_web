@@ -18,6 +18,8 @@ export interface RawSemester {
   exam_start_date?: string;
   exam_end_date?: string;
   is_active: boolean;
+  is_past?: boolean;
+  can_activate?: boolean;
   created_by?: number | string;
   created_by_name?: string;
   created_at?: string;
@@ -33,6 +35,7 @@ export interface RawAcademicSession {
   end_date: string;
   max_semesters?: number;
   is_current: boolean;
+  is_past?: boolean;
   semesters?: RawSemester[];
   created_at?: string;
 }
@@ -55,6 +58,8 @@ export function mapRawSemester(raw: RawSemester): Semester {
     examStartDate: raw.exam_start_date,
     examEndDate: raw.exam_end_date,
     isActive: Boolean(raw.is_active),
+    isPast: Boolean(raw.is_past),
+    canActivate: raw.can_activate !== undefined ? Boolean(raw.can_activate) : !raw.is_past,
     createdByName: raw.created_by_name,
     createdAt: raw.created_at,
   };
@@ -71,6 +76,7 @@ export function mapRawAcademicSession(raw: RawAcademicSession): AcademicSession 
     endDate: raw.end_date,
     maxSemesters: raw.max_semesters ?? 2,
     isCurrent: Boolean(raw.is_current),
+    isPast: Boolean(raw.is_past),
     semesters: raw.semesters ? raw.semesters.map(mapRawSemester) : [],
     createdAt: raw.created_at,
   };

@@ -28,6 +28,8 @@ import { TimetableTitle } from "@/components/schedules/TimetableTitle";
 import { WeekNavigator } from "@/components/schedules/WeekNavigator";
 import { SemesterNotConfiguredBanner } from "@/components/schedules/SemesterNotConfiguredBanner";
 import { TimetableUnconfiguredPlaceholder } from "@/components/schedules/TimetableUnconfiguredPlaceholder";
+import { TimetableDiagnosticsBanner } from "@/components/schedules/TimetableDiagnosticsBanner";
+import { TimetableEmptyState } from "@/components/schedules/TimetableEmptyState";
 import {
 	DepartmentLoopBar,
 	type DepartmentOption,
@@ -67,6 +69,11 @@ interface SchedulesViewProps {
 	activeSemester?: Semester | null;
 	currentAcademicSession?: AcademicSession | null;
 	isSemesterConfigured?: boolean;
+	hasPublishedTimetable?: boolean;
+	publishedDiagnostics?: {
+		scheduled?: number;
+		conflicts?: number;
+	};
 	// Conflicts & Diagnostics
 	conflictReport?: GenerationConflictReport;
 	// Action Handlers
@@ -122,6 +129,8 @@ export default function SchedulesView({
 	activeSemester,
 	currentAcademicSession,
 	isSemesterConfigured = true,
+	hasPublishedTimetable = false,
+	publishedDiagnostics,
 	conflictReport,
 	onOpenScheduleEntry,
 	onOpenScheduleEvent,
@@ -322,6 +331,24 @@ export default function SchedulesView({
 				/>
 			) : (
 				<>
+					{/* Diagnostics Banner matching ExamsView */}
+					<TimetableDiagnosticsBanner
+						hasPublishedTimetable={hasPublishedTimetable}
+						scheduledCount={
+							publishedDiagnostics?.scheduled ?? entries?.length ?? 0
+						}
+						attentionCount={
+							publishedDiagnostics?.conflicts ??
+							conflictReport?.hard_conflicts_total ??
+							0
+						}
+						unscheduledItems={
+							Array.isArray(conflictReport?.unscheduled)
+								? conflictReport.unscheduled
+								: undefined
+						}
+					/>
+
 					{/* Bold Top-Center Timetable Title */}
 					<TimetableTitle
 						programName={cohortDisplayName}
@@ -333,83 +360,111 @@ export default function SchedulesView({
 						isCurrentWeek={isCurrentWeekActive}
 					/>
 
-					{/* Main Tabs: Grid View & List View */}
-					<div className="flex justify-center">
-						<TabSwitcher<"grid" | "list">
-							tabs={[
-								{
-									id: "grid",
-									label: "Grid View",
-									icon: LayoutGrid,
-									count: entries?.length,
-								},
-								{
-									id: "list",
-									label: "List View",
-									icon: List,
-									count: sessions?.length,
-								},
-							]}
-							activeTab={activeTab}
-							onChange={(tab) => setActiveTab(tab)}
+					{!hasPublishedTimetable ? (
+						<TimetableEmptyState
+							currentWeek={currentWeek}
+							weekRangeLabel={weekRange.rangeLabel}
+							canGenerate={canGenerate}
+							isSemesterConfigured={isSemesterConfigured}
+							onOpenScheduleEntry={() => onOpenScheduleEntry()}
 						/>
-					</div>
-
-					{/* Content Rendering */}
-					{activeTab === "grid" ? (
-						entriesLoading ? (
-							<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-								Loading timetable grid...
-							</div>
-						) : (
-							<TimetableAcademicGrid
-								entries={entries || []}
-								sessions={sessions || []}
-								selectedDepartmentId={selectedDepartmentId}
-								selectedProgramId={selectedProgramId}
-								selectedLevel={selectedLevel}
-								searchQuery={searchQuery}
-								conflictReport={conflictReport}
-								weekDayDates={weekDayDates}
-								onShiftSessionTrigger={onShiftSessionTrigger}
-								onCancelSessionTrigger={onCancelSessionTrigger}
-								onOpenCreateEntry={(defaultDay, defaultSlot, defaultDate) =>
-									onOpenScheduleEntry(
-										defaultDay,
-										defaultSlot
-											? { start: defaultSlot.start, end: defaultSlot.end }
-											: undefined,
-										defaultDate,
-										true,
-									)
-								}
-							/>
-						)
-					) : sessionsLoading ? (
-						<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
-							Loading weekly lecture sessions...
-						</div>
 					) : (
-						<TimetableListView
-							sessions={sessions || []}
-							entries={entries || []}
-							weekDayDates={weekDayDates}
-							todayStr={todayStr}
-							onShiftSessionTrigger={onShiftSessionTrigger}
-							onCancelSessionTrigger={onCancelSessionTrigger}
-						/>
-					)}
+						<>
+							{/* Main Tabs: Grid View & List View */}
+							<div className="flex justify-center">
+								<TabSwitcher<"grid" | "list">
+									tabs={[
+										{
+											id: "grid",
+											label: "Grid View",
+											icon: LayoutGrid,
+											count: entries?.length,
+										},
+										{
+											id: "list",
+											label: "List View",
+											icon: List,
+											count: sessions?.length,
+										},
+									]}
+									activeTab={activeTab}
+									onChange={(tab) => setActiveTab(tab)}
+								/>
+							</div>
 
-					{/* Bottom Next/Previous Week Controls */}
-					<WeekNavigator
-						currentWeek={currentWeek}
-						totalWeeks={totalWeeks}
-						onPrevious={onPreviousWeek}
-						onNext={onNextWeek}
-						onResetToCurrent={onResetToCurrentWeek}
-						isCurrentWeekActive={isCurrentWeekActive}
-						dateRangeLabel={weekRange.rangeLabel}
-					/>
+							{/* Content Rendering */}
+							{activeTab === "grid" ? (
+								entriesLoading ? (
+									<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+										Loading timetable grid...
+									</div>
+								) : !entries || entries.length === 0 ? (
+									<TimetableEmptyState
+										currentWeek={currentWeek}
+										weekRangeLabel={weekRange.rangeLabel}
+										canGenerate={canGenerate}
+										isSemesterConfigured={isSemesterConfigured}
+										onOpenScheduleEntry={() => onOpenScheduleEntry()}
+									/>
+								) : (
+									<TimetableAcademicGrid
+										entries={entries || []}
+										sessions={sessions || []}
+										selectedDepartmentId={selectedDepartmentId}
+										selectedProgramId={selectedProgramId}
+										selectedLevel={selectedLevel}
+										searchQuery={searchQuery}
+										conflictReport={conflictReport}
+										weekDayDates={weekDayDates}
+										onShiftSessionTrigger={onShiftSessionTrigger}
+										onCancelSessionTrigger={onCancelSessionTrigger}
+										onOpenCreateEntry={(defaultDay, defaultSlot, defaultDate) =>
+											onOpenScheduleEntry(
+												defaultDay,
+												defaultSlot
+													? { start: defaultSlot.start, end: defaultSlot.end }
+													: undefined,
+												defaultDate,
+												true,
+											)
+										}
+									/>
+								)
+							) : sessionsLoading ? (
+								<div className="h-72 rounded-2xl bg-surface border border-border flex items-center justify-center text-text-muted text-xs animate-pulse">
+									Loading weekly lecture sessions...
+								</div>
+							) : !sessions || sessions.length === 0 ? (
+								<TimetableEmptyState
+									currentWeek={currentWeek}
+									weekRangeLabel={weekRange.rangeLabel}
+									canGenerate={canGenerate}
+									isSemesterConfigured={isSemesterConfigured}
+									onOpenScheduleEntry={() => onOpenScheduleEntry()}
+								/>
+							) : (
+								<TimetableListView
+									sessions={sessions || []}
+									entries={entries || []}
+									weekDayDates={weekDayDates}
+									todayStr={todayStr}
+									onShiftSessionTrigger={onShiftSessionTrigger}
+									onCancelSessionTrigger={onCancelSessionTrigger}
+								/>
+							)}
+
+							{/* Bottom Next/Previous Week Controls */}
+							<WeekNavigator
+								currentWeek={currentWeek}
+								totalWeeks={totalWeeks}
+								onPrevious={onPreviousWeek}
+								onNext={onNextWeek}
+								onResetToCurrent={onResetToCurrentWeek}
+								isCurrentWeekActive={isCurrentWeekActive}
+								dateRangeLabel={weekRange.rangeLabel}
+							/>
+						</>
+					)}
 				</>
 			)}
 		</div>

@@ -85,6 +85,9 @@ export default function EditSemesterModal({
 		}
 	}, [startDate, durationType, durationValue]);
 
+	const todayStr = new Date().toISOString().split("T")[0];
+	const isPastSemester = Boolean(semester?.isPast || (endDate && endDate < todayStr));
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!semester || !startDate || !endDate) return;
@@ -133,7 +136,7 @@ export default function EditSemesterModal({
 			lecture_end_date: lectureEndDate,
 			exam_start_date: examStartDate || undefined,
 			exam_end_date: examEndDate || undefined,
-			is_active: isActive,
+			is_active: isPastSemester ? false : isActive,
 		});
 	};
 
@@ -331,20 +334,28 @@ export default function EditSemesterModal({
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2 pt-1">
-					<input
-						type="checkbox"
-						id="editIsActiveSemester"
-						checked={isActive}
-						onChange={(e) => setIsActive(e.target.checked)}
-						className="w-4 h-4 rounded text-primary border-border focus:ring-primary"
-					/>
-					<label
-						htmlFor="editIsActiveSemester"
-						className="text-sm font-medium text-text-main cursor-pointer"
-					>
-						Set as Active Semester
-					</label>
+				<div className="flex flex-col gap-1 pt-1">
+					<div className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="editIsActiveSemester"
+							checked={!isPastSemester && isActive}
+							onChange={(e) => setIsActive(e.target.checked)}
+							disabled={isPastSemester}
+							className="w-4 h-4 rounded text-primary border-border focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+						/>
+						<label
+							htmlFor="editIsActiveSemester"
+							className={`text-sm font-medium ${isPastSemester ? "text-text-muted cursor-not-allowed" : "text-text-main cursor-pointer"}`}
+						>
+							Set as Active Semester
+						</label>
+					</div>
+					{isPastSemester && (
+						<Text variant="caption" className="text-amber-500 text-[11px] ml-6">
+							A past semester cannot be set as active.
+						</Text>
+					)}
 				</div>
 			</form>
 		</Modal>

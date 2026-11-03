@@ -52,6 +52,8 @@ export default function CreateSemesterModal({
 	const [examEndDate, setExamEndDate] = useState("");
 	const [isActive, setIsActive] = useState(false);
 
+	const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+
 	useEffect(() => {
 		if (isOpen) {
 			if (defaultSessionId) {
@@ -88,6 +90,12 @@ export default function CreateSemesterModal({
 
 	// Total allowed semesters for this session (from maxSemesters configuration)
 	const maxSemesters = selectedSession?.maxSemesters ?? 2;
+
+	const isPastSemester = useMemo(() => {
+		if (selectedSession?.isPast) return true;
+		if (endDate && endDate < todayStr) return true;
+		return false;
+	}, [selectedSession, endDate, todayStr]);
 
 	// Full list of possible semester options
 	const ALL_SEMESTER_OPTIONS = useMemo(
@@ -207,7 +215,7 @@ export default function CreateSemesterModal({
 			lecture_end_date: lectureEndDate,
 			exam_start_date: examStartDate || undefined,
 			exam_end_date: examEndDate || undefined,
-			is_active: isActive,
+			is_active: isPastSemester ? false : isActive,
 		});
 	};
 
@@ -464,20 +472,28 @@ export default function CreateSemesterModal({
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2 pt-1">
-					<input
-						type="checkbox"
-						id="isActiveSemester"
-						checked={isActive}
-						onChange={(e) => setIsActive(e.target.checked)}
-						className="w-4 h-4 rounded text-primary border-border focus:ring-primary cursor-pointer"
-					/>
-					<label
-						htmlFor="isActiveSemester"
-						className="text-sm font-medium text-text-main cursor-pointer select-none"
-					>
-						Set as Active Semester for this School
-					</label>
+				<div className="flex flex-col gap-1 pt-1">
+					<div className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="isActiveSemester"
+							checked={!isPastSemester && isActive}
+							onChange={(e) => setIsActive(e.target.checked)}
+							disabled={isPastSemester}
+							className="w-4 h-4 rounded text-primary border-border focus:ring-primary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						/>
+						<label
+							htmlFor="isActiveSemester"
+							className={`text-sm font-medium ${isPastSemester ? "text-text-muted cursor-not-allowed" : "text-text-main cursor-pointer"} select-none`}
+						>
+							Set as Active Semester for this School
+						</label>
+					</div>
+					{isPastSemester && (
+						<Text variant="caption" className="text-amber-500 text-[11px] ml-6">
+							A past semester cannot be set as active.
+						</Text>
+					)}
 				</div>
 			</form>
 		</Modal>

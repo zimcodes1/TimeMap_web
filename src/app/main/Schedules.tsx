@@ -351,15 +351,35 @@ export default function SchedulesContainer() {
 	}, [user, departmentsData, facultiesData, selectedFacultyId]);
 
 	// Active Generation Runs Query for live published conflict report cross-referencing
-	const { data: generationRuns = [] } = useQuery<TimetableGenerationRun[]>({
+	const { data: generationRuns = [], isLoading: runsLoading } = useQuery<TimetableGenerationRun[]>({
 		queryKey: ["scheduling", "runs", activeSemester?.id],
 		queryFn: () => getGenerationRuns({ semester: activeSemester?.id }),
 		enabled: Boolean(activeSemester?.id),
 	});
 
+	const publishedRunForScope = useMemo(() => {
+		return generationRuns.find((r) => {
+			if (!r.isPublished) return false;
+			if (r.scopeType === "school") return true;
+			if (r.scopeType === "faculty") {
+				const dept = departmentsData.find(
+					(d) => String(d.id) === String(selectedDepartmentId),
+				);
+				if (dept && String(dept.facultyId) === String(r.scopeId)) return true;
+				if (selectedFacultyId && String(selectedFacultyId) === String(r.scopeId))
+					return true;
+				return false;
+			}
+			if (r.scopeType === "department") {
+				return String(r.scopeId) === String(selectedDepartmentId);
+			}
+			return false;
+		});
+	}, [generationRuns, selectedDepartmentId, selectedFacultyId, departmentsData]);
+
 	const publishedRunSummary = useMemo(() => {
-		return generationRuns.find((r) => r.isPublished);
-	}, [generationRuns]);
+		return publishedRunForScope || generationRuns.find((r) => r.isPublished);
+	}, [publishedRunForScope, generationRuns]);
 
 	// Query full detail of the published run so full conflictReport.details are available
 	const { data: publishedRunDetail } = useQuery<TimetableGenerationRun>({
@@ -442,6 +462,25 @@ export default function SchedulesContainer() {
 	});
 
 	const isRefetching = entriesRefetching || sessionsRefetching;
+
+	const hasPublishedTimetable = Boolean(
+		publishedRunForScope || (entriesData && entriesData.length > 0),
+	);
+
+	const publishedDiagnostics = useMemo(() => {
+		if (!hasPublishedTimetable) return undefined;
+		const scheduled =
+			publishedRunSummary?.generationMetrics?.occurrences_total ??
+			activeConflictReport?.occurrences_scheduled ??
+			publishedRunSummary?.assignmentsPayload?.length ??
+			entriesData?.length ??
+			0;
+		const conflicts =
+			publishedRunSummary?.hardConflictsCount ??
+			activeConflictReport?.hard_conflicts_total ??
+			0;
+		return { scheduled, conflicts };
+	}, [hasPublishedTimetable, publishedRunSummary, activeConflictReport, entriesData]);
 
 	// Mutation: Create Timetable Entry
 	const createEntryMutation = useMutation({
@@ -705,9 +744,11 @@ export default function SchedulesContainer() {
 		<>
 			<SchedulesView
 				entries={entriesData}
-				entriesLoading={entriesLoading}
+				entriesLoading={entriesLoading || runsLoading}
 				sessions={sessionsData}
-				sessionsLoading={sessionsLoading}
+				sessionsLoading={sessionsLoading || runsLoading}
+				hasPublishedTimetable={hasPublishedTimetable}
+				publishedDiagnostics={publishedDiagnostics}
 				isRefetching={isRefetching}
 				faculties={scopedFaculties}
 				selectedFacultyId={selectedFacultyId}

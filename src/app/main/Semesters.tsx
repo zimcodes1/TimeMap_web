@@ -183,7 +183,10 @@ export default function SemestersContainer() {
 			});
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to create semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to create semester";
 			toast.error(msg);
 		},
 	});
@@ -197,7 +200,10 @@ export default function SemestersContainer() {
 			queryClient.invalidateQueries({ queryKey: ["scheduling", "semesters"] });
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to update semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to update semester";
 			toast.error(msg);
 		},
 	});
@@ -212,7 +218,10 @@ export default function SemestersContainer() {
 			});
 		},
 		onError: (err: any) => {
-			const msg = err?.response?.data?.detail || "Failed to activate semester";
+			const msg =
+				err?.response?.data?.error ||
+				err?.response?.data?.detail ||
+				"Failed to activate semester";
 			toast.error(msg);
 		},
 	});

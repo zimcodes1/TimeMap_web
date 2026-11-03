@@ -87,6 +87,7 @@ export interface AcademicSession {
   endDate: string;
   maxSemesters?: number;
   isCurrent: boolean;
+  isPast?: boolean;
   semesters?: Semester[];
   createdAt?: string;
 }
@@ -108,6 +109,8 @@ export interface Semester {
   examStartDate?: string;
   examEndDate?: string;
   isActive: boolean;
+  isPast?: boolean;
+  canActivate?: boolean;
   createdByName?: string;
   createdAt?: string;
 }

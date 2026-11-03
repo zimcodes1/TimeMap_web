@@ -71,7 +71,14 @@ export function SessionAccordionItem({
 								{session.label} Academic Session
 							</Text>
 
-							{session.isCurrent ? (
+							{session.isPast ? (
+								<Badge
+									variant="outline"
+									className="text-xs text-text-subtle border-border"
+								>
+									Past Session
+								</Badge>
+							) : session.isCurrent ? (
 								<Badge
 									variant="primary"
 									className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
@@ -116,7 +123,7 @@ export function SessionAccordionItem({
 					onClick={(e) => e.stopPropagation()}
 					className="flex flex-wrap items-center gap-1.5 self-end md:self-center shrink-0"
 				>
-					{!session.isCurrent && canManage && (
+					{!session.isCurrent && !session.isPast && canManage && (
 						<Button
 							variant="outline"
 							size="sm"
@@ -244,6 +251,14 @@ export function SessionAccordionItem({
 																Active
 															</Badge>
 														)}
+														{sem.isPast && (
+															<Badge
+																variant="outline"
+																className="text-[10px] py-0 px-1.5 text-text-subtle border-border"
+															>
+																Past
+															</Badge>
+														)}
 													</div>
 												</td>
 
@@ -285,7 +300,7 @@ export function SessionAccordionItem({
 												{canManage && (
 													<td className="py-3 px-3 text-right">
 														<div className="flex items-center justify-end gap-1.5">
-															{!sem.isActive && (
+															{!sem.isActive && !sem.isPast && sem.canActivate !== false && (
 																<Button
 																	variant="outline"
 																	size="sm"
