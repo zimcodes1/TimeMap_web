@@ -122,11 +122,6 @@ export default function ExamsContainer() {
 		queryFn: () => getSemesters(),
 	});
 
-	const { data: coursesData = [] } = useQuery<Course[]>({
-		queryKey: ["courses", "list"],
-		queryFn: getCoursesOptions,
-	});
-
 	const { data: venuesData = [] } = useQuery<Venue[]>({
 		queryKey: ["venues", "list"],
 		queryFn: getVenuesOptions,
@@ -150,6 +145,14 @@ export default function ExamsContainer() {
 	const activeSemester = useMemo(() => {
 		return semestersData.find((s) => s.isActive) || semestersData[0];
 	}, [semestersData]);
+
+	const { data: coursesData = [] } = useQuery<Course[]>({
+		queryKey: ["courses", "list", activeSemester?.id],
+		queryFn: () =>
+			getCoursesOptions(
+				activeSemester?.id ? { semester: activeSemester.id } : undefined,
+			),
+	});
 	const isSchoolAdmin =
 		user?.role === "admin" &&
 		(user?.adminLevel === "school" || user?.adminLevel === "system" || user?.adminLevel === "university");

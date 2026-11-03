@@ -159,6 +159,7 @@ export interface Course {
   owningDepartment?: string;
   semesterId?: string;
   semesterName?: string;
+  semesterCode?: string;
   sessionLabel?: string;
   programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;

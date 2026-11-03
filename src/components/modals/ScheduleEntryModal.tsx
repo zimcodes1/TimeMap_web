@@ -84,11 +84,36 @@ export default function ScheduleEntryModal({
 	const [allowedVenues, setAllowedVenues] = useState<Venue[]>([]);
 	const [isLoadingVenues, setIsLoadingVenues] = useState<boolean>(false);
 
-	// Filter courses strictly for the displayed program and level
+	// Filter courses strictly for the displayed program and level, and active semester
 	const filteredCourses = useMemo(() => {
 		if (!courses || courses.length === 0) return [];
 
 		return courses.filter((c) => {
+			// 0. SEMESTER FILTER: Courses must be visible only within a corresponding semester's active timeframe (regardless of the session in which it was created)
+			if (activeSemester) {
+				const activeSemId = String(activeSemester.id);
+				const activeSemCode = (activeSemester.name || "").toLowerCase().trim();
+				const activeSemDisplay = (
+					activeSemester.displayName || ""
+				).toLowerCase().trim();
+
+				const courseSemId = c.semesterId ? String(c.semesterId) : "";
+				const courseSemCode = (c.semesterCode || "").toLowerCase().trim();
+				const courseSemName = (c.semesterName || "").toLowerCase().trim();
+
+				const matchesId = Boolean(courseSemId && courseSemId === activeSemId);
+				const matchesCodeOrName = Boolean(
+					(activeSemCode &&
+						(courseSemCode === activeSemCode ||
+							courseSemName.includes(activeSemCode))) ||
+						(activeSemDisplay && courseSemName.includes(activeSemDisplay)),
+				);
+
+				if (!matchesId && !matchesCodeOrName) {
+					return false;
+				}
+			}
+
 			// 1. LEVEL FILTER: Course level must match the target timetable level so an admin doesn't schedule e.g. a 200L lecture on a 100L timetable
 			if (level !== undefined && level !== null && String(level) !== "") {
 				if (Number(c.level) !== Number(level)) {
@@ -133,7 +158,7 @@ export default function ScheduleEntryModal({
 
 			return true;
 		});
-	}, [courses, level, programId, userDepartmentId]);
+	}, [courses, level, programId, userDepartmentId, activeSemester]);
 
 	// Synchronize defaults on open or prop change
 	useEffect(() => {

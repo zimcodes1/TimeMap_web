@@ -15,6 +15,7 @@ interface RawCourse {
   owning_school_name?: string;
   semester?: number | string | null;
   semester_name?: string;
+  semester_code?: string;
   session_label?: string;
   program_scope?: "general" | "program";
   target_program?: number | string | null;
@@ -143,6 +144,13 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     owningDepartment: raw.owning_department ? String(raw.owning_department) : undefined,
     semesterId: raw.semester ? String(raw.semester) : undefined,
     semesterName: raw.semester_name,
+    semesterCode:
+      raw.semester_code ||
+      (raw.semester_name?.toLowerCase().includes("first")
+        ? "first"
+        : raw.semester_name?.toLowerCase().includes("second")
+          ? "second"
+          : undefined),
     sessionLabel: raw.session_label,
     programScope: raw.program_scope || "general",
     targetProgramId: raw.target_program ? String(raw.target_program) : undefined,

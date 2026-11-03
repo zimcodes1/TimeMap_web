@@ -113,6 +113,34 @@ export default function CoursesView({
 			? propCanAccessExamTab
 			: isExamOfficer || (!hasScopeExamOfficer && !isUniversityAdmin);
 
+	// Active semester
+	const activeSemester = useMemo(() => {
+		return semesters?.find((s) => s.isActive) || null;
+	}, [semesters]);
+
+	// Exam settings courses: strictly courses in the active current semester
+	const examSettingsCourses = useMemo(() => {
+		if (!activeSemester) return courses;
+		const activeSemId = String(activeSemester.id);
+		const activeSemCode = (activeSemester.name || "").toLowerCase().trim();
+		const activeSemDisplay = (
+			activeSemester.displayName || ""
+		).toLowerCase().trim();
+
+		return courses.filter((c) => {
+			const cSemId = c.semesterId ? String(c.semesterId) : "";
+			const cCode = (c.semesterCode || "").toLowerCase().trim();
+			const cName = (c.semesterName || "").toLowerCase().trim();
+
+			return (
+				cSemId === activeSemId ||
+				(Boolean(activeSemCode) &&
+					(cCode === activeSemCode || cName.includes(activeSemCode))) ||
+				(Boolean(activeSemDisplay) && cName.includes(activeSemDisplay))
+			);
+		});
+	}, [courses, activeSemester]);
+
 	// Tab configurations per role and scope
 	const visibleTabs = useMemo(() => {
 		if (isExamOfficer) {
@@ -121,7 +149,7 @@ export default function CoursesView({
 					id: "exam_settings",
 					label: "Exam Configurations",
 					icon: SlidersHorizontal,
-					count: courses.length,
+					count: examSettingsCourses.length,
 				},
 			];
 		}
@@ -140,7 +168,7 @@ export default function CoursesView({
 				id: "exam_settings",
 				label: "Exam Settings",
 				icon: SlidersHorizontal,
-				count: courses.length,
+				count: examSettingsCourses.length,
 			});
 		}
 
@@ -160,6 +188,7 @@ export default function CoursesView({
 		isUniversityAdmin,
 		isSchoolAdmin,
 		courses.length,
+		examSettingsCourses.length,
 		grants.length,
 	]);
 
@@ -178,6 +207,15 @@ export default function CoursesView({
 	const [facultyFilter, setFacultyFilter] = useState("");
 	const [departmentFilter, setDepartmentFilter] = useState("");
 	const [semesterFilter, setSemesterFilter] = useState("");
+	const [hasInitializedSemesterFilter, setHasInitializedSemesterFilter] =
+		useState(false);
+
+	useEffect(() => {
+		if (!hasInitializedSemesterFilter && activeSemester) {
+			setSemesterFilter(String(activeSemester.id));
+			setHasInitializedSemesterFilter(true);
+		}
+	}, [activeSemester, hasInitializedSemesterFilter]);
 	const [programFilter, setProgramFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
@@ -270,8 +308,29 @@ export default function CoursesView({
 			const matchesLevel =
 				!levelFilter || Number(c.level) === Number(levelFilter);
 			const matchesScope = !scopeFilter || c.owningLevel === scopeFilter;
-			const matchesSemester =
-				!semesterFilter || c.semesterId === semesterFilter;
+
+			let matchesSemester = true;
+			if (semesterFilter) {
+				const selectedSem = semesters?.find(
+					(s) => String(s.id) === String(semesterFilter),
+				);
+				if (selectedSem) {
+					const selCode = (selectedSem.name || "").toLowerCase().trim();
+					const selDisplay = (
+						selectedSem.displayName || ""
+					).toLowerCase().trim();
+					const cCode = (c.semesterCode || "").toLowerCase().trim();
+					const cName = (c.semesterName || "").toLowerCase().trim();
+
+					matchesSemester =
+						String(c.semesterId) === String(semesterFilter) ||
+						(Boolean(selCode) &&
+							(cCode === selCode || cName.includes(selCode))) ||
+						(Boolean(selDisplay) && cName.includes(selDisplay));
+				} else {
+					matchesSemester = String(c.semesterId) === String(semesterFilter);
+				}
+			}
 
 			let matchesProgram = true;
 			if (programFilter) {
@@ -348,6 +407,7 @@ export default function CoursesView({
 		departments,
 		scopedPrograms,
 		programs,
+		semesters,
 	]);
 
 	// Filter grants
@@ -619,7 +679,9 @@ export default function CoursesView({
 						onResetFilters={() => {
 							setSearchQuery("");
 							setLevelFilter("");
-							setSemesterFilter("");
+							setSemesterFilter(
+								activeSemester ? String(activeSemester.id) : "",
+							);
 							setProgramFilter("");
 							setScopeFilter("");
 							setFacultyFilter("");
@@ -1018,7 +1080,7 @@ export default function CoursesView({
 			{/* Exam Settings View */}
 			{activeTab === "exam_settings" && (
 				<CourseExamSettingsTable
-					courses={courses}
+					courses={examSettingsCourses}
 					isLoading={isLoading}
 					onEditExamSettings={onEditExamSettings || (() => {})}
 					isExamOfficer={isExamOfficer}

@@ -143,11 +143,6 @@ export default function SchedulesContainer() {
 		queryFn: () => getSemesters(userSchoolId ? { school: userSchoolId } : undefined),
 	});
 
-	const { data: coursesData = [] } = useQuery<Course[]>({
-		queryKey: ["courses", "list"],
-		queryFn: getCoursesOptions,
-	});
-
 	const { data: venuesData = [] } = useQuery<Venue[]>({
 		queryKey: ["venues", "list"],
 		queryFn: getVenuesOptions,
@@ -201,6 +196,14 @@ export default function SchedulesContainer() {
 
 		return semestersData.find((s) => s.isActive) || null;
 	}, [semestersData, userSchoolId]);
+
+	const { data: coursesData = [] } = useQuery<Course[]>({
+		queryKey: ["courses", "list", activeSemester?.id],
+		queryFn: () =>
+			getCoursesOptions(
+				activeSemester?.id ? { semester: activeSemester.id } : undefined,
+			),
+	});
 
 	// Identify current active academic session set by school/system admin
 	const currentAcademicSession = useMemo(() => {

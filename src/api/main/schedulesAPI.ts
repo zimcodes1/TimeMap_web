@@ -452,9 +452,17 @@ export async function createExamSittingAPI(payload: {
 /**
  * Helper: Fetch active courses list for modals
  */
-export async function getCoursesOptions(): Promise<Course[]> {
+export async function getCoursesOptions(params?: {
+  semester?: string | number;
+} | unknown): Promise<Course[]> {
   try {
-    const response = await apiClient.get("/courses/courses/");
+    const queryParams =
+      params && typeof params === "object" && "semester" in params
+        ? (params as { semester?: string | number })
+        : undefined;
+    const response = await apiClient.get("/courses/courses/", {
+      params: queryParams,
+    });
     const data = response.data;
     const list = Array.isArray(data) ? data : data?.results || [];
     return list.map((c: Record<string, unknown>) => ({
@@ -471,6 +479,14 @@ export async function getCoursesOptions(): Promise<Course[]> {
       owningSchool: c.owning_school ? String(c.owning_school) : undefined,
       schoolName: String(c.owning_school_name || ""),
       semesterId: c.semester ? String(c.semester) : undefined,
+      semesterName: c.semester_name ? String(c.semester_name) : undefined,
+      semesterCode: c.semester_code
+        ? String(c.semester_code)
+        : String(c.semester_name || "").toLowerCase().includes("first")
+          ? "first"
+          : String(c.semester_name || "").toLowerCase().includes("second")
+            ? "second"
+            : undefined,
       programScope: (c.program_scope as Course["programScope"]) || "general",
       targetProgramId: c.target_program ? String(c.target_program) : undefined,
       targetProgramName: String(c.target_program_name || ""),
