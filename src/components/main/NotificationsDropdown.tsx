@@ -201,10 +201,15 @@ export default function NotificationsDropdown() {
 															variant="caption"
 															className="text-[10px] text-text-subtle"
 														>
-															{new Date(item.createdAt).toLocaleTimeString([], {
-																hour: "2-digit",
-																minute: "2-digit",
-															})}
+															{new Date(item.createdAt)
+																.toISOString()
+																.slice(0, 10)
+																.replaceAll("-", "/")}
+															<br />
+															{new Date(item.createdAt).toLocaleTimeString(
+																"en-US",
+																{ hour: "2-digit", minute: "2-digit" },
+															)}
 														</Text>
 													</div>
 													<Text

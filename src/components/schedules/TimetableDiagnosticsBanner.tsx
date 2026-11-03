@@ -25,7 +25,6 @@ export const TimetableDiagnosticsBanner: React.FC<
 						`${scheduledCount} scheduled · ${attentionCount} need attention`
 					) : (
 						<>
-							<BadgeX size={20} />
 							<p>No optimizer run has been published for this scope</p>
 						</>
 					)}
