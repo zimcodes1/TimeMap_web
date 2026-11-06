@@ -32,20 +32,20 @@ export function ExamPeriodBanner({
 	// Case 1: No Exam Period Set at all
 	if (!isExamPeriodSet) {
 		return (
-			<div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-				<div className="flex items-start gap-3">
-					<div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 mt-0.5">
-						<CalendarOff size={20} />
+			<div className="p-4 w-6/10 mx-auto h-100 rounded-4xl bg-amber-500/5 border border-dashed border-amber-500/30 text-amber-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+				<div className="flex-col items-center justify-center gap-3">
+					<div className="mx-auto w-20 h-20 flex justify-center items-center rounded-3xl bg-amber-500/10 border border-amber-500/30 shrink-0 mt-0.5">
+						<CalendarOff size={30} className="text-amber-600/70" />
 					</div>
 					<div>
-						<div className="text-sm font-bold text-amber-500">
+						<div className="text-sm mt-5 text-center font-bold text-amber-500">
 							{isSchoolAdmin
 								? "School Examination Period Not Configured"
 								: isFacultyAdmin && allowFaculty
 									? "Faculty Examination Period Not Set"
 									: "Examination Period Not Defined"}
 						</div>
-						<p className="text-xs text-amber-400/90 mt-0.5 leading-relaxed max-w-2xl">
+						<p className="text-xs text-center text-amber-400/90 mt-0.5 leading-relaxed max-w-2xl">
 							{isSchoolAdmin
 								? "The examination schedule timeline has not been defined for this semester. Exam sitting scheduling and timetable generation remain locked until the exam period is set."
 								: isFacultyAdmin && allowFaculty
