@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Text } from "@/components/ui/text";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TabSwitcher, type TabItem } from "@/components/ui/tabs";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import {
 	Building2,
@@ -9,6 +11,8 @@ import {
 	Clock,
 	AlertTriangle,
 	Loader2,
+	LayoutDashboard,
+	GraduationCap,
 } from "lucide-react";
 import type {
 	HoldRateAnalytics,
@@ -96,9 +100,30 @@ export default function DashboardView({
 	currentWeekLabel,
 	onResetFilters,
 }: DashboardViewProps) {
-	const isAnyLoading = isExamOfficer
-		? examAnalyticsLoading
-		: (holdRateLoading || utilizationLoading || discrepanciesLoading || countsLoading);
+	const isAnyLoading =
+		holdRateLoading ||
+		utilizationLoading ||
+		discrepanciesLoading ||
+		countsLoading ||
+		(isExamOfficer && examAnalyticsLoading);
+
+	const [dashboardTab, setDashboardTab] = useState<"academic" | "exams">(
+		"academic",
+	);
+
+	const dashboardTabs: TabItem<"academic" | "exams">[] = [
+		{
+			id: "academic",
+			label: "Academic Overview",
+			icon: LayoutDashboard,
+		},
+		{
+			id: "exams",
+			label: "Exam Operations",
+			icon: GraduationCap,
+			badgeVariant: "warning",
+		},
+	];
 
 	const pieData = [
 		{
@@ -123,6 +148,17 @@ export default function DashboardView({
 	);
 
 	const { user } = useAuth();
+	const adminScopeLabel =
+		adminLevel === "school"
+			? "School Admin"
+			: adminLevel === "faculty"
+				? "Faculty Admin"
+				: adminLevel === "department"
+					? "Department Admin"
+					: adminLevel === "system" || adminLevel === "university"
+						? "System Admin"
+						: "Admin Officer";
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -130,8 +166,16 @@ export default function DashboardView({
 				<div>
 					<div className="flex items-center gap-2.5">
 						<Text variant="h3" weight="bold" className="text-text-main">
-							{isExamOfficer ? "Exam Operations Dashboard" : "Dashboard & Academic Overview"}
+							{isExamOfficer
+								? "Dashboard & Operations Overview"
+								: "Dashboard & Academic Overview"}
 						</Text>
+						<Badge
+							variant="outline"
+							className="text-xs font-semibold border-primary/40 text-primary bg-primary/10"
+						>
+							{adminScopeLabel}
+						</Badge>
 						{isExamOfficer && (
 							<Badge
 								variant="outline"
@@ -143,7 +187,7 @@ export default function DashboardView({
 					</div>
 					<Text variant="body-sm" color="muted">
 						{isExamOfficer
-							? "Examination sittings, seat capacities, invigilation coverage, and logistics scoped to your administrative department."
+							? "Administrative metrics, lecture compliance, and examination operations scoped to your institutional role."
 							: "Administrative metrics and session compliance scoped to your institutional role."}
 					</Text>
 				</div>
@@ -287,7 +331,18 @@ export default function DashboardView({
 				</div>
 			)}
 
-			{isExamOfficer ? (
+			{/* Multi-role View Switcher for Exam Officers */}
+			{isExamOfficer && (
+				<div className="pt-1">
+					<TabSwitcher
+						tabs={dashboardTabs}
+						activeTab={dashboardTab}
+						onChange={(tab) => setDashboardTab(tab as typeof dashboardTab)}
+					/>
+				</div>
+			)}
+
+			{isExamOfficer && dashboardTab === "exams" ? (
 				<ExamOfficerDashboardSection
 					examAnalytics={examAnalytics}
 					isLoading={examAnalyticsLoading}
@@ -317,7 +372,10 @@ export default function DashboardView({
 					{/* Analytics Charts Grid */}
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						{/* 1. Lecture-Hold Rate Line Chart */}
-						<HoldRateLineChart holdRate={holdRate} isLoading={holdRateLoading} />
+						<HoldRateLineChart
+							holdRate={holdRate}
+							isLoading={holdRateLoading}
+						/>
 
 						{/* 2. Venue Utilization (Faculty aggregates for School Admin, Dept scoped otherwise) */}
 						<VenueUtilizationCard
@@ -343,9 +401,11 @@ export default function DashboardView({
 												{discrepancies?.summary?.totalDiscrepancies ?? 0} Total)
 											</Text>
 											<Text variant="caption" color="muted">
-												Approved: {discrepancies?.summary?.byStatus?.approved ?? 0}{" "}
-												| Rejected:{" "}
-												{discrepancies?.summary?.byStatus?.rejected ?? 0} | Pending:{" "}
+												Approved:{" "}
+												{discrepancies?.summary?.byStatus?.approved ?? 0} |
+												Rejected:{" "}
+												{discrepancies?.summary?.byStatus?.rejected ?? 0} |
+												Pending:{" "}
 												{discrepancies?.summary?.byStatus?.pending ?? 0} |
 												Withdrawn:{" "}
 												{discrepancies?.summary?.byStatus?.withdrawn ?? 0}

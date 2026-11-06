@@ -194,13 +194,7 @@ export default function CoursesView({
 
 	const [activeTab, setActiveTab] = useState<
 		"catalog" | "grants" | "exam_settings"
-	>(isExamOfficer ? "exam_settings" : "catalog");
-
-	useEffect(() => {
-		if (isExamOfficer && activeTab !== "exam_settings") {
-			setActiveTab("exam_settings");
-		}
-	}, [isExamOfficer, activeTab]);
+	>("catalog");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [levelFilter, setLevelFilter] = useState("");
 	const [scopeFilter, setScopeFilter] = useState("");
@@ -583,13 +577,13 @@ export default function CoursesView({
 					<div className="flex-col sm:mb-2 sm:flex items-left gap-2">
 						<Text variant="h3" weight="bold" className="text-text-main">
 							{isExamOfficer
-								? "Course Exam Configurations"
+								? "Course Catalog & Exam Configurations"
 								: "Courses & Access Sharing"}
 						</Text>
 					</div>
 					<Text variant="body-sm" color="muted">
 						{isExamOfficer
-							? "Configure examination modes, duration windows, and CBT candidate timings for courses in your scope."
+							? "Manage curriculum catalog, course sharing, and configure examination modes & duration windows for courses in your scope."
 							: isUniversityAdmin
 								? "Read-only course catalog and institutional curriculum overview."
 								: isSchoolAdmin
@@ -619,8 +613,8 @@ export default function CoursesView({
 						</Button>
 					)}
 
-					{/* Access Grants Buttons: Available only to Faculty & Department Admins (Not Exam Officers) */}
-					{!isExamOfficer && (isFacultyAdmin || isDeptAdmin) && (
+					{/* Access Grants Buttons: Available to Faculty & Department Admins */}
+					{(isFacultyAdmin || isDeptAdmin) && (
 						<>
 							<Button
 								variant="outline"
@@ -641,8 +635,8 @@ export default function CoursesView({
 						</>
 					)}
 
-					{/* Create Course Button: Available to School, Faculty & Department Admins (Not Exam Officers) */}
-					{!isExamOfficer && !isUniversityAdmin && (
+					{/* Create Course Button: Available to School, Faculty & Department Admins */}
+					{!isUniversityAdmin && (
 						<Button
 							variant="primary"
 							size="sm"

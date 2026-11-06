@@ -121,7 +121,7 @@ export const mockSchools: School[] = [
 ];
 
 export const mockFaculties: Faculty[] = [
-  { id: 'fac_1', schoolId: 'sch_1', schoolName: 'Nasarawa State University', name: 'Faculty of Natural & Applied Sciences', code: 'FNS', departmentsCount: 5 },
+  { id: 'fac_1', schoolId: 'sch_1', schoolName: 'Nasarawa State University', name: 'Faculty of Natural & Applied Sciences', code: 'FNAS', departmentsCount: 5 },
   { id: 'fac_2', schoolId: 'sch_1', schoolName: 'Nasarawa State University', name: 'Faculty of Engineering', code: 'ENG', departmentsCount: 3 },
 ];
 
