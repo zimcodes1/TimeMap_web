@@ -21,6 +21,8 @@ interface RawCourse {
   target_program?: number | string | null;
   target_program_name?: string;
   target_program_code?: string;
+  target_programs?: (number | string)[];
+  target_program_names?: string[];
   lecturers?: (number | string)[];
   lecturers_details?: {
     id: number | string;
@@ -154,7 +156,13 @@ export function mapRawCourseToCourse(raw: RawCourse, lecturersList: User[] = [])
     sessionLabel: raw.session_label,
     programScope: raw.program_scope || "general",
     targetProgramId: raw.target_program ? String(raw.target_program) : undefined,
+    targetProgramIds: Array.isArray(raw.target_programs)
+      ? raw.target_programs.map(String)
+      : raw.target_program
+        ? [String(raw.target_program)]
+        : [],
     targetProgramName: raw.target_program_name,
+    targetProgramNames: raw.target_program_names || (raw.target_program_name ? [raw.target_program_name] : []),
     targetProgramCode: raw.target_program_code,
     lecturers: assignedLecturers,
     lecturerIds: assignedLecturerIds,
@@ -238,7 +246,17 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
     owning_school: owningLevel === "school" && targetScopeId ? Number(targetScopeId) : (data.owningSchool ? Number(data.owningSchool) : undefined),
     semester: data.semesterId ? Number(data.semesterId) : undefined,
     program_scope: data.programScope || "general",
-    target_program: data.targetProgramId ? Number(data.targetProgramId) : null,
+    target_program: data.targetProgramId
+      ? Number(data.targetProgramId)
+      : data.targetProgramIds && data.targetProgramIds.length > 0
+        ? Number(data.targetProgramIds[0])
+        : null,
+    target_programs:
+      Array.isArray(data.targetProgramIds) && data.targetProgramIds.length > 0
+        ? data.targetProgramIds.map(Number).filter(Boolean)
+        : data.targetProgramId
+          ? [Number(data.targetProgramId)]
+          : [],
     course_type: data.courseType || "lecture",
     required_occurrences_per_week: data.requiredOccurrencesPerWeek ? Number(data.requiredOccurrencesPerWeek) : 1,
     exam_type: data.examType || undefined,

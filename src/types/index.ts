@@ -163,7 +163,9 @@ export interface Course {
   sessionLabel?: string;
   programScope?: 'general' | 'program' | 'all';
   targetProgramId?: string;
+  targetProgramIds?: string[];
   targetProgramName?: string;
+  targetProgramNames?: string[];
   targetProgramCode?: string;
   lecturers: User[];
   lecturerIds?: string[];

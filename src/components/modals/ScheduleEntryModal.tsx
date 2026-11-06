@@ -93,9 +93,9 @@ export default function ScheduleEntryModal({
 			if (activeSemester) {
 				const activeSemId = String(activeSemester.id);
 				const activeSemCode = (activeSemester.name || "").toLowerCase().trim();
-				const activeSemDisplay = (
-					activeSemester.displayName || ""
-				).toLowerCase().trim();
+				const activeSemDisplay = (activeSemester.displayName || "")
+					.toLowerCase()
+					.trim();
 
 				const courseSemId = c.semesterId ? String(c.semesterId) : "";
 				const courseSemCode = (c.semesterCode || "").toLowerCase().trim();
@@ -106,7 +106,7 @@ export default function ScheduleEntryModal({
 					(activeSemCode &&
 						(courseSemCode === activeSemCode ||
 							courseSemName.includes(activeSemCode))) ||
-						(activeSemDisplay && courseSemName.includes(activeSemDisplay)),
+					(activeSemDisplay && courseSemName.includes(activeSemDisplay)),
 				);
 
 				if (!matchesId && !matchesCodeOrName) {
@@ -123,18 +123,42 @@ export default function ScheduleEntryModal({
 
 			// 2. PROGRAM / DEPARTMENT FILTER:
 			// If programId is provided, the course must either:
-			//   a) Be explicitly targeted to this program (c.targetProgramId === programId)
+			//   a) Be explicitly targeted to this program (targetProgramIds includes programId or targetProgramId === programId)
 			//   b) Or have general program scope / no specific target program and belong to this department or higher scope (faculty/school)
 			if (
 				programId &&
 				String(programId) !== "ALL" &&
 				String(programId).trim() !== ""
 			) {
-				if (
-					c.targetProgramId &&
-					String(c.targetProgramId) !== String(programId)
-				) {
-					return false;
+				const progStr = String(programId);
+				const progNum = Number(programId);
+
+				if (c.programScope === "program") {
+					const hasMulti =
+						Array.isArray(c.targetProgramIds) && c.targetProgramIds.length > 0;
+					const inMulti =
+						hasMulti && c.targetProgramIds!.map(String).includes(progStr);
+					const inSingle = Boolean(
+						c.targetProgramId && String(c.targetProgramId) === progStr,
+					);
+					const inApplicable =
+						Array.isArray(c.applicableProgramIds) &&
+						c.applicableProgramIds.includes(progNum);
+
+					if (!inMulti && !inSingle && !inApplicable) {
+						return false;
+					}
+				} else if (c.targetProgramId && String(c.targetProgramId) !== progStr) {
+					const hasMulti =
+						Array.isArray(c.targetProgramIds) && c.targetProgramIds.length > 0;
+					const inMulti =
+						hasMulti && c.targetProgramIds!.map(String).includes(progStr);
+					const inApplicable =
+						Array.isArray(c.applicableProgramIds) &&
+						c.applicableProgramIds.includes(progNum);
+					if (!inMulti && !inApplicable) {
+						return false;
+					}
 				}
 
 				if (userDepartmentId) {
@@ -200,13 +224,15 @@ export default function ScheduleEntryModal({
 
 		const params: Record<string, any> = {
 			course: courseId,
-			day_of_week: dayOfWeek,
-			start_time: startTime,
-			end_time: endTime,
-			available_only: "true",
 		};
-		if (isSlotClick && defaultDate) {
-			params.date = defaultDate;
+		if (isSlotClick) {
+			params.day_of_week = defaultDay || dayOfWeek;
+			params.start_time = defaultStartTime || startTime;
+			params.end_time = defaultEndTime || endTime;
+			params.available_only = "true";
+			if (defaultDate) {
+				params.date = defaultDate;
+			}
 		}
 		if (activeSemester?.id) {
 			params.semester = String(activeSemester.id);
@@ -237,10 +263,10 @@ export default function ScheduleEntryModal({
 	}, [
 		isOpen,
 		courseId,
-		dayOfWeek,
-		startTime,
-		endTime,
 		isSlotClick,
+		defaultDay,
+		defaultStartTime,
+		defaultEndTime,
 		defaultDate,
 		activeSemester?.id,
 	]);
@@ -569,16 +595,14 @@ export default function ScheduleEntryModal({
 				<div>
 					<div className="flex items-center justify-between mb-1">
 						<Text variant="caption" className="font-semibold block">
-							Available venues (
 							{isSlotClick
-								? `${defaultDay} ${defaultStartTime?.slice(0, 5)} - ${defaultEndTime?.slice(0, 5)}`
-								: `${dayOfWeek} ${startTime?.slice(0, 5)} - ${endTime?.slice(0, 5)}`}
-							)
+								? `Available venues (${defaultDay} ${defaultStartTime?.slice(0, 5)} - ${defaultEndTime?.slice(0, 5)})`
+								: "Eligible Venues"}
 						</Text>
 						{isLoadingVenues && (
 							<span className="text-[10px] text-primary flex items-center gap-1">
 								<div className="w-2.5 h-2.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-								Checking availability...
+								{isSlotClick ? "Checking availability..." : "Loading venues..."}
 							</span>
 						)}
 					</div>
@@ -586,13 +610,14 @@ export default function ScheduleEntryModal({
 						<div className="p-3 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs space-y-1">
 							<p className="font-semibold flex items-center gap-1.5">
 								<AlertCircle size={14} className="shrink-0" />
-								No venues available at this timeslot
+								{isSlotClick
+									? "No venues available at this timeslot"
+									: "No eligible venues found"}
 							</p>
 							<p className="text-[11px] opacity-90">
-								All eligible venues for this course are occupied during{" "}
-								{isSlotClick ? defaultDay : dayOfWeek} ({startTime?.slice(0, 5)}{" "}
-								- {endTime?.slice(0, 5)}). Please select a different time slot
-								or day.
+								{isSlotClick
+									? `All eligible venues for this course are occupied during ${defaultDay} (${defaultStartTime?.slice(0, 5)} - ${defaultEndTime?.slice(0, 5)}). Please select a different time slot or day.`
+									: `No eligible venues were found for this course in ${selectedCourse?.departmentName || "your department"} or institution scope. Please verify that venues have been created and assigned.`}
 							</p>
 						</div>
 					) : (

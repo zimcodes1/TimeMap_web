@@ -751,7 +751,9 @@ export default function CoursesView({
 											</span>
 											{c.programScope === "program" && (
 												<div className="text-[11px] text-primary font-medium mt-0.5">
-													{c.targetProgramName || "Program Scoped"}
+													{c.targetProgramNames && c.targetProgramNames.length > 0
+														? c.targetProgramNames.join(", ")
+														: c.targetProgramName || "Program Scoped"}
 												</div>
 											)}
 											{c.programScope === "general" && (

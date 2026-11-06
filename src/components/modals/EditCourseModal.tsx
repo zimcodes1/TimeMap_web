@@ -4,6 +4,7 @@ import { Text } from "../ui/text";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import LecturerAssignmentSelector from "@/components/courses/LecturerAssignmentSelector";
 import type { Course, Department, Program, Semester, User } from "@/types";
 
@@ -35,7 +36,7 @@ export default function EditCourseModal({
 	const [programScope, setProgramScope] = useState<"general" | "program">(
 		"general",
 	);
-	const [targetProgramId, setTargetProgramId] = useState("");
+	const [targetProgramIds, setTargetProgramIds] = useState<string[]>([]);
 	const [departmentId, setDepartmentId] = useState("");
 	const [selectedLecturerIds, setSelectedLecturerIds] = useState<string[]>([]);
 	const [courseType, setCourseType] = useState<"lecture" | "practical">(
@@ -50,8 +51,16 @@ export default function EditCourseModal({
 			setTitle(course.title || "");
 			setLevel(course.level || 300);
 			setSemesterId(course.semesterId || "");
-			setProgramScope(course.programScope === "program" ? "program" : "general");
-			setTargetProgramId(course.targetProgramId || "");
+			setProgramScope(
+				course.programScope === "program" ? "program" : "general",
+			);
+			const initialProgIds =
+				course.targetProgramIds && course.targetProgramIds.length > 0
+					? course.targetProgramIds.map(String)
+					: course.targetProgramId
+						? [String(course.targetProgramId)]
+						: [];
+			setTargetProgramIds(initialProgIds);
 			setDepartmentId(course.departmentId || "");
 			const initialIds =
 				course.lecturerIds && course.lecturerIds.length > 0
@@ -87,7 +96,7 @@ export default function EditCourseModal({
 				(d) => String(d.id) === String(departmentId),
 			);
 			const targetProg = availablePrograms.find(
-				(p) => String(p.id) === String(targetProgramId),
+				(p) => String(p.id) === String(targetProgramIds[0]),
 			);
 
 			onSubmit(course.id, {
@@ -104,8 +113,12 @@ export default function EditCourseModal({
 					course.owningLevel === "department" ? programScope : "general",
 				targetProgramId:
 					course.owningLevel === "department" && programScope === "program"
-						? targetProgramId
+						? targetProgramIds[0] || undefined
 						: undefined,
+				targetProgramIds:
+					course.owningLevel === "department" && programScope === "program"
+						? targetProgramIds
+						: [],
 				targetProgramName: targetProg?.name,
 				departmentName: targetDept?.name,
 				lecturers: assignedLecturers,
@@ -260,17 +273,17 @@ export default function EditCourseModal({
 								{programScope === "program" && (
 									<div>
 										<label className="text-xs text-text-muted mb-1 block">
-											Target Program
+											Target Program(s)
 										</label>
-										<Select
-											value={
-												targetProgramId || (availablePrograms[0]?.id ?? "")
-											}
-											onChange={(e) => setTargetProgramId(e.target.value)}
+										<MultiSelect
+											placeholder="Select program(s)..."
+											searchPlaceholder="Search programs..."
 											options={availablePrograms.map((p) => ({
-												value: p.id,
+												value: String(p.id),
 												label: `${p.name} (${p.code})`,
 											}))}
+											selectedValues={targetProgramIds}
+											onChange={setTargetProgramIds}
 										/>
 									</div>
 								)}

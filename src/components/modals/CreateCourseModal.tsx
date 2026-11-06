@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Text } from "@/components/ui/text";
+import { MultiSelect } from "@/components/ui/MultiSelect";
 import LecturerAssignmentSelector from "@/components/courses/LecturerAssignmentSelector";
 import type {
 	Course,
@@ -27,6 +28,7 @@ interface CreateCourseModalProps {
 			semesterId?: string;
 			programScope?: "general" | "program";
 			targetProgramId?: string;
+			targetProgramIds?: string[];
 		},
 	) => void;
 	departments: Department[];
@@ -65,8 +67,9 @@ export default function CreateCourseModal({
 	const [programScope, setProgramScope] = useState<"general" | "program">(
 		initialData?.programScope === "program" ? "program" : "general",
 	);
-	const [targetProgramId, setTargetProgramId] = useState(
-		initialData?.targetProgramId || "",
+	const [targetProgramIds, setTargetProgramIds] = useState<string[]>(
+		initialData?.targetProgramIds ||
+			(initialData?.targetProgramId ? [initialData.targetProgramId] : []),
 	);
 	const [owningLevel, setOwningLevel] = useState<AdminLevel>(
 		initialData?.owningLevel ||
@@ -142,10 +145,10 @@ export default function CreateCourseModal({
 	}, [programs, owningLevel, scopeId]);
 
 	useEffect(() => {
-		if (availablePrograms.length > 0 && !targetProgramId) {
-			setTargetProgramId(availablePrograms[0].id);
+		if (availablePrograms.length > 0 && targetProgramIds.length === 0) {
+			setTargetProgramIds([availablePrograms[0].id]);
 		}
-	}, [availablePrograms, targetProgramId]);
+	}, [availablePrograms, targetProgramIds.length]);
 
 	const handleOwningLevelChange = (newLevel: AdminLevel) => {
 		if (isLevelLocked) return;
@@ -196,8 +199,12 @@ export default function CreateCourseModal({
 			programScope: owningLevel === "department" ? programScope : "general",
 			targetProgramId:
 				owningLevel === "department" && programScope === "program"
-					? targetProgramId
+					? targetProgramIds[0] || undefined
 					: undefined,
+			targetProgramIds:
+				owningLevel === "department" && programScope === "program"
+					? targetProgramIds
+					: [],
 			departmentId: owningLevel === "department" ? activeScopeId : undefined,
 			departmentName: dept?.name,
 			owningLevel,
@@ -419,15 +426,17 @@ export default function CreateCourseModal({
 										variant="caption"
 										className="text-text-muted mb-1 block"
 									>
-										Target Program
+										Target Program(s)
 									</Text>
-									<Select
-										value={targetProgramId || (availablePrograms[0]?.id ?? "")}
-										onChange={(e) => setTargetProgramId(e.target.value)}
+									<MultiSelect
+										placeholder="Select program(s)..."
+										searchPlaceholder="Search programs..."
 										options={availablePrograms.map((p) => ({
-											value: p.id,
+											value: String(p.id),
 											label: `${p.name} (${p.code})`,
 										}))}
+										selectedValues={targetProgramIds}
+										onChange={setTargetProgramIds}
 									/>
 								</div>
 							)}
