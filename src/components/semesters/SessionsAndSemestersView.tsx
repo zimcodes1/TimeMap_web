@@ -317,7 +317,11 @@ export function SessionsAndSemestersView({
 					<Text variant="h6" weight="bold" className="text-text-main">
 						No Academic Sessions Configured
 					</Text>
-					<Text variant="body-sm" color="muted" className="max-w-md">
+					<Text
+						variant="body-sm"
+						color="muted"
+						className="max-w-md text-center"
+					>
 						Create an academic session (e.g., 2026/2027) to define teaching
 						semesters, timetable generation limits, and lecture schedules.
 					</Text>

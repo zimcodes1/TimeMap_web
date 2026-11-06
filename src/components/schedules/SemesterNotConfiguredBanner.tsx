@@ -56,9 +56,7 @@ export function SemesterNotConfiguredBanner({
 					>
 						<Settings size={14} />
 						<span>
-							{isSchoolAdmin
-								? "Configure Calendar"
-								: "View Academic Calendar"}
+							{isSchoolAdmin ? "Configure Calendar" : "View Academic Calendar"}
 						</span>
 						<ArrowRight size={13} className="ml-0.5" />
 					</Button>

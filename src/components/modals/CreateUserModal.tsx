@@ -675,11 +675,11 @@ export default function CreateUserModal({
 										Designate as Exam Officer
 									</Text>
 									<span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20">
-										Exams Only
+										Exam Permissions
 									</span>
 								</div>
 								<Text variant="caption" className="text-xs text-text-muted mt-0.5">
-									Exam officers manage exam timetables, sitting periods, and exam-specific analytics within their scope.
+									Grants exam timetable scheduling, sitting periods, and exam analytics while maintaining standard administrative role attributes.
 								</Text>
 							</label>
 						</div>

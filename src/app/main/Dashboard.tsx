@@ -214,7 +214,6 @@ export default function DashboardContainer() {
 	const { data: holdRate, isLoading: holdRateLoading } = useQuery({
 		queryKey: ["analytics", "hold-rate", holdRateParams],
 		queryFn: () => getLectureHoldRateAnalytics(holdRateParams),
-		enabled: !isExamOfficer,
 	});
 
 	const isSchoolAdmin = adminLevel === "school";
@@ -254,10 +253,9 @@ export default function DashboardContainer() {
 		queryKey: ["analytics", "utilization", utilizationParams],
 		queryFn: () => getVenueUtilizationAnalytics(utilizationParams),
 		enabled:
-			!isExamOfficer &&
-			(isSchoolAdmin ||
-				(isFacultyAdmin && !selectedDepartmentId) ||
-				Boolean(selectedDepartmentId)),
+			isSchoolAdmin ||
+			(isFacultyAdmin && !selectedDepartmentId) ||
+			Boolean(selectedDepartmentId),
 	});
 
 	// Discrepancy Analytics
@@ -271,14 +269,12 @@ export default function DashboardContainer() {
 	const { data: discrepancies, isLoading: discrepanciesLoading } = useQuery({
 		queryKey: ["analytics", "discrepancies", discrepancyParams],
 		queryFn: () => getDiscrepancyAnalytics(discrepancyParams),
-		enabled: !isExamOfficer,
 	});
 
 	// Dashboard Summary Counts (Legacy fallback)
 	const { data: summaryCounts, isLoading: countsLoading } = useQuery({
 		queryKey: ["analytics", "summary-counts"],
 		queryFn: getDashboardSummaryCounts,
-		enabled: !isExamOfficer,
 	});
 
 	// Role-based Statcards Query

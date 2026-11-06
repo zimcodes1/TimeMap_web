@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Logo from "@/components/elements/logo";
 import { Text } from "@/components/ui/text";
-import { NAV_GROUPS, isRouteAllowedForExamOfficer } from "@/constants/data";
+import { NAV_GROUPS } from "@/constants/data";
 import { useAuth } from "@/hooks/useAuth";
 
 interface SideNavProps {
@@ -87,10 +87,6 @@ export default function SideNav({
 			<div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-white/20">
 				{NAV_GROUPS.map((group) => {
 					const visibleItems = group.items.filter((item) => {
-						if (user?.isExamOfficer && !isRouteAllowedForExamOfficer(item.to)) {
-							return false;
-						}
-
 						if (item.adminLevels && item.adminLevels.length > 0) {
 							const effectiveLevel = user?.adminLevel === "university" ? "system" : user?.adminLevel;
 							if (

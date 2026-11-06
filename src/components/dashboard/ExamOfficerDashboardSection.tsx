@@ -45,7 +45,9 @@ export default function ExamOfficerDashboardSection({
 							</Text>
 						</div>
 						<Text variant="body-sm" color="muted" className="leading-relaxed">
-							Dedicated exam administration workspace. Schedule examination sittings, resolve venue capacities, assign academic invigilators, and oversee student candidate allotments.
+							Dedicated exam administration workspace. Schedule examination
+							sittings, resolve venue capacities, assign academic invigilators,
+							and oversee student candidate allotments.
 						</Text>
 
 						<div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-text-muted">
@@ -68,7 +70,10 @@ export default function ExamOfficerDashboardSection({
 
 					<div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
 						<Link to={"/venues" as any}>
-							<Button variant="outline" className="flex items-center gap-2 whitespace-nowrap">
+							<Button
+								variant="outline"
+								className="flex items-center gap-2 whitespace-nowrap"
+							>
 								<MapPin size={16} />
 								<span>Inspect Venues</span>
 							</Button>
@@ -113,11 +118,17 @@ export default function ExamOfficerDashboardSection({
 								<Clock size={24} />
 							</div>
 							<div className="space-y-1">
-								<Text variant="body-sm" weight="semibold" className="text-text-main">
+								<Text
+									variant="body-sm"
+									weight="semibold"
+									className="text-center text-text-main"
+								>
 									No Exam Sittings Scheduled
 								</Text>
 								<Text variant="caption" color="muted" className="max-w-md">
-									Exam sittings for this semester have not been created yet. Navigate to the Exam Timetable page to schedule individual sittings or assign venues and invigilators.
+									Exam sittings for this semester have not been created yet.
+									Navigate to the Exam Timetable page to schedule individual
+									sittings or assign venues and invigilators.
 								</Text>
 							</div>
 							<Link to={"/exams" as any}>
@@ -134,21 +145,35 @@ export default function ExamOfficerDashboardSection({
 										<th className="py-2.5 px-3 font-semibold">Date</th>
 										<th className="py-2.5 px-3 font-semibold">Sittings</th>
 										<th className="py-2.5 px-3 font-semibold">Candidates</th>
-										<th className="py-2.5 px-3 font-semibold text-right">Status</th>
+										<th className="py-2.5 px-3 font-semibold text-right">
+											Status
+										</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-border/60">
 									{dailyBreakdown.map((row) => (
-										<tr key={row.date} className="hover:bg-surface-raised/50 transition-colors">
+										<tr
+											key={row.date}
+											className="hover:bg-surface-raised/50 transition-colors"
+										>
 											<td className="py-3 px-3 font-medium text-text-main flex items-center gap-2">
-												<Calendar size={14} className="text-indigo-400 shrink-0" />
+												<Calendar
+													size={14}
+													className="text-indigo-400 shrink-0"
+												/>
 												<span>{row.date}</span>
 											</td>
 											<td className="py-3 px-3 text-text-muted">
-												<span className="font-semibold text-text-main">{row.sittings}</span> sitting{row.sittings !== 1 ? "s" : ""}
+												<span className="font-semibold text-text-main">
+													{row.sittings}
+												</span>{" "}
+												sitting{row.sittings !== 1 ? "s" : ""}
 											</td>
 											<td className="py-3 px-3 text-text-muted">
-												<span className="font-semibold text-text-main">{row.candidates.toLocaleString()}</span> students
+												<span className="font-semibold text-text-main">
+													{row.candidates.toLocaleString()}
+												</span>{" "}
+												students
 											</td>
 											<td className="py-3 px-3 text-right">
 												<Badge variant="success" size="sm">
@@ -167,7 +192,10 @@ export default function ExamOfficerDashboardSection({
 				<div className="space-y-4">
 					<Card className="p-5 space-y-3 border-l-4 border-l-indigo-500">
 						<div className="flex items-center justify-between text-text-muted">
-							<Text variant="overline" className="text-[11px] font-semibold uppercase">
+							<Text
+								variant="overline"
+								className="text-[11px] font-semibold uppercase"
+							>
 								Exam Readiness
 							</Text>
 							<GraduationCap size={18} className="text-indigo-500" />
@@ -176,7 +204,11 @@ export default function ExamOfficerDashboardSection({
 							<Text variant="h4" weight="bold" className="text-text-main">
 								{summary?.total_sittings || 0} Sittings
 							</Text>
-							<Text variant="caption" color="muted" className="block text-[11px]">
+							<Text
+								variant="caption"
+								color="muted"
+								className="block text-[11px]"
+							>
 								{summary?.total_venues || 0} venues currently allotted
 							</Text>
 						</div>
@@ -192,7 +224,10 @@ export default function ExamOfficerDashboardSection({
 
 					<Card className="p-5 space-y-3 border-l-4 border-l-blue-500">
 						<div className="flex items-center justify-between text-text-muted">
-							<Text variant="overline" className="text-[11px] font-semibold uppercase">
+							<Text
+								variant="overline"
+								className="text-[11px] font-semibold uppercase"
+							>
 								Student Enrollment
 							</Text>
 							<Users size={18} className="text-blue-500" />
@@ -201,12 +236,19 @@ export default function ExamOfficerDashboardSection({
 							<Text variant="h4" weight="bold" className="text-text-main">
 								{(summary?.total_candidates || 0).toLocaleString()} Candidates
 							</Text>
-							<Text variant="caption" color="muted" className="block text-[11px]">
+							<Text
+								variant="caption"
+								color="muted"
+								className="block text-[11px]"
+							>
 								Registered for examination sessions
 							</Text>
 						</div>
 						<div className="pt-2 border-t border-border/60">
-							<Link to={"/exams" as any} className="text-xs text-primary hover:underline flex items-center gap-1 font-medium">
+							<Link
+								to={"/exams" as any}
+								className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+							>
 								<span>View Exam Schedule details</span>
 								<ArrowRight size={13} />
 							</Link>
@@ -217,4 +259,3 @@ export default function ExamOfficerDashboardSection({
 		</div>
 	);
 }
-
