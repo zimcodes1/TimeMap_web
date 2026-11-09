@@ -4,6 +4,7 @@ import MobileQuickAnalyticsCard from "./MobileQuickAnalyticsCard";
 import MobileDateStrip from "./MobileDateStrip";
 import MobileStatusChips from "./MobileStatusChips";
 import MobileSessionCard from "./MobileSessionCard";
+import MobileFloatingCards from "./MobileFloatingCards";
 
 function AppScreen() {
 	return (
@@ -57,6 +58,9 @@ function AppScreen() {
 export default function MobileAppPreview() {
 	return (
 		<div className="relative flex justify-center items-start">
+			{/* Floating stat badges around the mobile frame */}
+			<MobileFloatingCards />
+
 			{/* Phone frame */}
 			<div className="relative bg-[#09090b] h-155 w-80 sm:w-75 rounded-[3rem] border-10 border-[#1a1a1a] shadow-2xl overflow-hidden">
 				{/* Notch */}

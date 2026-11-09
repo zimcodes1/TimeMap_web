@@ -106,3 +106,79 @@ export const adminStatCards = [
     accent: 'danger',
   },
 ];
+
+export interface MobileFloatingStats {
+  conflictGuard: {
+    title: string;
+    subtitle: string;
+    tag: string;
+  };
+  notificationAlert: {
+    title: string;
+    message: string;
+    time: string;
+  };
+  attendancePulse: {
+    title: string;
+    value: string;
+    subtitle: string;
+  };
+}
+
+export const mobileFloatingStats: MobileFloatingStats = {
+  conflictGuard: {
+    title: "Zero Conflicts",
+    subtitle: "Real-time clash guard active",
+    tag: "Automated",
+  },
+  notificationAlert: {
+    title: "Instant Shift Alert",
+    message: "CSC 301 shifted to SLT-A (09:00 AM)",
+    time: "2m ago",
+  },
+  attendancePulse: {
+    title: "Active Campus Sync",
+    value: "14,200+",
+    subtitle: "Students & faculty connected",
+  },
+};
+
+export interface AdminFloatingStats {
+  solverMetric: {
+    title: string;
+    value: string;
+    subtitle: string;
+    badge: string;
+  };
+  venueEfficiency: {
+    title: string;
+    value: string;
+    subtitle: string;
+    badge: string;
+  };
+  liveCompliance: {
+    title: string;
+    value: string;
+    subtitle: string;
+  };
+}
+
+export const adminFloatingStats: AdminFloatingStats = {
+  solverMetric: {
+    title: "Optimization Engine",
+    value: "1.2s",
+    subtitle: "318 courses solved without clashes",
+    badge: "0 Overlaps",
+  },
+  venueEfficiency: {
+    title: "Space Efficiency",
+    value: "96.4%",
+    subtitle: "47 academic halls dynamically mapped",
+    badge: "Optimal",
+  },
+  liveCompliance: {
+    title: "Lecture Hold Rate",
+    value: "83.3%",
+    subtitle: "+12.4% compliance this semester",
+  },
+};

@@ -1,15 +1,16 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import NavigationBar from "@/components/landing/NavigationBar";
 import HeroViewSwitcher from "@/components/landing/HeroViewSwitcher";
 import HeroTextContent from "@/components/landing/HeroTextContent";
 import MobileAppPreview from "@/components/landing/mobile-preview/MobileAppPreview";
 import AdminDashboardPreview from "@/components/landing/admin-preview/AdminDashboardPreview";
+import HeroBackground from "@/components/landing/HeroBackground";
 import { LucideShieldClose } from "lucide-react";
 
 type HeroTab = "mobile" | "admin";
 
-const previewVariants = {
+const previewVariants: Variants = {
 	initial: { opacity: 0, x: 40, scale: 0.97 },
 	animate: {
 		opacity: 1,
@@ -25,7 +26,7 @@ const previewVariants = {
 	},
 };
 
-const heroContentVariants = {
+const heroContentVariants: Variants = {
 	initial: { opacity: 0, y: 32 },
 	animate: {
 		opacity: 1,
@@ -42,19 +43,8 @@ export default function HeroSection() {
 			{/* Navigation */}
 			<NavigationBar />
 
-			{/* Background decorative blobs */}
-			<div
-				className="absolute -top-30 -right-25 w-125 h-125 rounded-full opacity-10 pointer-events-none"
-				style={{
-					background: "radial-gradient(circle, #ffffff 0%, transparent 70%)",
-				}}
-			/>
-			<div
-				className="absolute -bottom-20 -left-20 w-100 h-100 rounded-full opacity-10 pointer-events-none"
-				style={{
-					background: "radial-gradient(circle, #d1fae5 0%, transparent 70%)",
-				}}
-			/>
+			{/* Spiced Dynamic Hero Background with Architectural Grid, Ambient Glow & Floating Themed Icons */}
+			<HeroBackground />
 
 			{/* Hero content */}
 			<motion.div

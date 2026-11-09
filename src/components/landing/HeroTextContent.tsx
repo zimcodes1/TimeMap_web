@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Smartphone, ArrowRight, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -90,7 +90,7 @@ export default function HeroTextContent({ activeTab }: HeroTextContentProps) {
 								const el = document.querySelector(c.secondaryHref);
 								el?.scrollIntoView({ behavior: "smooth" });
 							}}
-							className="border-white/40 text-white hover:bg-white/10 hover:text-white bg-transparent"
+							className="border-white/40 text-white hover:bg-white/5  backdrop-blur-lg hover:text-white bg-transparent"
 						>
 							{c.secondaryLabel}
 						</Button>
