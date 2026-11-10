@@ -57,7 +57,7 @@ function AppScreen() {
 
 export default function MobileAppPreview() {
 	return (
-		<div className="relative flex justify-center items-start">
+		<div className="relative flex justify-center items-start select-none">
 			{/* Floating stat badges around the mobile frame */}
 			<MobileFloatingCards />
 

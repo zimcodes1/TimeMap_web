@@ -84,12 +84,12 @@ import AdminFloatingCards from "./AdminFloatingCards";
 
 export default function AdminDashboardPreview() {
 	return (
-		<div className="relative w-120 lg:w-7/10">
+		<div className="relative w-120 md:w-7/10 select-none">
 			{/* Floating stats badges around the dashboard frame */}
 			<AdminFloatingCards />
 
 			{/* Main browser window frame */}
-			<div className="w-full rounded-2xl bg-white shadow-2xl overflow-hidden border border-white/40">
+			<div className="w-full rounded-2xl bg-white shadow-2xl overflow-hidden">
 				{/* Browser chrome bar */}
 				<div className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 border-b border-gray-200">
 					<span className="w-3 h-3 rounded-full bg-red-400" />
@@ -97,6 +97,7 @@ export default function AdminDashboardPreview() {
 					<span className="w-3 h-3 rounded-full bg-green-400" />
 					<div className="flex-1 mx-3 h-6 bg-white border border-gray-200 rounded-md flex items-center px-3">
 						<span className="text-[10px] text-gray-400 select-none">
+							<b className="text-green-500">https://</b>
 							timemapper.nsuk.edu.ng/dashboard
 						</span>
 					</div>

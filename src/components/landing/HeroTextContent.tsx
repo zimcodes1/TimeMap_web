@@ -16,7 +16,8 @@ const CONTENT = {
 			"Real-time lecture schedules, session reports, and instant notifications, all tailored to your role at NSUK.",
 		primaryLabel: "Download the App",
 		primaryIcon: <Smartphone size={18} />,
-		primaryHref: undefined as string | undefined,
+		primaryHref:
+			"https://download1980.mediafire.com/six2qrselfig7DFSE2nXV3AoQKQQDm9AWcoOFH2lM74KgQUDsLl-059RBDvs4a43g5kBsEmgHlA0cQ-jckOyQxpmDk_VFmjOEW8mvuK4wSNi8QL__t7j2_SrngwQ-RpKKLPCivH33dRH-qvz4tfNX17k6ZDteNOU8Vd8xqCpp9eUACk/qzoqd4ut4px67zl/TimeMap_v1.0.1.apk",
 		secondaryLabel: "Learn More",
 		secondaryHref: "#features",
 	},
@@ -33,7 +34,7 @@ const CONTENT = {
 	},
 };
 
-const variants = {
+const variants: Variants = {
 	initial: { opacity: 0, y: 24 },
 	animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 	exit: { opacity: 0, y: -16, transition: { duration: 0.25, ease: "easeIn" } },
@@ -51,7 +52,7 @@ export default function HeroTextContent({ activeTab }: HeroTextContentProps) {
 					initial="initial"
 					animate="animate"
 					exit="exit"
-					className={`flex flex-col items-center ${activeTab == "admin" ? "justify-center" : "lg:items-start sm:pt-10 sm:pl-20 lg:text-left"} text-center`}
+					className={`flex flex-col items-center ${activeTab == "admin" ? "justify-center" : "lg:items-start sm:pt-10  lg:text-left"} text-center`}
 				>
 					{/* Badge */}
 					<span className="inline-block mb-5 px-4 py-1.5 rounded-full text-sm font-semibold bg-white/20 text-white border border-white/10 backdrop-blur-sm">
@@ -70,18 +71,12 @@ export default function HeroTextContent({ activeTab }: HeroTextContentProps) {
 
 					{/* CTAs */}
 					<div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-						<Button
-							variant="secondary"
-							size="lg"
-							leftIcon={c.primaryIcon}
-							{...(c.primaryHref
-								? { onClick: () => (window.location.href = c.primaryHref!) }
-								: {})}
-							className="bg-white text-primary hover:bg-white/90 border-transparent font-bold shadow-lg"
-						>
-							{c.primaryLabel}
-						</Button>
-
+						<a href={c.primaryHref} target="_blank">
+							<Button variant="secondary" size="lg" leftIcon={c.primaryIcon}>
+								{c.primaryLabel}
+							</Button>
+						</a>
+						<br />
 						<Button
 							variant="outline"
 							size="lg"

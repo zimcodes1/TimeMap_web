@@ -62,14 +62,14 @@ export default function HeroSection() {
 
 				{/* Two-column layout */}
 				<div
-					className={`flex gap-12 flex-col w-full ${activeTab !== "admin" ? "lg:flex-row items-start justify-center lg:gap-16" : ""}`}
+					className={`flex gap-12 flex-col w-full ${activeTab !== "admin" ? "sm:flex-row items-start justify-center lg:gap-16" : ""}`}
 				>
 					{/* Left — text */}
 					<HeroTextContent activeTab={activeTab} />
 
 					{/* Right — preview */}
 					<div
-						className={`flex justify-center items-center ${activeTab == "admin" ? "w-full" : "w-full sm:max-w-xl"}`}
+						className={`flex justify-center items-center pb-5 ${activeTab == "admin" ? "w-full" : "w-full sm:max-w-fit"}`}
 					>
 						<AnimatePresence mode="wait">
 							{activeTab === "mobile" ? (
@@ -89,7 +89,7 @@ export default function HeroSection() {
 									initial="initial"
 									animate="animate"
 									exit="exit"
-									className="max-sm:hidden w-full flex justify-center items-center"
+									className="w-full flex justify-center items-center"
 								>
 									<AdminDashboardPreview />
 								</motion.div>
