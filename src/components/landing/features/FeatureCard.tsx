@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface FeatureCardData {
@@ -8,6 +9,7 @@ export interface FeatureCardData {
 	accent: string;       // tailwind border/ring accent class
 	title: string;
 	description: string;
+	href?: string;
 }
 
 interface FeatureCardProps {
@@ -16,7 +18,13 @@ interface FeatureCardProps {
 }
 
 export default function FeatureCard({ card, index }: FeatureCardProps) {
-	const { icon: Icon, iconBg, iconColor, accent, title, description } = card;
+	const { icon: Icon, iconBg, iconColor, accent, title, description, href } = card;
+
+	const handleClick = () => {
+		if (!href) return;
+		const target = document.querySelector(href);
+		target?.scrollIntoView({ behavior: "smooth" });
+	};
 
 	return (
 		<motion.div
@@ -29,14 +37,25 @@ export default function FeatureCard({ card, index }: FeatureCardProps) {
 				delay: index * 0.1,
 			}}
 			whileHover={{ y: -6, transition: { duration: 0.25, ease: "easeOut" } }}
-			className={`group relative bg-white rounded-2xl border border-border shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden cursor-default`}
+			onClick={handleClick}
+			role={href ? "button" : undefined}
+			tabIndex={href ? 0 : undefined}
+			onKeyDown={(e) => {
+				if (href && (e.key === "Enter" || e.key === " ")) {
+					e.preventDefault();
+					handleClick();
+				}
+			}}
+			className={`group relative bg-white rounded-2xl border border-border shadow-sm hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col ${
+				href ? "cursor-pointer" : "cursor-default"
+			}`}
 		>
 			{/* Hover accent line at top */}
 			<div
 				className={`absolute top-0 left-0 right-0 h-0.5 ${accent} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
 			/>
 
-			<div className="p-7">
+			<div className="p-7 flex-1 flex flex-col">
 				{/* Glassmorphic icon bubble */}
 				<div
 					className={`relative inline-flex items-center justify-center w-13 h-13 rounded-2xl mb-5 ${iconBg} ring-1 ring-inset ring-white/50 shadow-sm backdrop-blur-sm overflow-hidden`}
@@ -49,7 +68,19 @@ export default function FeatureCard({ card, index }: FeatureCardProps) {
 				<h3 className="text-base font-bold text-text-main mb-2 leading-snug">
 					{title}
 				</h3>
-				<p className="text-sm text-text-muted leading-relaxed">{description}</p>
+				<p className="text-sm text-text-muted leading-relaxed flex-1">
+					{description}
+				</p>
+
+				{href && (
+					<div className="mt-5 pt-3 border-t border-border/60 flex items-center gap-1.5 text-xs font-bold text-primary">
+						<span>Explore section</span>
+						<ArrowRight
+							size={14}
+							className="transition-transform duration-200 group-hover:translate-x-1"
+						/>
+					</div>
+				)}
 			</div>
 		</motion.div>
 	);
