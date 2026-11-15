@@ -21,10 +21,14 @@ export default function CreateSchoolModal({
   const [name, setName] = useState(initialData?.name || '');
   const [code, setCode] = useState(initialData?.code || '');
 
+  const cleanCode = code.trim().toUpperCase();
+  const cleanName = name.trim();
+  const isCodeValid = !code.trim() || /^[A-Za-z0-9_-]+$/.test(code.trim());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !code.trim()) return;
-    onSubmit({ name, code });
+    if (!cleanName || !cleanCode || !isCodeValid) return;
+    onSubmit({ name: cleanName, code: cleanCode });
     onClose();
   };
 

@@ -28,10 +28,14 @@ export default function EditSchoolModal({
     }
   }, [school]);
 
+  const cleanCode = code.trim().toUpperCase();
+  const cleanName = name.trim();
+  const isCodeValid = !code.trim() || /^[A-Za-z0-9_-]+$/.test(code.trim());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (school && name && code) {
-      onSubmit(school.id, name, code);
+    if (school && cleanName && cleanCode && isCodeValid) {
+      onSubmit(school.id, cleanName, cleanCode);
       onClose();
     }
   };
@@ -50,9 +54,18 @@ export default function EditSchoolModal({
           <Input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="e.g. SAAT, SEET"
+            placeholder="e.g. SAAT, SEET, NSUK-MAIN"
             required
           />
+          {!isCodeValid ? (
+            <span className="text-xs text-danger font-medium">
+              Code must contain only letters, numbers, hyphens, and underscores without spaces.
+            </span>
+          ) : (
+            <span className="text-xs text-text-muted">
+              Letters, numbers, hyphens, and underscores only.
+            </span>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -69,7 +82,7 @@ export default function EditSchoolModal({
           <Button variant="outline" type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={!cleanName || !cleanCode || !isCodeValid}>
             Save Changes
           </Button>
         </div>

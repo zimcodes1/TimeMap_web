@@ -33,10 +33,15 @@ export default function EditDepartmentModal({
     }
   }, [department]);
 
+  const cleanCode = code.trim().toUpperCase();
+  const cleanName = name.trim();
+  const isCodeValid = !code.trim() || /^[A-Za-z0-9_-]+$/.test(code.trim());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (department && name && code && facultyId) {
-      onSubmit(department.id, name, code, facultyId);
+    const targetFacultyId = facultyId || department?.facultyId || faculties[0]?.id || "";
+    if (department && cleanName && cleanCode && targetFacultyId && isCodeValid) {
+      onSubmit(department.id, cleanName, cleanCode, targetFacultyId);
       onClose();
     }
   };
@@ -52,7 +57,7 @@ export default function EditDepartmentModal({
 
         <div className="space-y-1">
           <label className="text-xs font-semibold text-text-main">Parent Faculty</label>
-          <Select value={facultyId} onChange={(e) => setFacultyId(e.target.value)} required>
+          <Select value={facultyId || department.facultyId || (faculties[0]?.id ?? "")} onChange={(e) => setFacultyId(e.target.value)} required>
             {faculties.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name} ({f.code})
@@ -66,9 +71,18 @@ export default function EditDepartmentModal({
           <Input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="e.g. CSC, MAT"
+            placeholder="e.g. CSC, MAT, CS-CYB"
             required
           />
+          {!isCodeValid ? (
+            <span className="text-xs text-danger font-medium">
+              Code must contain only letters, numbers, hyphens, and underscores without spaces.
+            </span>
+          ) : (
+            <span className="text-xs text-text-muted">
+              Letters, numbers, hyphens, and underscores only.
+            </span>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -85,7 +99,7 @@ export default function EditDepartmentModal({
           <Button variant="outline" type="button" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit">
+          <Button variant="primary" type="submit" disabled={!cleanName || !cleanCode || !isCodeValid}>
             Save Changes
           </Button>
         </div>

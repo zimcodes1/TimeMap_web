@@ -34,6 +34,29 @@ import type { School, Faculty, Department, Program } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+function getErrorMessage(error: unknown, fallback: string): string {
+	if (error && typeof error === "object" && "response" in error) {
+		const res = (error as { response?: { data?: unknown } }).response;
+		if (res?.data) {
+			if (typeof res.data === "string") return res.data;
+			if (typeof res.data === "object") {
+				const entries = Object.entries(res.data);
+				if (entries.length > 0) {
+					return entries
+						.map(([k, v]) => {
+							const text = Array.isArray(v) ? v.join(", ") : String(v);
+							return k === "detail" || k === "non_field_errors"
+								? text
+								: `${k}: ${text}`;
+						})
+						.join(" | ");
+				}
+			}
+		}
+	}
+	return fallback;
+}
+
 export default function HierarchyContainer() {
 	const queryClient = useQueryClient();
 	const { user } = useAuth();
@@ -123,7 +146,7 @@ export default function HierarchyContainer() {
 			setIsCreateSchoolOpen(false);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "schools"] });
 		},
-		onError: () => toast.error("Failed to create school"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to create school")),
 	});
 
 	const updateSchoolMutation = useMutation({
@@ -139,7 +162,7 @@ export default function HierarchyContainer() {
 			setEditingSchool(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "schools"] });
 		},
-		onError: () => toast.error("Failed to update school details"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to update school details")),
 	});
 
 	const deleteSchoolMutation = useMutation({
@@ -149,7 +172,7 @@ export default function HierarchyContainer() {
 			setDeleteTarget(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy"] });
 		},
-		onError: () => toast.error("Failed to delete school"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to delete school")),
 	});
 
 	// Faculty Mutations
@@ -160,7 +183,7 @@ export default function HierarchyContainer() {
 			setIsCreateFacultyOpen(false);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "faculties"] });
 		},
-		onError: () => toast.error("Failed to create faculty"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to create faculty")),
 	});
 
 	const updateFacultyMutation = useMutation({
@@ -169,14 +192,14 @@ export default function HierarchyContainer() {
 			payload,
 		}: {
 			id: string;
-			payload: { school: string; name: string; code: string };
+			payload: { school?: number | string; name: string; code: string };
 		}) => updateFacultyAPI(id, payload),
 		onSuccess: () => {
 			toast.success("Faculty details updated");
 			setEditingFaculty(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "faculties"] });
 		},
-		onError: () => toast.error("Failed to update faculty details"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to update faculty details")),
 	});
 
 	const deleteFacultyMutation = useMutation({
@@ -186,7 +209,7 @@ export default function HierarchyContainer() {
 			setDeleteTarget(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy"] });
 		},
-		onError: () => toast.error("Failed to delete faculty"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to delete faculty")),
 	});
 
 	// Department Mutations
@@ -198,7 +221,7 @@ export default function HierarchyContainer() {
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "departments"] });
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "programs"] });
 		},
-		onError: () => toast.error("Failed to create department"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to create department")),
 	});
 
 	const updateDepartmentMutation = useMutation({
@@ -207,14 +230,14 @@ export default function HierarchyContainer() {
 			payload,
 		}: {
 			id: string;
-			payload: { faculty: string; name: string; code: string };
+			payload: { faculty?: number | string; name: string; code: string };
 		}) => updateDepartmentAPI(id, payload),
 		onSuccess: () => {
 			toast.success("Department details updated");
 			setEditingDepartment(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "departments"] });
 		},
-		onError: () => toast.error("Failed to update department details"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to update department details")),
 	});
 
 	const deleteDepartmentMutation = useMutation({
@@ -224,7 +247,7 @@ export default function HierarchyContainer() {
 			setDeleteTarget(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy"] });
 		},
-		onError: () => toast.error("Failed to delete department"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to delete department")),
 	});
 
 	// Program Mutations
@@ -247,7 +270,7 @@ export default function HierarchyContainer() {
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "programs"] });
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "departments"] });
 		},
-		onError: () => toast.error("Failed to create program"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to create program")),
 	});
 
 	const updateProgramMutation = useMutation({
@@ -268,7 +291,7 @@ export default function HierarchyContainer() {
 			setEditingProgram(null);
 			queryClient.invalidateQueries({ queryKey: ["hierarchy", "programs"] });
 		},
-		onError: () => toast.error("Failed to update program"),
+		onError: (error) => toast.error(getErrorMessage(error, "Failed to update program")),
 	});
 
 	const deleteProgramMutation = useMutation({
@@ -315,7 +338,10 @@ export default function HierarchyContainer() {
 	};
 
 	const handleEditSchool = (id: string, name: string, code: string) => {
-		updateSchoolMutation.mutate({ id, payload: { name, code } });
+		updateSchoolMutation.mutate({
+			id,
+			payload: { name: name.trim(), code: code.trim().toUpperCase() },
+		});
 	};
 
 	const handleEditFaculty = (
@@ -326,7 +352,11 @@ export default function HierarchyContainer() {
 	) => {
 		updateFacultyMutation.mutate({
 			id,
-			payload: { school: schoolId, name, code },
+			payload: {
+				school: Number(schoolId) || schoolId,
+				name: name.trim(),
+				code: code.trim().toUpperCase(),
+			},
 		});
 	};
 
@@ -338,7 +368,11 @@ export default function HierarchyContainer() {
 	) => {
 		updateDepartmentMutation.mutate({
 			id,
-			payload: { faculty: facultyId, name, code },
+			payload: {
+				faculty: Number(facultyId) || facultyId,
+				name: name.trim(),
+				code: code.trim().toUpperCase(),
+			},
 		});
 	};
 
