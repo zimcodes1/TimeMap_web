@@ -108,6 +108,12 @@ export default function CoursesContainer() {
 		queryFn: () => getSemesters(),
 	});
 
+	const adminLevel = currentUser?.adminLevel;
+	const canManageGrants = Boolean(
+		currentUser?.role === "admin" &&
+		(adminLevel === "faculty" || adminLevel === "department")
+	);
+
 	// React Query Fetching for Courses & Grants
 	const {
 		data: coursesData,
@@ -127,6 +133,8 @@ export default function CoursesContainer() {
 	} = useQuery({
 		queryKey: ["courses", "grants"],
 		queryFn: getCourseGrantsList,
+		enabled: canManageGrants,
+		retry: false,
 	});
 
 	const courses = useMemo(() => {
@@ -171,9 +179,9 @@ export default function CoursesContainer() {
 			};
 		});
 	}, [coursesData, lecturers]);
-	const grants = grantsData ?? [];
-	const isLoading = isCoursesLoading || isGrantsLoading;
-	const isRefetching = isCoursesRefetching || isGrantsRefetching;
+	const grants = canManageGrants ? (grantsData ?? []) : [];
+	const isLoading = isCoursesLoading || (canManageGrants && isGrantsLoading);
+	const isRefetching = isCoursesRefetching || (canManageGrants && isGrantsRefetching);
 
 	// React Query Mutations
 	const createCourseMutation = useMutation({
