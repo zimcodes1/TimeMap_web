@@ -37,6 +37,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface CoursesViewProps {
 	courses: Course[];
+	totalCount?: number;
 	grants: CourseAccessGrant[];
 	faculties?: Faculty[];
 	departments?: Department[];
@@ -45,6 +46,7 @@ interface CoursesViewProps {
 	isLoading?: boolean;
 	isRefetching?: boolean;
 	onRefresh?: () => void;
+	onNeedMoreCourses?: (neededIndex: number) => void;
 	onOpenCreateCourse: () => void;
 	onOpenOfferGrant: () => void;
 	onOpenRequestGrant: () => void;
@@ -62,6 +64,7 @@ interface CoursesViewProps {
 
 export default function CoursesView({
 	courses,
+	totalCount,
 	grants,
 	faculties = [],
 	departments = [],
@@ -70,6 +73,7 @@ export default function CoursesView({
 	isLoading = false,
 	isRefetching = false,
 	onRefresh,
+	onNeedMoreCourses,
 	onOpenCreateCourse,
 	onOpenOfferGrant,
 	onOpenRequestGrant,
@@ -118,7 +122,8 @@ export default function CoursesView({
 		return semesters?.find((s) => s.isActive) || null;
 	}, [semesters]);
 
-	// Exam settings courses: strictly courses in the active current semester
+	// Exam settings courses: prioritize courses matching active semester, but fallback to all courses
+	// if active semester has no courses so exam configuration remains accessible
 	const examSettingsCourses = useMemo(() => {
 		if (!activeSemester) return courses;
 		const activeSemId = String(activeSemester.id);
@@ -127,7 +132,7 @@ export default function CoursesView({
 			activeSemester.displayName || ""
 		).toLowerCase().trim();
 
-		return courses.filter((c) => {
+		const matching = courses.filter((c) => {
 			const cSemId = c.semesterId ? String(c.semesterId) : "";
 			const cCode = (c.semesterCode || "").toLowerCase().trim();
 			const cName = (c.semesterName || "").toLowerCase().trim();
@@ -139,10 +144,13 @@ export default function CoursesView({
 				(Boolean(activeSemDisplay) && cName.includes(activeSemDisplay))
 			);
 		});
+
+		return matching.length > 0 ? matching : courses;
 	}, [courses, activeSemester]);
 
 	// Tab configurations per role and scope
 	const visibleTabs = useMemo(() => {
+		const catalogCount = totalCount !== undefined ? totalCount : courses.length;
 		if (isExamOfficer) {
 			return [
 				{
@@ -159,7 +167,7 @@ export default function CoursesView({
 				id: "catalog",
 				label: "Course Catalog",
 				icon: BookOpen,
-				count: courses.length,
+				count: catalogCount,
 			},
 		];
 
@@ -188,6 +196,7 @@ export default function CoursesView({
 		isUniversityAdmin,
 		isSchoolAdmin,
 		courses.length,
+		totalCount,
 		examSettingsCourses.length,
 		grants.length,
 	]);
@@ -201,15 +210,6 @@ export default function CoursesView({
 	const [facultyFilter, setFacultyFilter] = useState("");
 	const [departmentFilter, setDepartmentFilter] = useState("");
 	const [semesterFilter, setSemesterFilter] = useState("");
-	const [hasInitializedSemesterFilter, setHasInitializedSemesterFilter] =
-		useState(false);
-
-	useEffect(() => {
-		if (!hasInitializedSemesterFilter && activeSemester) {
-			setSemesterFilter(String(activeSemester.id));
-			setHasInitializedSemesterFilter(true);
-		}
-	}, [activeSemester, hasInitializedSemesterFilter]);
 	const [programFilter, setProgramFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [currentPage, setCurrentPage] = useState(1);
@@ -673,9 +673,7 @@ export default function CoursesView({
 						onResetFilters={() => {
 							setSearchQuery("");
 							setLevelFilter("");
-							setSemesterFilter(
-								activeSemester ? String(activeSemester.id) : "",
-							);
+							setSemesterFilter("");
 							setProgramFilter("");
 							setScopeFilter("");
 							setFacultyFilter("");
@@ -866,7 +864,10 @@ export default function CoursesView({
 							data={filteredCourses}
 							keyExtractor={(c) => c.id}
 							currentPage={currentPage}
-							onPageChange={setCurrentPage}
+							onPageChange={(page) => {
+								setCurrentPage(page);
+								onNeedMoreCourses?.(page * 10);
+							}}
 						/>
 					)}
 				</div>

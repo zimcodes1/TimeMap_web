@@ -12,7 +12,6 @@ import CancelAccessGrantModal, {
 	type CancelAccessGrantModalTarget,
 } from "@/components/modals/CancelAccessGrantModal";
 import {
-	getCoursesList,
 	createCourseAPI,
 	updateCourseAPI,
 	deleteCourseAPI,
@@ -35,6 +34,7 @@ import {
 import { getPrograms } from "@/api/main/programsAPI";
 import { getSemesters } from "@/api/main/semestersAPI";
 import { useAuth } from "@/hooks/useAuth";
+import { useBatchedCourses } from "@/hooks/useBatchedCourses";
 import type { Course, CourseAccessGrant, AdminLevel } from "@/types";
 import { toast } from "sonner";
 
@@ -114,15 +114,17 @@ export default function CoursesContainer() {
 		(adminLevel === "faculty" || adminLevel === "department")
 	);
 
-	// React Query Fetching for Courses & Grants
+	// Batched Courses Fetching with Background Prefetching
 	const {
-		data: coursesData,
+		courses: coursesData,
+		totalCount: coursesTotalCount,
 		isLoading: isCoursesLoading,
 		isRefetching: isCoursesRefetching,
+		loadMoreIfNecessary,
 		refetch: refetchCourses,
-	} = useQuery({
-		queryKey: ["courses", "list"],
-		queryFn: () => getCoursesList(lecturers),
+	} = useBatchedCourses({
+		lecturers,
+		batchSize: 20,
 	});
 
 	const {
@@ -190,6 +192,7 @@ export default function CoursesContainer() {
 		) => createCourseAPI(data, lecturers),
 		onSuccess: (newCourse) => {
 			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			refetchCourses();
 			toast.success(`Course "${newCourse.code}" created successfully.`);
 			setIsCreateCourseOpen(false);
 		},
@@ -209,6 +212,7 @@ export default function CoursesContainer() {
 		}) => updateCourseAPI(id, updated, lecturers),
 		onSuccess: (updatedCourse) => {
 			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			refetchCourses();
 			toast.success(`Course "${updatedCourse.code}" updated successfully.`);
 			setEditingCourse(null);
 		},
@@ -222,6 +226,7 @@ export default function CoursesContainer() {
 		mutationFn: (id: string) => deleteCourseAPI(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			refetchCourses();
 			toast.success("Course deleted successfully.");
 		},
 		onError: () => toast.error("Failed to delete course."),
@@ -336,6 +341,7 @@ export default function CoursesContainer() {
 		}) => updateCourseExamSettingsAPI(id, settings),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["courses", "list"] });
+			refetchCourses();
 			toast.success("Exam settings updated successfully.");
 			setExamConfigCourse(null);
 		},
@@ -454,6 +460,8 @@ export default function CoursesContainer() {
 		<>
 			<CoursesView
 				courses={courses}
+				totalCount={coursesTotalCount}
+				onNeedMoreCourses={loadMoreIfNecessary}
 				grants={grants}
 				faculties={faculties}
 				departments={departments}

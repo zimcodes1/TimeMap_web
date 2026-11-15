@@ -271,6 +271,13 @@ export function mapCourseToRawPayload(data: Partial<Course> & { scopeId?: string
   return payload;
 }
 
+export interface CourseListResult {
+  courses: Course[];
+  totalCount: number;
+  next: string | null;
+  previous: string | null;
+}
+
 /**
  * GET /api/courses/courses/
  */
@@ -280,11 +287,58 @@ export async function getCoursesList(
     semester?: string | number;
     program?: string | number;
     lecturer?: string | number;
+    faculty?: string | number;
+    department?: string | number;
+    level?: string | number;
+    search?: string;
+    limit?: number;
+    offset?: number;
   }
 ): Promise<Course[]> {
-  const response = await apiClient.get<RawCourse[] | { results: RawCourse[] }>("/courses/courses/", { params });
+  const response = await apiClient.get<RawCourse[] | { results: RawCourse[]; count?: number }>("/courses/courses/", { params });
   const list = Array.isArray(response.data) ? response.data : response.data?.results || [];
   return list.map((item) => mapRawCourseToCourse(item, lecturersList));
+}
+
+/**
+ * GET /api/courses/courses/ (Batched with metadata)
+ */
+export async function getCoursesBatchAPI(
+  lecturersList: User[] = [],
+  params?: {
+    semester?: string | number;
+    program?: string | number;
+    lecturer?: string | number;
+    faculty?: string | number;
+    department?: string | number;
+    level?: string | number;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<CourseListResult> {
+  const response = await apiClient.get<
+    RawCourse[] | { results: RawCourse[]; count?: number; next?: string | null; previous?: string | null }
+  >("/courses/courses/", { params });
+
+  if (Array.isArray(response.data)) {
+    const mapped = response.data.map((item) => mapRawCourseToCourse(item, lecturersList));
+    return {
+      courses: mapped,
+      totalCount: mapped.length,
+      next: null,
+      previous: null,
+    };
+  }
+
+  const results = response.data?.results || [];
+  const mapped = results.map((item) => mapRawCourseToCourse(item, lecturersList));
+  return {
+    courses: mapped,
+    totalCount: typeof response.data?.count === "number" ? response.data.count : mapped.length,
+    next: response.data?.next ?? null,
+    previous: response.data?.previous ?? null,
+  };
 }
 
 /**
